@@ -1,0 +1,27 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/ship_builder.gd" id="2_ship"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="3_player"]
+[ext_resource type="Script" path="res://scripts/camera_rig.gd" id="4_rig"]
+[ext_resource type="Script" path="res://scripts/occlusion_fader.gd" id="5_fader"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Ship" type="Node3D" parent="."]
+script = ExtResource("2_ship")
+
+[node name="Player" parent="." instance=ExtResource("3_player")]
+
+[node name="CameraRig" type="Node3D" parent="." node_paths=PackedStringArray("target")]
+script = ExtResource("4_rig")
+target = NodePath("../Player")
+
+[node name="Camera" type="Camera3D" parent="CameraRig"]
+current = true
+
+[node name="OcclusionFader" type="Node" parent="." node_paths=PackedStringArray("camera", "target")]
+script = ExtResource("5_fader")
+camera = NodePath("../CameraRig/Camera")
+target = NodePath("../Player")
