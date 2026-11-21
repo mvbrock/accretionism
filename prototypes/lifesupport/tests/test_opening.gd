@@ -61,3 +61,16 @@ func test_seconds_to_finish() -> void:
 	assert_near(hatch.seconds_to_finish(), 1.5, 1e-9, "closing time left")
 	hatch.state = Opening.State.OPEN
 	assert_near(hatch.seconds_to_finish(), 0.0, 0.0, "nothing left when open")
+
+func test_awkward_travel_time_finishes_on_the_step() -> void:
+	var door := Opening.new("d1", "cockpit", "main", 3.0)
+	door.command(true, true)
+	for i in 30:
+		door.step(0.1, true)
+	assert_true(door.state == Opening.State.OPEN, "open after exactly 30 steps")
+	assert_true(door.fraction == 1.0, "fraction snapped to 1")
+	door.command(false, true)
+	for i in 30:
+		door.step(0.1, true)
+	assert_true(door.state == Opening.State.CLOSED, "closed after exactly 30 more steps")
+	assert_true(not door.passes(), "nothing passes once closed")

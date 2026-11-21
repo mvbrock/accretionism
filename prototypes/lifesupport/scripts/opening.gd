@@ -7,6 +7,7 @@ enum State { CLOSED, OPENING, OPEN, CLOSING }
 enum CommandResult { STARTED, ALREADY, NO_POWER }
 
 const OUTSIDE := "outside"
+const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
 
 var id: String
 var room_a: String
@@ -52,12 +53,14 @@ func step(dt: float, powered: bool) -> void:
 	if not powered:
 		return
 	if state == State.OPENING:
-		fraction = minf(fraction + dt / travel_s, 1.0)
-		if fraction >= 1.0:
+		fraction += dt / travel_s
+		if fraction >= 1.0 - END_SNAP:
+			fraction = 1.0
 			state = State.OPEN
 	elif state == State.CLOSING:
-		fraction = maxf(fraction - dt / travel_s, 0.0)
-		if fraction <= 0.0:
+		fraction -= dt / travel_s
+		if fraction <= END_SNAP:
+			fraction = 0.0
 			state = State.CLOSED
 
 
