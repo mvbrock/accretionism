@@ -1,0 +1,50 @@
+class_name Room
+extends RefCounted
+## One sealed room's gas, temperature and crew. Gas is held as moles per gas.
+
+var id: String
+var volume: float  # m3
+var temperature: float  # K
+var crew: int
+var mol: Dictionary = {}  # gas -> mol, every gas in Units.GASES present
+var heat_capacity := 0.0  # J/K, set by the loader
+var hull_conductance := 0.0  # W/K, set by the loader
+
+
+func _init(room_id: String, room_volume: float, room_temperature: float, room_crew: int) -> void:
+	id = room_id
+	volume = room_volume
+	temperature = room_temperature
+	crew = room_crew
+	for gas in Units.GASES:
+		mol[gas] = 0.0
+
+
+## Moles of `gas` that make `pa` of partial pressure in `volume` at `temperature`.
+static func mol_for(pa: float, volume: float, temperature: float) -> float:
+	return pa * volume / (Units.R * temperature)
+
+
+func partial_pressure(gas: String) -> float:
+	return mol[gas] * Units.R * temperature / volume
+
+
+func pressure() -> float:
+	return total_mol() * Units.R * temperature / volume
+
+
+## The fraction of the room's gas that is `gas`; 0 when the room is empty.
+func share(gas: String) -> float:
+	var total := total_mol()
+	return 0.0 if total == 0.0 else mol[gas] / total
+
+
+func total_mol() -> float:
+	var total := 0.0
+	for gas in Units.GASES:
+		total += mol[gas]
+	return total
+
+
+func set_partial_pressure(gas: String, pa: float) -> void:
+	mol[gas] = mol_for(pa, volume, temperature)
