@@ -166,7 +166,7 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 
 ### Cyclers
 
-- **Lanes:** each cycler has its own lane, a gently curved line from Earth's edge to Mars's edge. The six lanes are stacked in the middle band and fan into each planet at different points, so no two lanes meet.
+- **Lanes:** each cycler has its own lane, a gently curved line from Earth's edge to Mars's edge. The six lanes are stacked in the middle band and fan into each planet at different points, spaced evenly along its edge (so Mars's lanes are no tighter than Earth's), so no two lanes meet.
 - **The square:** a cycler is drawn as a square on its lane. How far it is across the lane is its progress on the current leg. On an Earth → Mars leg it moves left to right, and on a Mars → Earth leg it moves right to left.
 - **Lane line:** solid from the planet it last passed to the square, and dotted from the square to the next planet.
 - **Lane order:** fixed by phase, so a lane never changes position.

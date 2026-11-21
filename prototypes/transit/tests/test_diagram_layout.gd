@@ -98,9 +98,9 @@ func test_every_curve_has_33_points_and_six_lanes_never_meet() -> void:
 			for p in layout.lanes[i].points:
 				for q in layout.lanes[j].points:
 					closest = minf(closest, p.distance_to(q))
-			# Lanes are drawn 2 px wide. Their ends step around each planet's edge, which
-			# keeps a clear gap of several pixels where they fan in.
-			assert_true(closest > 8.0, "lanes %d and %d stay apart (closest %.1f px)" % [i, j, closest])
+			# Lanes are drawn 2 px wide. Their ends are spaced around each planet's edge,
+			# which keeps them at least 11 px apart where they fan in.
+			assert_true(closest > 11.0, "lanes %d and %d stay apart (closest %.1f px)" % [i, j, closest])
 
 
 func test_cycler_moves_across_lane() -> void:
@@ -312,3 +312,26 @@ func test_parked_ship_label_sits_outside_the_ring() -> void:
 	var label := DiagramLayout.ship_label_rect(layout, transport, Vector2(60, 20))
 	assert_true(label.get_center().distance_to(center) > pos.distance_to(center), "label is farther from Earth than its icon")
 	assert_true(not label.intersects(_icon_rect(pos)), "label clear of its own icon")
+
+
+## The smallest gap between neighboring lanes' ends at `body`.
+func _smallest_lane_end_gap(layout: Dictionary, body: Orbits.Body) -> float:
+	var center := _body_center(layout, body)
+	var ends := []
+	for lane in layout.lanes:
+		var first: Vector2 = lane.points[0]
+		var last: Vector2 = lane.points[lane.points.size() - 1]
+		ends.append(first if first.distance_to(center) < last.distance_to(center) else last)
+	ends.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.y < b.y)
+	var smallest := INF
+	for i in range(1, ends.size()):
+		smallest = minf(smallest, ends[i - 1].distance_to(ends[i]))
+	return smallest
+
+
+func test_lane_ends_are_as_far_apart_at_mars_as_at_earth() -> void:
+	var layout := DiagramLayout.build(_fleet(), SIZE)
+	var at_earth := _smallest_lane_end_gap(layout, EARTH)
+	var at_mars := _smallest_lane_end_gap(layout, MARS)
+	assert_near(at_earth, at_mars, 1.0, "Earth gap %.2f px vs Mars gap %.2f px" % [at_earth, at_mars])
+	assert_true(at_mars >= 11.0, "Mars lane ends at least 11 px apart, got %.2f" % at_mars)
