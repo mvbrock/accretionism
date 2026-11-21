@@ -129,11 +129,9 @@ class CaptureScript:
 		[1, "Heron", "Mars"], [1, "Petrel", "Earth"], [1, "Robin", "Aldrin IV"],
 		[1, "Kestrel", "Earth"], [1, "Falcon", "Mars"], [1, "Plover", "Aldrin II"],
 		[15, "Swift", "Mars"], [20, "Avocet", "Earth"], [30, "Lark", "Mars"],
+		# Earth-Moon trips take about 21 h, so these leave late enough to still be flying in the shots.
+		[RUN_FRAMES - 4, "Finch", "Moon"], [RUN_FRAMES - 4, "Merlin", "Earth"],
 	]
-	## Earth-Moon trips take about 2.7 h, under one frame at 10 d/s, so they
-	## leave once the clock is paused and the capture steps one sim hour.
-	const MOON_DEPARTURES := [["Finch", "Moon"], ["Merlin", "Earth"]]
-	const MOON_STEP_DAYS := 1.0 / 24.0
 	const SELECTED_SHIP := "Heron"
 
 	var _main: Main
@@ -155,10 +153,7 @@ class CaptureScript:
 		if _frame == 2:
 			_main.select(_ship(SELECTED_SHIP))
 		if _frame == RUN_FRAMES:
-			_main.clock.paused = true
-			for departure in MOON_DEPARTURES:
-				_depart(departure[0], departure[1])
-			_main.clock.day += MOON_STEP_DAYS
+			_main.clock.paused = true # freeze the Moon trips mid-flight for the shots
 		# Each screenshot is taken a couple of frames after the view it shows is up to date.
 		if _frame == RUN_FRAMES + 3:
 			_save("table.png")
