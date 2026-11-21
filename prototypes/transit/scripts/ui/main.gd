@@ -27,6 +27,7 @@ var _capture: CaptureScript
 
 
 func _ready() -> void:
+	_match_display_scale()
 	fleet = FleetLoader.load_file(FLEET_PATH)
 	assert(fleet != null, "could not load %s" % FLEET_PATH)
 	clock.day = fleet.day
@@ -41,6 +42,26 @@ func _ready() -> void:
 	var i := args.find("--capture")
 	if i != -1 and i + 1 < args.size():
 		_capture = CaptureScript.new(self, args[i + 1])
+
+
+## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
+## pixels, so without this the UI would render at 1/scale of its intended size.
+func _match_display_scale() -> void:
+	var scale := DisplayServer.screen_get_scale()
+	if scale <= 1.0:
+		return
+	var window := get_window()
+	window.content_scale_factor = scale
+	window.size = scaled_window_size(window.size, scale, DisplayServer.screen_get_usable_rect().size)
+	window.move_to_center()
+
+
+## The window size that shows `base` logical pixels at `scale`, shrunk
+## proportionally to fit within `usable`.
+static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -> Vector2i:
+	var wanted := Vector2(base) * scale
+	var fit := minf(1.0, minf(usable.x / wanted.x, usable.y / wanted.y))
+	return Vector2i(wanted * fit)
 
 
 ## `ship` is a Cycler, a Transport, or null.
