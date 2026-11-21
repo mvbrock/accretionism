@@ -74,6 +74,8 @@ func test_explicit_origins_do_not_shift_the_random_draw() -> void:
 
 
 func test_duplicate_name_fails() -> void:
+	expect_error("duplicate ship name 'A'")
+	expect_error("duplicate ship name 'Aldrin I'")
 	var fleet := FleetLoader.from_dict(_data([{name = "A", origin = "Earth"}, {name = "A", origin = "Mars"}]))
 	assert_true(fleet == null, "duplicate transport name")
 	var clash_with_cycler := FleetLoader.from_dict(_data([{name = "Aldrin I", origin = "Earth"}]))
@@ -81,20 +83,24 @@ func test_duplicate_name_fails() -> void:
 
 
 func test_unknown_origin_fails() -> void:
+	expect_error("unknown origin 'Jupiter'")
 	assert_true(FleetLoader.from_dict(_data([{name = "A", origin = "Jupiter"}])) == null, "unknown origin")
 
 
 func test_unknown_direction_fails() -> void:
+	expect_error("unknown direction 'SIDEWAYS'")
 	var data := _data([])
 	data.cyclers[0].direction = "SIDEWAYS"
 	assert_true(FleetLoader.from_dict(data) == null, "unknown direction")
 
 
 func test_missing_file_fails() -> void:
+	expect_error("is missing or empty")
 	assert_true(FleetLoader.load_file("res://data/nope.json") == null, "missing file")
 
 
 func test_inconsistent_timetable_fails() -> void:
+	expect_error("must equal the cycle")
 	var data := _data([])
 	data.timetable.long_leg_days = 600.0
 	assert_true(FleetLoader.from_dict(data) == null, "short + long leg must equal the cycle")
@@ -110,3 +116,4 @@ func test_timetable_and_epoch_are_applied() -> void:
 	assert_near(Cycler.cycle_days, 800.0, 0.0, "cycle length applied")
 	FleetLoader.from_dict(_data([]))
 	assert_near(Cycler.cycle_days, 780.0, 0.0, "cycle length restored by the next load")
+

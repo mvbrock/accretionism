@@ -45,5 +45,9 @@ godot --headless --path . -s res://tests/run_tests.gd                 # all
 godot --headless --path . -s res://tests/run_tests.gd -- diagram      # filter by file/test name
 ```
 
+A test fails if it logs an engine or script error (a call on `null`, a type mismatch, `push_error`).
+A test that deliberately triggers one declares it with `expect_error("part of the message")`, and
+fails if that error never arrives.
+
 Screenshots after a scripted run at 10 d/s: `godot --path . -- --capture <dir>` saves
 `table.png` and `diagram.png`, then quits.

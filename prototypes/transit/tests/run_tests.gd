@@ -13,6 +13,8 @@ func _run() -> void:
 	var files := Array(DirAccess.get_files_at("res://tests")).filter(
 		func(f: String) -> bool: return f.begins_with("test_") and f.ends_with(".gd"))
 	files.sort()
+	var error_log := ErrorLog.new()
+	OS.add_logger(error_log)
 	var passed := 0
 	var failed := 0
 	for file in files:
@@ -29,9 +31,11 @@ func _run() -> void:
 				continue
 			var test: TestCase = script.new()
 			test.tree = self
+			error_log.messages.clear()
 			await test.call(test_name)
 			test.teardown()
 			await process_frame
+			test.check_logged_errors(error_log.messages)
 			if test.failures.is_empty():
 				passed += 1
 				print("ok:   %s:%s" % [file, test_name])
@@ -39,5 +43,6 @@ func _run() -> void:
 				failed += 1
 				for message in test.failures:
 					print("FAIL: %s:%s — %s" % [file, test_name, message])
+	OS.remove_logger(error_log)
 	print("\n%d passed, %d failed" % [passed, failed])
 	quit(failed)
