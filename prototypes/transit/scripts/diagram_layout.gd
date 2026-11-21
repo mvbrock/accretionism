@@ -77,8 +77,14 @@ const _MOON := Orbits.Body.MOON
 const _MARS := Orbits.Body.MARS
 
 
-## Returns {bodies, lanes, cyclers, trips, parked}; see the plan's Task 7 for
-## each entry's fields. `parked` holds docked transports too.
+## Returns a dictionary of pixel positions for a canvas of `size`:
+##   size:    the `size` it was built for
+##   bodies:  [{body, center, radius}]
+##   lanes:   [{cycler, points, split}]
+##   cyclers: [{cycler, pos}]
+##   trips:   [{transport, points, split, tri_pos, tri_angle}]
+##   parked:  [{transport, pos}], docked transports too
+## `points` is a polyline and `split` the first point ahead of the marker.
 static func build(fleet: Fleet, size: Vector2) -> Dictionary:
 	var scale := minf(size.x / DESIGN_SIZE.x, size.y / DESIGN_SIZE.y)
 	var offset := (size - DESIGN_SIZE * scale) / 2.0
