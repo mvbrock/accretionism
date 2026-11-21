@@ -210,7 +210,7 @@ The data file holds:
 - the bodies' angles at epoch
 - the cycler timetable (cycle, short-leg and long-leg lengths)
 - the names of 6 cyclers, each with its direction and phase, and 30 transports, each name unique
-- each transport's origin, either set by hand or left as `random`. A random origin is picked evenly from Earth, Moon, Mars and the six cyclers, so about a third of the transports start docked to a cycler
+- each transport's origin, either set by hand or left as `random`. A random origin is picked evenly from Earth, Moon, Mars and the six cyclers, so about two thirds of the transports start docked to a cycler
 
 All transports start parked or docked. None start in flight.
 
