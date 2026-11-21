@@ -20,4 +20,9 @@ func tick(real_delta: float) -> float:
 func label() -> String:
 	if paused:
 		return "Paused"
-	return "Day %.1f · %s" % [day, _SPEED_LABELS[speed_index]]
+	return "Day %.1f · %s" % [day, speed_label()]
+
+
+## The current speed, such as "1 d/s".
+func speed_label() -> String:
+	return _SPEED_LABELS[speed_index]
