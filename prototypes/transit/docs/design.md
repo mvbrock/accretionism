@@ -68,8 +68,8 @@ The sim searches forward in coarse steps up to a horizon (2 years), then refines
 
 | Trip | Estimate |
 |---|---|
-| Transport, Earth → Moon | about 2 h |
-| Transport, Earth → Mars | about 18 d at the closest, 87 d at the farthest |
+| Transport, Earth → Moon | about 2.7 h |
+| Transport, Earth → Mars | about 21 d at the closest (Mars moves sideways during the trip); longer as the planets separate |
 | Cycler, short leg | 146 d always |
 | Cycler, long leg | 634 d always |
 
