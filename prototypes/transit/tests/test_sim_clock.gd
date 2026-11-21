@@ -31,4 +31,4 @@ func test_labels() -> void:
 	clock.speed_index = 2
 	assert_true(clock.label() == "Day 412.5 · 10 d/s", "got %s" % clock.label())
 	clock.paused = true
-	assert_true(clock.label() == "Paused", "got %s" % clock.label())
+	assert_true(clock.label() == "Day 412.5 · Paused", "the date stays while paused, got %s" % clock.label())

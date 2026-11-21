@@ -17,10 +17,9 @@ func tick(real_delta: float) -> float:
 	return day
 
 
+## The sim date with the speed, or with "Paused" in place of the speed.
 func label() -> String:
-	if paused:
-		return "Paused"
-	return "Day %.1f · %s" % [day, speed_label()]
+	return "Day %.1f · %s" % [day, "Paused" if paused else speed_label()]
 
 
 ## The current speed, such as "1 d/s".

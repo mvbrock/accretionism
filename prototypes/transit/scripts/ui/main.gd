@@ -21,6 +21,7 @@ var selected: Variant = null
 @onready var tabs: TabContainer = %Tabs
 @onready var table: FleetTable = %Table
 @onready var dispatch: DispatchPanel = %DispatchPanel
+@onready var diagram: DiagramView = %Diagram
 
 var _capture: CaptureScript
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 	clock.day = fleet.day
 	table.show_fleet(_ships(), TableModel.rows(fleet))
 	table.ship_selected.connect(select)
+	diagram.attach(self)
 	dispatch.depart_requested.connect(_on_depart_requested)
 	play_pause_button.pressed.connect(_toggle_pause)
 	speed_button.pressed.connect(_next_speed)

@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ui/fleet_table.gd" id="2_table"]
 [ext_resource type="Script" path="res://scripts/ui/dispatch_panel.gd" id="3_dispatch"]
+[ext_resource type="Script" path="res://scripts/ui/diagram_view.gd" id="4_diagram"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -82,7 +83,10 @@ metadata/_tab_index = 0
 [node name="Diagram" type="Control" parent="Layout/Body/Tabs"]
 unique_name_in_owner = true
 visible = false
+clip_contents = true
 layout_mode = 2
+mouse_filter = 0
+script = ExtResource("4_diagram")
 metadata/_tab_index = 1
 
 [node name="DispatchPanel" type="VBoxContainer" parent="Layout/Body"]

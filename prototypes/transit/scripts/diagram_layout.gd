@@ -23,9 +23,14 @@ const BODY_CENTERS := {
 const BODY_RADII := {Orbits.Body.EARTH: 40.0, Orbits.Body.MOON: 16.0, Orbits.Body.MARS: 36.0}
 
 ## Lane control points step down the band by this much, in phase order.
-const LANE_SPACING := 48.0
-## Body-to-body routes clear the band by this much, and each nested trip by a step more.
-const ROUTE_CLEARANCE := 260.0
+const LANE_SPACING := 64.0
+## Lane ends step around each planet's edge by this angle (about 14 degrees), in
+## phase order, so the six lanes fan into a planet at separate points instead of
+## all meeting at the edge point facing the band.
+const LANE_END_STEP := 0.24
+## Body-to-body routes clear the band by this much, and each nested trip by a step
+## more. Steep enough that their ends sit outside the lanes' fan at each planet.
+const ROUTE_CLEARANCE := 480.0
 const ROUTE_NEST_STEP := 36.0
 ## Earth-Moon routes bow off the Earth-Moon line by this much, plus a step per nested trip.
 const MOON_ROUTE_BOW := 40.0
@@ -85,11 +90,14 @@ static func build(fleet: Fleet, size: Vector2) -> Dictionary:
 	return {bodies = bodies, lanes = lanes, cyclers = cyclers, trips = trips, parked = parked}
 
 
-## Lane `i` (in phase order) from Earth's edge to Mars's edge.
+## Lane `i` (in phase order) from Earth's edge to Mars's edge, top to bottom.
 static func _lane_points(i: int) -> PackedVector2Array:
 	var control := Vector2(
 		(BODY_CENTERS[_EARTH].x + BODY_CENTERS[_MARS].x) / 2.0, BAND_Y + (i - 2.5) * LANE_SPACING)
-	return _bezier(_edge_facing(_EARTH, control), control, _edge_facing(_MARS, control))
+	var fan := (i - 2.5) * LANE_END_STEP
+	var start: Vector2 = BODY_CENTERS[_EARTH] + Vector2.from_angle(fan) * BODY_RADII[_EARTH]
+	var end: Vector2 = BODY_CENTERS[_MARS] + Vector2.from_angle(PI - fan) * BODY_RADII[_MARS]
+	return _bezier(start, control, end)
 
 
 ## In design space, from the trip's origin node to its destination node.

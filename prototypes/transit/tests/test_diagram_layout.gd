@@ -98,8 +98,9 @@ func test_every_curve_has_33_points_and_six_lanes_never_meet() -> void:
 			for p in layout.lanes[i].points:
 				for q in layout.lanes[j].points:
 					closest = minf(closest, p.distance_to(q))
-			# Lanes are drawn 2 px wide, so this keeps a visible gap where they fan into a planet.
-			assert_true(closest > 2.0, "lanes %d and %d stay apart (closest %.1f px)" % [i, j, closest])
+			# Lanes are drawn 2 px wide. Their ends step around each planet's edge, which
+			# keeps a clear gap of several pixels where they fan in.
+			assert_true(closest > 8.0, "lanes %d and %d stay apart (closest %.1f px)" % [i, j, closest])
 
 
 func test_cycler_moves_across_lane() -> void:
