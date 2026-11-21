@@ -28,6 +28,8 @@ var main: Main
 var layout: Dictionary = {}
 
 var _hovered: Variant = null
+## Where the mouse last was inside the view; null once it leaves.
+var _mouse_position: Variant = null
 
 
 func attach(owner_main: Main) -> void:
@@ -43,6 +45,7 @@ func _process(_delta: float) -> void:
 ## Lays the fleet out for the current size and redraws.
 func rebuild() -> void:
 	layout = DiagramLayout.build(main.fleet, size)
+	_update_hover()
 	queue_redraw()
 
 
@@ -75,15 +78,24 @@ func _gui_input(event: InputEvent) -> void:
 		main.select(ship_at(event.position))
 		accept_event()
 	elif event is InputEventMouseMotion:
-		var hovered: Variant = ship_at(event.position)
-		if hovered != _hovered:
-			_hovered = hovered
-			queue_redraw()
+		_mouse_position = event.position
+		_update_hover()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_EXIT and _hovered != null:
-		_hovered = null
+	if what == NOTIFICATION_MOUSE_EXIT:
+		_mouse_position = null
+		_update_hover()
+
+
+## Ships move under a mouse that holds still, so hover is recomputed whenever
+## the layout changes as well as when the mouse moves.
+func _update_hover() -> void:
+	var hovered: Variant = null
+	if _mouse_position != null:
+		hovered = ship_at(_mouse_position)
+	if hovered != _hovered:
+		_hovered = hovered
 		queue_redraw()
 
 
