@@ -4,6 +4,8 @@ const EARTH := Orbits.Body.EARTH
 const MOON := Orbits.Body.MOON
 const MARS := Orbits.Body.MARS
 const SPEED := Units.TRANSPORT_SPEED_KM_PER_DAY
+const LOCAL_SPEED := Units.LOCAL_SPEED_KM_PER_DAY
+const MOON_TRIP_DAYS := 384400.0 / LOCAL_SPEED
 const POSITION_TOLERANCE_KM := 1000.0
 
 
@@ -151,3 +153,77 @@ func test_target_names() -> void:
 	var fleet := _fleet_with_cyclers()
 	assert_true(Fleet.target_name(MARS) == "Mars", "body name")
 	assert_true(Fleet.target_name(fleet.cyclers[2]) == "Aldrin III", "cycler name")
+
+
+func test_earth_moon_trips_take_about_the_same_time_both_ways() -> void:
+	var fleet := _fleet_with_cyclers()
+	var from_earth := fleet.estimate_days(_parked(fleet, "Kestrel", EARTH), MOON)
+	var from_moon := fleet.estimate_days(_parked(fleet, "Heron", MOON), EARTH)
+	assert_near(from_earth, MOON_TRIP_DAYS, 0.03, "Earth to Moon is about 21 h")
+	assert_near(from_moon, MOON_TRIP_DAYS, 0.03, "Moon to Earth is about 21 h")
+	assert_near(from_earth, from_moon, 0.05, "the two directions are within about an hour of each other")
+
+
+func test_local_estimate_equals_flown_time() -> void:
+	var fleet := _fleet_with_cyclers()
+	fleet.advance_to(10.0)
+	var transport := _parked(fleet, "Kestrel", EARTH)
+	var estimate := fleet.estimate_days(transport, MOON)
+	fleet.depart(transport, MOON)
+	assert_near(transport.t_arrive - transport.t0, estimate, 1e-9, "estimate equals the trip flown")
+
+
+func test_local_transport_arrives_at_the_moon() -> void:
+	var fleet := _fleet_with_cyclers()
+	var transport := _parked(fleet, "Kestrel", EARTH)
+	fleet.depart(transport, MOON)
+	var moon_at_arrival := Orbits.body_position(MOON, transport.t_arrive)
+	assert_near(fleet.position_of(transport, transport.t_arrive).distance_to(moon_at_arrival), 0.0, POSITION_TOLERANCE_KM,
+		"position at arrival is the Moon's")
+
+
+func test_local_transport_flies_at_local_speed_in_earths_frame() -> void:
+	var fleet := _fleet_with_cyclers()
+	var transport := _parked(fleet, "Kestrel", EARTH)
+	fleet.depart(transport, MOON)
+	var halfway := (transport.t0 + transport.t_arrive) / 2.0
+	fleet.advance_to(halfway)
+	assert_near(fleet.progress(transport), 0.5, 1e-6, "halfway by time")
+	var earth_to_ship_km := fleet.position_of(transport, halfway).distance_to(Orbits.body_position(EARTH, halfway))
+	assert_near(earth_to_ship_km, transport.leg_km / 2.0, POSITION_TOLERANCE_KM, "half the leg from Earth, in Earth's frame")
+	assert_near(transport.leg_km, LOCAL_SPEED * (transport.t_arrive - transport.t0), 1.0, "leg length uses the local speed")
+
+
+func test_other_legs_stay_in_the_sun_frame_at_full_speed() -> void:
+	var fleet := _fleet_with_cyclers()
+	var to_mars := _parked(fleet, "Kestrel", EARTH)
+	var moon_to_cycler := _parked(fleet, "Heron", MOON)
+	fleet.depart(to_mars, MARS)
+	fleet.depart(moon_to_cycler, fleet.cyclers[1])
+	for transport in [to_mars, moon_to_cycler]:
+		assert_near(transport.leg_km, SPEED * (transport.t_arrive - transport.t0), 1.0, "%s flies at 50 km/s" % transport.name)
+		assert_near(transport.depart_point.distance_to(Orbits.body_position(transport.body, 0.0)), 0.0, POSITION_TOLERANCE_KM,
+			"%s's departure point is a Sun-frame position" % transport.name)
+
+
+func test_redirect_from_local_leg_to_earth_or_moon_stays_local() -> void:
+	var fleet := _fleet_with_cyclers()
+	var transport := _parked(fleet, "Kestrel", MOON)
+	fleet.depart(transport, EARTH)
+	fleet.advance_to(transport.t0 + 0.3)
+	assert_true(fleet.depart(transport, MOON), "redirect back to the Moon")
+	assert_near(transport.leg_km, LOCAL_SPEED * (transport.t_arrive - transport.t0), 1.0, "redirect to the Moon flies at 5 km/s")
+	assert_true(transport.t_arrive - transport.t0 < 0.5, "and takes well under a day")
+	assert_near(transport.flown_before_km, LOCAL_SPEED * 0.3, 1.0, "the 0.3 d already flown counts at 5 km/s, not Earth's motion")
+
+
+func test_redirect_from_local_leg_to_mars_flies_the_sun_frame_at_full_speed() -> void:
+	var fleet := _fleet_with_cyclers()
+	var transport := _parked(fleet, "Kestrel", MOON)
+	fleet.depart(transport, EARTH)
+	fleet.advance_to(transport.t0 + 0.3)
+	var position_before := fleet.position_of(transport, fleet.day)
+	assert_true(fleet.depart(transport, MARS), "redirect to Mars")
+	assert_near(transport.leg_km, SPEED * (transport.t_arrive - transport.t0), 1.0, "Mars leg flies at 50 km/s")
+	assert_near(transport.depart_point.distance_to(position_before), 0.0, POSITION_TOLERANCE_KM,
+		"departs from the ship's Sun-frame position")

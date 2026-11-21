@@ -17,6 +17,9 @@ var host: Cycler
 var origin_name: String
 ## Where it is headed: an Orbits.Body or a Cycler.
 var target: Variant
+## A local leg is flown in Earth's frame, so its two points are offsets from
+## Earth. Any other leg is flown in the Sun's frame and its points are absolute.
+var is_local_leg: bool
 var depart_point: Vector2
 var t0: float
 var t_arrive: float

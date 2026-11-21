@@ -25,7 +25,10 @@ func position_of(t: Transport, at_day: float) -> Vector2:
 			return t.host.position(at_day)
 		_:
 			var fraction_flown := (at_day - t.t0) / (t.t_arrive - t.t0)
-			return t.depart_point.lerp(t.intercept_point, fraction_flown)
+			var flown_point := t.depart_point.lerp(t.intercept_point, fraction_flown)
+			if t.is_local_leg:
+				return Orbits.body_position(Orbits.Body.EARTH, at_day) + flown_point
+			return flown_point
 
 
 ## Bodies in Earth, Moon, Mars order, then cyclers in fleet order. A ship in
@@ -45,7 +48,8 @@ func valid_targets(t: Transport) -> Array:
 func estimate_days(t: Transport, target: Variant) -> float:
 	if not valid_targets(t).has(target):
 		return -1.0
-	return Intercept.solve(position_of(t, day), day, Units.TRANSPORT_SPEED_KM_PER_DAY, _target_path(target))
+	var is_local := _is_local_leg(t, target)
+	return Intercept.solve(_leg_point(t, is_local), day, _leg_speed(is_local), _leg_target_path(target, is_local))
 
 
 ## Sends `t` to `target` from where it is now. An in-flight ship is redirected:
@@ -54,19 +58,21 @@ func depart(t: Transport, target: Variant) -> bool:
 	var duration := estimate_days(t, target)
 	if duration < 0.0:
 		return false
-	var departure_point := position_of(t, day)
+	var is_local := _is_local_leg(t, target)
+	var departure_point := _leg_point(t, is_local)
 	if t.state == Transport.State.IN_TRANSIT:
-		t.flown_before_km += departure_point.distance_to(t.depart_point)
+		t.flown_before_km += _leg_point(t, t.is_local_leg).distance_to(t.depart_point)
 	else:
 		t.origin_name = t.host.name if t.state == Transport.State.DOCKED else Orbits.body_name(t.body)
 		t.flown_before_km = 0.0
 	t.state = Transport.State.IN_TRANSIT
 	t.target = target
+	t.is_local_leg = is_local
 	t.depart_point = departure_point
 	t.t0 = day
 	t.t_arrive = day + duration
-	t.intercept_point = _target_path(target).call(t.t_arrive)
-	t.leg_km = Units.TRANSPORT_SPEED_KM_PER_DAY * duration
+	t.intercept_point = _leg_target_path(target, is_local).call(t.t_arrive)
+	t.leg_km = _leg_speed(is_local) * duration
 	return true
 
 
@@ -99,3 +105,37 @@ func _target_path(target: Variant) -> Callable:
 	if target is Cycler:
 		return func(at_day: float) -> Vector2: return target.position(at_day)
 	return func(at_day: float) -> Vector2: return Orbits.body_position(target, at_day)
+
+
+## Earth–Moon trips (and redirects between them) are slow and short, so they are
+## flown in Earth's frame, where the Moon barely moves. Everything else is
+## flown in the Sun's frame.
+func _is_local_leg(t: Transport, target: Variant) -> bool:
+	if target is Cycler or target == Orbits.Body.MARS:
+		return false
+	match t.state:
+		Transport.State.AT_BODY:
+			return t.body != Orbits.Body.MARS
+		Transport.State.IN_TRANSIT:
+			return t.is_local_leg
+		_:
+			return false
+
+
+func _leg_speed(is_local: bool) -> float:
+	return Units.LOCAL_SPEED_KM_PER_DAY if is_local else Units.TRANSPORT_SPEED_KM_PER_DAY
+
+
+## `t`'s position now, in the frame the new leg is flown in.
+func _leg_point(t: Transport, is_local: bool) -> Vector2:
+	var point := position_of(t, day)
+	return point - Orbits.body_position(Orbits.Body.EARTH, day) if is_local else point
+
+
+## The target's path in the frame the leg is flown in.
+func _leg_target_path(target: Variant, is_local: bool) -> Callable:
+	var sun_frame_path := _target_path(target)
+	if not is_local:
+		return sun_frame_path
+	return func(at_day: float) -> Vector2:
+		return sun_frame_path.call(at_day) - Orbits.body_position(Orbits.Body.EARTH, at_day)

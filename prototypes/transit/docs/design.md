@@ -24,7 +24,7 @@ No to-scale map of orbits (the diagram is a schematic, not a map). No fuel, delt
 | Tech | Godot 4.7, GDScript, in `prototypes/transit` (same setup as `prototypes/ship`) |
 | Ship classes | Aldrin cycler, transport. Every ship has a unique name |
 | Model | Logistical. Ships fly straight lines at a constant speed; 2D orbits supply the distances |
-| Speeds | Transports 50 km/s. Each cycler leg has a fixed duration close to a real Aldrin leg, and its speed follows from that. Cyclers are always slower than 50 km/s, so a transport can always catch one |
+| Speeds | Transports 50 km/s, measured in the Sun's frame. Earth ↔ Moon trips are 5 km/s, measured in Earth's frame. Each cycler leg has a fixed duration close to a real Aldrin leg, and its speed follows from that. Cyclers are always slower than 50 km/s, so a transport can always catch one |
 | Table | Ship, Origin, Progress (% of the trip done), Destination |
 | Parked or docked | Progress and Destination show "-" |
 | Views | A table and a diagram, on separate tabs |
@@ -63,12 +63,16 @@ A transport leaves from a **departure point** at time `t0`, heading for a target
 The sim searches forward in coarse steps up to a horizon (2 years), then refines with bisection. The transport flies the straight line from the departure point to the intercept point and arrives at `t0 + t`. Its position in between is a straight-line interpolation by time.
 
 - Every possible target (a planet, the Moon, a cycler) follows a fully predictable path, so the intercept worked out at departure is exact. The sim never has to steer mid-flight or re-estimate.
-- The fastest target is the Moon, at about 31 km/s. Transports fly at 50 km/s, so an intercept always exists. The horizon only guards against bugs. If the search ever fails, departure is refused with the message *unreachable*.
+- The fastest target is the Moon, at about 31 km/s in the Sun's frame. Transports fly at 50 km/s, so an intercept always exists. The horizon only guards against bugs. If the search ever fails, departure is refused with the message *unreachable*.
+- **Local legs.** Earth's 30 km/s drift through the Sun's frame would make Earth → Moon (about 5 h) and Moon → Earth (about 1.4 h) very unequal, so Earth ↔ Moon trips use Earth's frame instead. A **local leg** is one that leaves Earth or the Moon for the other of the two. A ship on a local leg that is redirected to Earth or the Moon stays on a local leg. Every other leg is flown in the Sun's frame at 50 km/s.
+  - A local leg is solved and flown relative to Earth: every position is an offset from Earth's position that day, and the ship flies at 5 km/s through those offsets. The Moon moves about 1 km/s relative to Earth, slower than the ship, so the intercept is still unique.
+  - Both directions take about 384,400 km ÷ 5 km/s ≈ 21 h. Progress and leg length use the leg's own speed.
 - Because arrival times are worked out exactly, a fast clock can't skip past an arrival.
 
 | Trip | Estimate |
 |---|---|
-| Transport, Earth → Moon | about 2.7 h |
+| Transport, Earth → Moon | about 21 h |
+| Transport, Moon → Earth | about 21 h |
 | Transport, Earth → Mars | about 21 d at the closest (Mars moves sideways during the trip); longer as the planets separate |
 | Cycler, short leg | 146 d always |
 | Cycler, long leg | 634 d always |

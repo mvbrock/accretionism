@@ -5,6 +5,8 @@ extends RefCounted
 const AU_KM := 149597871.0
 ## 50 km/s.
 const TRANSPORT_SPEED_KM_PER_DAY := 4320000.0
+## 5 km/s, the speed of Earth–Moon trips.
+const LOCAL_SPEED_KM_PER_DAY := 432000.0
 
 const _HOURS_PER_DAY := 24
 const _MILLION_KM := 1000000.0
