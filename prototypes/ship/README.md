@@ -51,5 +51,7 @@ godot --headless --path . -s res://tests/run_tests.gd -- player  # filter by fil
 A test fails if it logs an engine or script error (a call on `null`, a type mismatch, `push_error`).
 A test that deliberately triggers one declares it with `expect_error("part of the message")`, and
 fails if that error never arrives.
+Errors from work that outlives a test (a timer, a signal) are caught too: the runner keeps watching for a few
+frames after the last test, and an error that lands in a later test names the earlier test it likely came from.
 
 Screenshots of an automated walk: `godot --path . -- --capture <dir>`.

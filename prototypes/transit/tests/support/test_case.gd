@@ -25,13 +25,16 @@ func expect_error(substring: String) -> void:
 
 
 ## Fails the test for every logged error nobody expected, and for every
-## expected error that never arrived. The runner calls this after the test.
-func check_logged_errors(logged_messages: Array[String]) -> void:
+## expected error that never arrived. The runner calls this after the test,
+## passing the test that ran before it: an error from work that outlived that
+## test is logged during this one.
+func check_logged_errors(logged_messages: Array[String], previous_test_label := "") -> void:
 	var still_expected := _expected_errors.duplicate()
 	for message in logged_messages:
 		var expected_index := still_expected.find_custom(func(substring: String) -> bool: return message.contains(substring))
 		if expected_index == -1:
-			failures.append("unexpected error logged: %s" % message)
+			var possible_leak := "" if previous_test_label.is_empty() else " (if this test did not cause it, it likely leaked from %s)" % previous_test_label
+			failures.append("unexpected error logged: %s%s" % [message, possible_leak])
 		else:
 			still_expected.remove_at(expected_index)
 	for substring in still_expected:
