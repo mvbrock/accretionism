@@ -162,7 +162,7 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 - **Moon:** a smaller white circle above and to the left of Earth. Earth–Moon trips then sit outside the Earth–Mars corridor.
 - **Mars:** a red circle, centered vertically on the right side.
 - **Background:** dark, so the white Moon shows up.
-- **Labels:** each body is always labeled. A ship shows its name when hovered or selected.
+- **Labels:** each body is always labeled. A ship shows its name on a dark backing when hovered or selected, placed clear of its own icon and of any docked row: a cycler's name hangs below its square, a docked transport's sits above the row, and a parked transport's sits out past the ring.
 
 ### Cyclers
 

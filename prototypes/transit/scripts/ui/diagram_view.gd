@@ -19,6 +19,8 @@ const AMBER := Color(1.0, 0.72, 0.2)
 const LIGHT_GRAY := Color(0.8, 0.82, 0.85)
 const HIGHLIGHT := Color(1.0, 1.0, 1.0)
 const LABEL_COLOR := Color(0.85, 0.88, 0.92)
+## Keeps a ship name readable where lanes and trips run behind it.
+const LABEL_BACKING := Color(0.05, 0.06, 0.09, 0.85)
 
 ## Set by Main.
 var main: Main
@@ -202,11 +204,15 @@ func _draw_body_label(entry: Dictionary) -> void:
 
 
 func _draw_ship_label(ship: Variant) -> void:
-	var pos: Vector2 = _cycler_pos(ship) if ship is Cycler else _transport_marker(ship).pos
-	if pos == Vector2.INF:
+	var font := get_theme_default_font()
+	var font_size := get_theme_default_font_size()
+	var text_size := font.get_string_size(ship.name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var rect := DiagramLayout.ship_label_rect(layout, ship, text_size)
+	if rect == Rect2():
 		return
-	draw_string(get_theme_default_font(), pos + Vector2(10, -10), ship.name,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, get_theme_default_font_size(), HIGHLIGHT)
+	draw_rect(rect, LABEL_BACKING)
+	var text_origin := rect.position + Vector2(DiagramLayout.LABEL_PAD, DiagramLayout.LABEL_PAD + font.get_ascent(font_size))
+	draw_string(font, text_origin, ship.name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, HIGHLIGHT)
 
 
 func _cycler_pos(cycler: Cycler) -> Vector2:

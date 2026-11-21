@@ -276,3 +276,39 @@ func test_deterministic() -> void:
 	fleet.depart(flying, fleet.cyclers[3])
 	fleet.advance_to(42.0)
 	assert_true(DiagramLayout.build(fleet, SIZE) == DiagramLayout.build(fleet, SIZE), "same fleet, same layout")
+
+
+func _icon_rect(center: Vector2) -> Rect2:
+	var reach := DiagramLayout.ICON_CLEARANCE
+	return Rect2(center - Vector2.ONE * reach, Vector2.ONE * reach * 2.0)
+
+
+func test_ship_labels_stay_clear_of_docked_row_and_own_icon() -> void:
+	var fleet := _fleet()
+	var host := fleet.cyclers[0]
+	for ship_name in ["Wren", "Heron", "Kestrel"]:
+		fleet.transports.append(Transport.docked_to(ship_name, host))
+	var layout := DiagramLayout.build(fleet, SIZE)
+	var label_size := Vector2(60, 20)
+	var square: Vector2 = _entry_for(layout.cyclers, "cycler", host).pos
+	var icons := [_icon_rect(square)]
+	for entry in layout.parked:
+		icons.append(_icon_rect(entry.pos))
+	var ships: Array = [host]
+	ships.append_array(fleet.transports)
+	for ship in ships:
+		var label := DiagramLayout.ship_label_rect(layout, ship, label_size)
+		assert_near(label.size.x, label_size.x + 2.0 * DiagramLayout.LABEL_PAD, 0.01, "%s label is padded text" % ship.name)
+		for icon in icons:
+			assert_true(not label.intersects(icon), "%s label %s clear of icon %s" % [ship.name, label, icon])
+
+
+func test_parked_ship_label_sits_outside_the_ring() -> void:
+	var fleet := _fleet()
+	var transport := _parked(fleet, "Wren", EARTH)
+	var layout := DiagramLayout.build(fleet, SIZE)
+	var center := _body_center(layout, EARTH)
+	var pos: Vector2 = _entry_for(layout.parked, "transport", transport).pos
+	var label := DiagramLayout.ship_label_rect(layout, transport, Vector2(60, 20))
+	assert_true(label.get_center().distance_to(center) > pos.distance_to(center), "label is farther from Earth than its icon")
+	assert_true(not label.intersects(_icon_rect(pos)), "label clear of its own icon")

@@ -38,6 +38,11 @@ const MOON_ROUTE_NEST_STEP := 16.0
 const PARKED_RING_GAP := 16.8
 const DOCKED_ROW_RISE := 18.0
 const DOCKED_ROW_SPACING := 14.4
+## A ship's icon (square or triangle, with its highlight outline) reaches this far
+## from its position; its name label keeps clear of that, plus a gap.
+const ICON_CLEARANCE := 14.4
+const LABEL_GAP := 4.0
+const LABEL_PAD := 3.0
 
 const _EARTH := Orbits.Body.EARTH
 const _MOON := Orbits.Body.MOON
@@ -160,6 +165,35 @@ static func _nest_indices(fleet: Fleet) -> Dictionary:
 		for i in trips.size():
 			indices[trips[i]] = i
 	return indices
+
+
+## Screen-space rect (padded around the text) for the name label of `ship`, or an
+## empty Rect2 if it is not in `layout`. It never covers the ship's own icon or
+## the docked row: a cycler's label hangs below its square, a docked transport's
+## sits above the row, a transport parked at a body's is out past the ring, and
+## an in-flight transport's is above its triangle.
+static func ship_label_rect(layout: Dictionary, ship: Variant, text_size: Vector2) -> Rect2:
+	var size := text_size + Vector2.ONE * LABEL_PAD * 2.0
+	var distance := ICON_CLEARANCE + LABEL_GAP
+	for entry in layout.cyclers:
+		if entry.cycler == ship:
+			return Rect2(entry.pos + Vector2(-size.x / 2.0, distance), size)
+	for entry in layout.trips:
+		if entry.transport == ship:
+			return Rect2(entry.tri_pos + Vector2(-size.x / 2.0, -distance - size.y), size)
+	for entry in layout.parked:
+		if entry.transport != ship:
+			continue
+		var outward := Vector2.UP
+		if ship.state == Transport.State.AT_BODY:
+			for body in layout.bodies:
+				if body.body == ship.body:
+					outward = (entry.pos - body.center).normalized()
+		# Slide the rect out along `outward` until its near corner is `distance` from the icon.
+		var half_extent_along_outward := absf(outward.x) * size.x / 2.0 + absf(outward.y) * size.y / 2.0
+		var center: Vector2 = entry.pos + outward * (distance + half_extent_along_outward)
+		return Rect2(center - size / 2.0, size)
+	return Rect2()
 
 
 ## Transport -> design-space position, for every parked or docked transport.
