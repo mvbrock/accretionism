@@ -12,6 +12,7 @@ var _frame := 0
 
 
 func _ready() -> void:
+	_match_display_scale()
 	Player.ensure_input_actions()
 	player.global_position = RingGeometry.section_down(0) * (RingGeometry.floor_apothem() - 0.05)
 	player.reset_physics_interpolation()  # teleported: don't interpolate from the origin
@@ -22,6 +23,26 @@ func _ready() -> void:
 		_capture_dir = args[i + 1]
 		player.drive_by_code = true
 		player.move_input = Vector2(0.35, 1.0)
+
+
+## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
+## pixels, so without this the view would render at 1/scale of its intended size.
+func _match_display_scale() -> void:
+	var scale := DisplayServer.screen_get_scale()
+	if scale <= 1.0:
+		return
+	var window := get_window()
+	window.content_scale_factor = scale
+	window.size = scaled_window_size(window.size, scale, DisplayServer.screen_get_usable_rect().size)
+	window.move_to_center()
+
+
+## The window size that shows `base` logical pixels at `scale`, shrunk
+## proportionally to fit within `usable`.
+static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -> Vector2i:
+	var wanted := Vector2(base) * scale
+	var fit := minf(1.0, minf(usable.x / wanted.x, usable.y / wanted.y))
+	return Vector2i(wanted * fit)
 
 
 func _unhandled_input(event: InputEvent) -> void:
