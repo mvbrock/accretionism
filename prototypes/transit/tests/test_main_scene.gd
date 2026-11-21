@@ -135,3 +135,37 @@ func test_scaled_window_size_fits_the_screen() -> void:
 	var size := Main.scaled_window_size(Vector2i(1600, 900), 2.0, Vector2i(3024, 1890))
 	assert_true(size.x <= 3024 and size.y <= 1890, "fits the usable screen (got %s)" % size)
 	assert_near(float(size.x) / size.y, 16.0 / 9.0, 0.01, "keeps the 16:9 shape")
+
+
+func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() -> void:
+	var main := _main()
+	var kestrel: Transport = _ship(main, "Kestrel")
+	main.select(kestrel)
+	var mars_index := _option_texts(main).find("Mars")
+	assert_true(mars_index != -1, "Mars is a valid target for Kestrel")
+	main.dispatch.targets.select(mars_index)
+	main.dispatch.depart_button.pressed.emit()
+	assert_true(kestrel.state == Transport.State.IN_TRANSIT, "Kestrel is on its way")
+	main.dispatch.targets.select(_option_texts(main).find("Mars"))
+	assert_true(main.dispatch.selected_target() == Orbits.Body.MARS, "Mars is chosen mid-flight")
+
+	main.fleet.advance_to(main.fleet.day + 1000.0)
+	main.dispatch.refresh()
+	assert_true(not _option_texts(main).has("Mars"), "Mars is no longer a target once Kestrel has arrived")
+	assert_true(main.dispatch.selected_target() == null, "nothing is selected")
+	assert_true(main.dispatch.targets.selected == -1, "the list shows no choice")
+	assert_true(main.dispatch.estimate_label.text == "Pick a destination", "got '%s'" % main.dispatch.estimate_label.text)
+	assert_true(main.dispatch.depart_button.disabled, "Depart is disabled until a destination is picked")
+
+	main.dispatch.targets.select(0)
+	main.dispatch.refresh()
+	assert_true(main.dispatch.estimate_label.text.begins_with("Est. travel time: "), "picking a target brings the estimate back")
+	assert_true(not main.dispatch.depart_button.disabled, "and Depart")
+
+
+func test_dispatch_keeps_the_list_when_its_targets_have_not_changed() -> void:
+	var main := _main()
+	main.select(_ship(main, "Kestrel"))
+	main.dispatch.targets.set_item_metadata(0, "still the same item")
+	main.dispatch.refresh()
+	assert_true(main.dispatch.targets.get_item_metadata(0) == "still the same item", "refresh leaves an unchanged list alone")

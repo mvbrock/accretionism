@@ -7,6 +7,7 @@ signal depart_requested(transport: Transport, target: Variant)
 
 const NOTHING_SELECTED := "Select a ship"
 const CYCLER_NOTE := "Cyclers keep to their timetable."
+const NO_DESTINATION_CHOSEN := "Pick a destination"
 
 @onready var ship_label: Label = %ShipName
 @onready var note_label: Label = %Note
@@ -36,6 +37,10 @@ func show_ship(fleet: Fleet, ship: Variant) -> void:
 	note_label.visible = ship is Cycler
 	for control in [targets, estimate_label, depart_button]:
 		control.visible = ship is Transport
+	if ship is Transport:
+		_set_targets(fleet.valid_targets(ship))
+		if not _target_list.is_empty():
+			targets.select(0) # a newly shown transport starts on its first target
 	refresh()
 
 
@@ -46,7 +51,11 @@ func refresh() -> void:
 	var valid := _fleet.valid_targets(_ship)
 	if valid != _target_list:
 		_set_targets(valid)
-	show_estimate(_fleet.estimate_days(_ship, selected_target()))
+	var target: Variant = selected_target()
+	if target == null:
+		show_no_destination()
+	else:
+		show_estimate(_fleet.estimate_days(_ship, target))
 
 
 func selected_target() -> Variant:
@@ -61,14 +70,21 @@ func show_estimate(days: float) -> void:
 	depart_button.disabled = not reachable
 
 
-## Refills the list, keeping the current choice when it is still valid.
+func show_no_destination() -> void:
+	estimate_label.text = NO_DESTINATION_CHOSEN
+	depart_button.disabled = true
+
+
+## Refills the list, keeping the current choice if it is still valid and
+## otherwise choosing nothing, so Depart never sends a ship somewhere the
+## player didn't pick.
 func _set_targets(valid: Array) -> void:
 	var previous: Variant = selected_target()
 	_target_list = valid
 	targets.clear()
 	for target in valid:
 		targets.add_item(Fleet.target_name(target))
-	targets.select(maxi(0, valid.find(previous)) if not valid.is_empty() else -1)
+	targets.select(valid.find(previous))
 
 
 func _on_depart_pressed() -> void:
