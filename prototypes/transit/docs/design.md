@@ -60,7 +60,7 @@ A transport leaves from a **departure point** at time `t0`, heading for a target
 |target(t0 + t) − departure point| = speed × t
 ```
 
-The sim searches forward in coarse steps up to a horizon (2 years), then refines with bisection. The transport flies the straight line from the departure point to the intercept point and arrives at `t0 + t`. Its position in between is a straight-line interpolation by time.
+The sim bisects over [0, horizon] (the horizon is 2 years). This is valid without a coarse search first because every target is slower than the ship, so the reach margin (how much farther the ship can fly than the target is away) only grows with `t`: it is negative before the intercept and positive after, and the root is unique. The transport flies the straight line from the departure point to the intercept point and arrives at `t0 + t`. Its position in between is a straight-line interpolation by time.
 
 - Every possible target (a planet, the Moon, a cycler) follows a fully predictable path, so the intercept worked out at departure is exact. The sim never has to steer mid-flight or re-estimate.
 - The fastest target is the Moon, at about 31 km/s in the Sun's frame. Transports fly at 50 km/s, so an intercept always exists. The horizon only guards against bugs. If the search ever fails, departure is refused with the message *unreachable*.
@@ -162,7 +162,7 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 - **Moon:** a smaller white circle above and to the left of Earth. Earth–Moon trips then sit outside the Earth–Mars corridor.
 - **Mars:** a red circle, centered vertically on the right side.
 - **Background:** dark, so the white Moon shows up.
-- **Labels:** each body is always labeled. A ship shows its name on a dark backing when hovered or selected, placed clear of its own icon and of any docked row: a cycler's name hangs below its square, a docked transport's sits above the row, and a parked transport's sits out past the ring.
+- **Labels:** each body is always labeled. A ship shows its name on a dark backing when hovered or selected, placed clear of its own icon and of any docked row: a cycler's name hangs below its square, a docked transport's sits above the row, an in-flight transport's sits above its triangle (below it when there is no room above, near the top of the canvas), and a parked transport's sits out past the ring.
 
 ### Cyclers
 
@@ -174,24 +174,25 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 ### Transports
 
 - **Parked at a body:** the triangle sits in a ring around that body's circle, spaced evenly. No line is drawn.
-- **Docked to a cycler:** the triangle sits in a small row just above the cycler's square and moves with it. No line is drawn.
+- **Docked to a cycler:** the triangle sits in a small row just above the cycler's square and moves with it. No line is drawn. When the cycler is at a flyby and its square sits on a planet's edge, the whole row lifts until every triangle clears the planet's disc.
 - **In flight:**
   - A curve runs from the origin's node to the destination's node, where a node is a body circle or a cycler square.
   - The triangle sits on the curve at its progress fraction and points toward the destination.
   - The curve is solid from the origin to the triangle and dotted from the triangle onward.
   - When an end of the curve is a cycler, it follows the square as it moves.
+  - A transport redirected back to where it started draws a teardrop loop that leaves and returns to its origin node on the node's free side: toward the lower left for Earth, the upper left for the Moon and the lower right for Mars. Back to a cycler's square, the loop hangs below the square, so it never hides the docked row above it.
 
 ### Keeping lines from overlapping
 
 The layout follows fixed rules, worked out every frame by a pure function, so each line stays put and doesn't jump between frames:
 
-1. **Body-to-body trips stay out of the cycler band.** Trips toward Mars arc above the band, and trips toward Earth or the Moon arc below it. Traffic in each direction keeps to its own side.
-2. **Trips on the same route nest.** When several transports share an origin, a destination and a direction, each one gets its own arc, a step further from the band than the one before. Order is by departure time, so an arc moves only when a trip inside it ends.
-3. **Earth–Moon trips are short arcs on the left.** Trips toward the Moon bow to one side and trips back to Earth bow to the other.
+1. **Body-to-body trips stay out of the cycler band.** Trips toward Mars arc above the band, and trips toward Earth or the Moon arc below it. Traffic in each direction keeps to its own side. Mars to Moon goes around Earth's left side: it runs under the band, passes below Earth, and then curves up the left of it to reach the Moon.
+2. **Trips on the same route nest.** When several transports share an origin, a destination and a direction, each one gets its own arc, a step further from the band than the one before. Order is by departure time, so an arc moves only when a trip inside it ends. Nesting is compressed to keep every route on the canvas: once a route is too busy to fit, its step shrinks, so its arcs also shift when a trip joins or leaves.
+3. **Earth-Moon trips are short arcs on the left.** Trips toward the Moon bow to one side and trips back to Earth bow to the other.
 4. **Trips to and from cyclers are straight lines** between the body and the square. They cross only the lanes between that body and the cycler's own lane. Every square is on a lane, so this can't be avoided entirely.
 5. **Lines end at different points around a node.** When several lines meet one circle, they start or end at points spread around its edge, ordered by the direction each line leaves in. They don't all converge on the center.
 
-The rules minimize overlaps without eliminating them. A crossing can happen only under rule 4, or between trips headed in opposite directions to a cycler.
+Body-to-body trips never cross a cycler lane. Lanes are crossed only under rule 4. Trips on different routes may cross each other, and so may trips headed in opposite directions to a cycler.
 
 ### Colors and shapes
 
@@ -226,7 +227,7 @@ All transports start parked or docked. None start in flight.
 
 - **Simulation core**: plain GDScript classes, no nodes. It holds orbits, the intercept solver, cycler legs, transports and the clock. Everything that can be tested lives here.
 - **Diagram layout**: a pure function from the fleet's state to shapes and curves in screen space. It holds no nodes and is tested headless.
-- **UI**: a thin layer of scenes for the clock bar, the tabs, the table, the diagram and the dispatch panel. The diagram is a `Node2D` that draws the layout's output with `_draw()`. The UI reads the core's state and sends commands to it.
+- **UI**: a thin layer of scenes for the clock bar, the tabs, the table, the diagram and the dispatch panel. The diagram is a `Control` (so it gets mouse input and clipping) that draws the layout's output with `_draw()`. The UI reads the core's state and sends commands to it.
 - **Tests**: headless, with the same runner pattern as `prototypes/ship/tests`. They cover:
   - orbit positions and periods
   - intercept times against cases solved by hand
