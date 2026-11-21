@@ -36,6 +36,33 @@ const ROUTE_NEST_STEP := 36.0
 ## Earth-Moon routes bow off the Earth-Moon line by this much, plus a step per nested trip.
 const MOON_ROUTE_BOW := 40.0
 const MOON_ROUTE_NEST_STEP := 16.0
+## A busy route's outermost arc keeps this far inside the design space (room
+## for its triangle); past that, the route's nesting step shrinks to fit. Small
+## enough that the Moon -> Mars route, which peaks about 22 below the top
+## edge even when alone, has some room to nest.
+const ROUTE_CANVAS_MARGIN := 16.0
+const NEST_FIT_ITERATIONS := 20
+## Trips from Mars to the Moon go around Earth's left side, below and then left
+## of it, through these two cubic control points. The first keeps the departure
+## from Mars steeper than the lanes' fan; nested trips push both outward.
+const MARS_MOON_FIRST_CONTROL := Vector2(860, BAND_Y + 800)
+const MARS_MOON_SECOND_CONTROL := Vector2(-200, 600)
+## A trip turned back to its own origin flies a teardrop loop off the node's free
+## side: it leaves and returns LOOP_SPREAD either side of that direction, and its
+## control points reach out by the loop's reach, LOOP_FLARE either side of it.
+const LOOP_SPREAD := 0.5
+const LOOP_FLARE := 0.5
+const BODY_LOOP_REACH := 64.0
+## A cycler's loop hangs below its square (its docked row is above), starting a
+## little off the square's center so its triangle never hides under the square.
+const CYCLER_LOOP_ROOT := 9.0
+const CYCLER_LOOP_REACH := 40.0
+## Each body's free side: away from the lanes, its label and the Moon routes.
+const LOOP_DIRECTIONS := {
+	Orbits.Body.EARTH: 3.0 * PI / 4.0, # down and left
+	Orbits.Body.MOON: -2.6, # up and left
+	Orbits.Body.MARS: PI / 4.0, # down and right
+}
 const PARKED_RING_GAP := 16.8
 const DOCKED_ROW_RISE := 18.0
 const DOCKED_ROW_SPACING := 14.4
@@ -78,11 +105,11 @@ static func build(fleet: Fleet, size: Vector2) -> Dictionary:
 		cyclers.append({cycler = cycler, pos = to_screen.call(marker.pos)})
 
 	var trips := []
-	var nest_index := _nest_indices(fleet)
+	var outward := _nest_offsets(fleet)
 	for t in fleet.transports:
 		if t.state != Transport.State.IN_TRANSIT:
 			continue
-		var points := _trip_points(fleet, t, square_at, nest_index.get(t, 0))
+		var points := _trip_points(fleet, t, square_at, outward.get(t, 0.0))
 		var marker := _marker_at(points, clampf(fleet.progress(t), 0.0, 1.0))
 		trips.append({transport = t, points = _points_to_screen(points, to_screen), split = marker.split,
 			tri_pos = to_screen.call(marker.pos), tri_angle = marker.angle})
@@ -93,7 +120,7 @@ static func build(fleet: Fleet, size: Vector2) -> Dictionary:
 		if slot.has(t):
 			parked.append({transport = t, pos = to_screen.call(slot[t])})
 
-	return {bodies = bodies, lanes = lanes, cyclers = cyclers, trips = trips, parked = parked}
+	return {size = size, bodies = bodies, lanes = lanes, cyclers = cyclers, trips = trips, parked = parked}
 
 
 ## Lane `i` (in phase order) from Earth's edge to Mars's edge, top to bottom.
@@ -107,10 +134,14 @@ static func _lane_points(i: int) -> PackedVector2Array:
 	return _bezier(start, control, end)
 
 
-## In design space, from the trip's origin node to its destination node.
-static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, nest: int) -> PackedVector2Array:
+## In design space, from the trip's origin node to its destination node. A
+## body-to-body route sits `outward` further from the band than its first trip.
+static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, outward: float) -> PackedVector2Array:
 	var origin: Variant = _origin_node(fleet, t)
 	var destination: Variant = t.target
+	var is_turned_back := t.origin_name == Fleet.target_name(destination)
+	if is_turned_back and origin is Cycler:
+		return _loop(square_at[origin], CYCLER_LOOP_ROOT, PI / 2.0, CYCLER_LOOP_REACH)
 	if origin is Cycler or destination is Cycler:
 		var start: Vector2 = square_at[origin] if origin is Cycler else BODY_CENTERS[origin]
 		var end: Vector2 = square_at[destination] if destination is Cycler else BODY_CENTERS[destination]
@@ -119,23 +150,34 @@ static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, nest
 		if not destination is Cycler:
 			end = _edge_facing(destination, start)
 		return _line(start, end)
-	var control := _route_control(origin, destination, nest)
-	return _bezier(_edge_facing(origin, control), control, _edge_facing(destination, control))
+	return _route_points(origin, destination, outward)
 
 
-## The control point of a body-to-body route, `nest` steps out from the band.
-static func _route_control(origin: Orbits.Body, destination: Orbits.Body, nest: int) -> Vector2:
+## A route between bodies, or a loop back to the same body, `outward` further
+## out than the route's first trip.
+static func _route_points(origin: Orbits.Body, destination: Orbits.Body, outward: float) -> PackedVector2Array:
 	var from_center: Vector2 = BODY_CENTERS[origin]
 	var to_center: Vector2 = BODY_CENTERS[destination]
 	var middle := (from_center + to_center) / 2.0
-	if origin != destination and [origin, destination].has(_EARTH) and [origin, destination].has(_MOON):
+	if origin == destination:
+		return _loop(from_center, BODY_RADII[origin], LOOP_DIRECTIONS[origin], BODY_LOOP_REACH + outward)
+	if _is_earth_moon(origin, destination):
 		# The + side, taken toward the Moon, is the one facing up and right.
 		var away_from_screen_edge := -(BODY_CENTERS[_MOON] - BODY_CENTERS[_EARTH]).normalized().orthogonal()
 		var side := 1.0 if destination == _MOON else -1.0
-		return middle + away_from_screen_edge * side * (MOON_ROUTE_BOW + nest * MOON_ROUTE_NEST_STEP)
-	if destination == _MARS:
-		return Vector2(middle.x, BAND_Y - ROUTE_CLEARANCE - nest * ROUTE_NEST_STEP)
-	return Vector2(middle.x, BAND_Y + ROUTE_CLEARANCE + nest * ROUTE_NEST_STEP)
+		var bow_control := middle + away_from_screen_edge * side * (MOON_ROUTE_BOW + outward)
+		return _bezier(_edge_facing(origin, bow_control), bow_control, _edge_facing(destination, bow_control))
+	if origin == _MARS and destination == _MOON:
+		var first := MARS_MOON_FIRST_CONTROL + Vector2(0, outward)
+		var second := MARS_MOON_SECOND_CONTROL + Vector2(-outward / 4.0, outward / 2.0)
+		return _cubic(_edge_facing(_MARS, first), first, second, _edge_facing(_MOON, second))
+	var away_from_band := -1.0 if destination == _MARS else 1.0
+	var control := Vector2(middle.x, BAND_Y + away_from_band * (ROUTE_CLEARANCE + outward))
+	return _bezier(_edge_facing(origin, control), control, _edge_facing(destination, control))
+
+
+static func _is_earth_moon(origin: Orbits.Body, destination: Orbits.Body) -> bool:
+	return [origin, destination].has(_EARTH) and [origin, destination].has(_MOON)
 
 
 ## An Orbits.Body or a Cycler, found from the trip's origin name.
@@ -150,30 +192,68 @@ static func _origin_node(fleet: Fleet, t: Transport) -> Variant:
 	return _EARTH
 
 
-## Transport -> its index among in-flight trips on the same route, by departure time.
-static func _nest_indices(fleet: Fleet) -> Dictionary:
-	var routes := {}
+## Transport -> how much further out than its route's first trip it arcs, for
+## every in-flight trip between bodies. Trips nest by departure time a step
+## apart; a route too busy to fit on the canvas at the full step gets a smaller one.
+static func _nest_offsets(fleet: Fleet) -> Dictionary:
+	var routes := {} # [origin, destination] -> its trips
 	for t in fleet.transports:
-		if t.state == Transport.State.IN_TRANSIT:
-			var route := "%s>%s" % [t.origin_name, Fleet.target_name(t.target)]
-			if not routes.has(route):
-				routes[route] = []
-			routes[route].append(t)
-	var indices := {}
+		if t.state != Transport.State.IN_TRANSIT or t.target is Cycler:
+			continue
+		var origin: Variant = _origin_node(fleet, t)
+		if origin is Cycler:
+			continue
+		var route := [origin, t.target]
+		if not routes.has(route):
+			routes[route] = []
+		routes[route].append(t)
+	var offsets := {}
 	for route in routes:
 		var trips: Array = routes[route]
 		trips.sort_custom(func(a: Transport, b: Transport) -> bool:
 			return a.t0 < b.t0 or (a.t0 == b.t0 and a.name < b.name))
+		var step := _fitted_nest_step(route[0], route[1], trips.size())
 		for i in trips.size():
-			indices[trips[i]] = i
-	return indices
+			offsets[trips[i]] = i * step
+	return offsets
+
+
+## The route's full nesting step, or the largest smaller one (found by bisection)
+## that keeps all `count` of its trips inside the canvas.
+static func _fitted_nest_step(origin: Orbits.Body, destination: Orbits.Body, count: int) -> float:
+	var is_short_route := origin == destination or _is_earth_moon(origin, destination)
+	var full_step := MOON_ROUTE_NEST_STEP if is_short_route else ROUTE_NEST_STEP
+	var outermost := count - 1
+	var fits := func(step: float) -> bool:
+		return _inside_canvas(_route_points(origin, destination, step * outermost))
+	if outermost == 0 or fits.call(full_step):
+		return full_step
+	var fitting := 0.0
+	var too_far := full_step
+	for i in NEST_FIT_ITERATIONS:
+		var step := (fitting + too_far) / 2.0
+		if fits.call(step):
+			fitting = step
+		else:
+			too_far = step
+	return fitting
+
+
+static func _inside_canvas(points: PackedVector2Array) -> bool:
+	var margin := Vector2.ONE * ROUTE_CANVAS_MARGIN
+	var inside := Rect2(margin, DESIGN_SIZE - margin * 2.0)
+	for p in points:
+		if not inside.has_point(p):
+			return false
+	return true
 
 
 ## Screen-space rect (padded around the text) for the name label of `ship`, or an
 ## empty Rect2 if it is not in `layout`. It never covers the ship's own icon or
 ## the docked row: a cycler's label hangs below its square, a docked transport's
 ## sits above the row, a transport parked at a body's is out past the ring, and
-## an in-flight transport's is above its triangle.
+## an in-flight transport's is above its triangle, or below it where the canvas
+## has no room above.
 static func ship_label_rect(layout: Dictionary, ship: Variant, text_size: Vector2) -> Rect2:
 	var size := text_size + Vector2.ONE * LABEL_PAD * 2.0
 	var distance := ICON_CLEARANCE + LABEL_GAP
@@ -182,7 +262,10 @@ static func ship_label_rect(layout: Dictionary, ship: Variant, text_size: Vector
 			return Rect2(entry.pos + Vector2(-size.x / 2.0, distance), size)
 	for entry in layout.trips:
 		if entry.transport == ship:
-			return Rect2(entry.tri_pos + Vector2(-size.x / 2.0, -distance - size.y), size)
+			var above := Rect2(entry.tri_pos + Vector2(-size.x / 2.0, -distance - size.y), size)
+			if above.position.y >= 0.0:
+				return above
+			return Rect2(entry.tri_pos + Vector2(-size.x / 2.0, distance), size)
 	for entry in layout.parked:
 		if entry.transport != ship:
 			continue
@@ -216,15 +299,42 @@ static func _parked_positions(fleet: Fleet, square_at: Dictionary) -> Dictionary
 	for place in groups:
 		var group: Array = groups[place]
 		group.sort_custom(func(a: Transport, b: Transport) -> bool: return a.name < b.name)
+		var slots := _docked_row(square_at[place], group.size()) if place is Cycler \
+			else _parked_ring(place, group.size())
 		for i in group.size():
-			if place is Cycler:
-				var along := (i - (group.size() - 1) / 2.0) * DOCKED_ROW_SPACING
-				positions[group[i]] = square_at[place] + Vector2(along, -DOCKED_ROW_RISE)
-			else:
-				var angle := -PI / 2.0 + TAU * i / group.size()
-				positions[group[i]] = BODY_CENTERS[place] \
-					+ Vector2.from_angle(angle) * (BODY_RADII[place] + PARKED_RING_GAP)
+			positions[group[i]] = slots[i]
 	return positions
+
+
+## `count` slots spaced evenly in a ring just outside `body`, from the top.
+static func _parked_ring(body: Orbits.Body, count: int) -> PackedVector2Array:
+	var ring := PackedVector2Array()
+	for i in count:
+		var angle := -PI / 2.0 + TAU * i / count
+		ring.append(BODY_CENTERS[body] + Vector2.from_angle(angle) * (BODY_RADII[body] + PARKED_RING_GAP))
+	return ring
+
+
+## `count` slots in a level row centered just above `square`. At a flyby, where
+## the row would sit on a planet, the whole row lifts until it clears the
+## planet's circle by half a slot.
+static func _docked_row(square: Vector2, count: int) -> PackedVector2Array:
+	var row := PackedVector2Array()
+	for i in count:
+		row.append(square + Vector2((i - (count - 1) / 2.0) * DOCKED_ROW_SPACING, -DOCKED_ROW_RISE))
+	for body in BODY_CENTERS:
+		var center: Vector2 = BODY_CENTERS[body]
+		var clearance: float = BODY_RADII[body] + DOCKED_ROW_SPACING / 2.0
+		if not Array(row).any(func(slot: Vector2) -> bool: return slot.distance_to(center) < clearance):
+			continue
+		var lifted_y := row[0].y
+		for slot in row:
+			var dx := absf(slot.x - center.x)
+			if dx < clearance:
+				lifted_y = minf(lifted_y, center.y - sqrt(clearance * clearance - dx * dx))
+		for i in count:
+			row[i].y = lifted_y
+	return row
 
 
 ## {pos, split, angle} for a marker `fraction` of the way along `points` by arc length.
@@ -266,6 +376,24 @@ static func _bezier(start: Vector2, control: Vector2, end: Vector2) -> PackedVec
 		var u := float(i) / (CURVE_POINTS - 1)
 		points.append(start.lerp(control, u).lerp(control.lerp(end, u), u))
 	return points
+
+
+static func _cubic(start: Vector2, first: Vector2, second: Vector2, end: Vector2) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in CURVE_POINTS:
+		var u := float(i) / (CURVE_POINTS - 1)
+		var v := 1.0 - u
+		points.append(start * v * v * v + first * 3.0 * v * v * u + second * 3.0 * v * u * u + end * u * u * u)
+	return points
+
+
+## A teardrop leaving `root` out from `center`, LOOP_SPREAD to one side of
+## `direction`, and coming back the same distance out on the other side.
+static func _loop(center: Vector2, root: float, direction: float, reach: float) -> PackedVector2Array:
+	var leave := center + Vector2.from_angle(direction - LOOP_SPREAD) * root
+	var come_back := center + Vector2.from_angle(direction + LOOP_SPREAD) * root
+	return _cubic(leave, leave + Vector2.from_angle(direction - LOOP_FLARE) * reach,
+		come_back + Vector2.from_angle(direction + LOOP_FLARE) * reach, come_back)
 
 
 static func _line(start: Vector2, end: Vector2) -> PackedVector2Array:
