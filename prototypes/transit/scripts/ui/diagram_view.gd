@@ -3,9 +3,9 @@ extends Control
 ## Draws the schematic from DiagramLayout every frame while visible. Clicking a
 ## shape selects that ship; clicking empty space clears the selection.
 
-const PICK_RADIUS := 12.0
-const SQUARE_SIZE := 12.0
-const TRIANGLE_SIZE := 10.0
+const PICK_RADIUS := 14.4
+const SQUARE_SIZE := 14.4
+const TRIANGLE_SIZE := 12.0
 const LANE_WIDTH := 2.0
 const TRIP_WIDTH := 1.5
 const DASH := 4.0
@@ -189,7 +189,7 @@ func _draw_body_label(entry: Dictionary) -> void:
 	var text := Orbits.body_name(entry.body)
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	# Clear of the parked ring: Earth's label to its left, Mars's to its right, the Moon's above it.
-	var reach: float = entry.radius + 22.0
+	var reach: float = entry.radius + 26.0
 	var anchor: Vector2 = entry.center
 	match entry.body:
 		Orbits.Body.EARTH:

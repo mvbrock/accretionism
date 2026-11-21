@@ -104,7 +104,7 @@ text = "Dispatch"
 [node name="ShipName" type="Label" parent="Layout/Body/DispatchPanel"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 26
 text = "Select a ship"
 
 [node name="Note" type="Label" parent="Layout/Body/DispatchPanel"]

@@ -48,7 +48,8 @@ func test_click_selects_ship() -> void:
 	var cycler: Cycler = _ship(main, "Aldrin III")
 	var square := _cycler_pos(view, cycler)
 	assert_true(view.ship_at(square) == cycler, "the square is the cycler")
-	assert_true(view.ship_at(square + Vector2(4, 4)) == cycler, "anywhere on the 12 px square picks it")
+	assert_true(view.ship_at(square + Vector2(7, 7)) == cycler, "anywhere on the 14.4 px square picks it")
+	assert_true(view.ship_at(square + Vector2(13.5, 0)) == cycler, "a click within the 14.4 px pick radius picks it")
 	var empty := Vector2(2, view.size.y - 2)
 	assert_true(view.ship_at(empty) == null, "empty space picks nothing")
 

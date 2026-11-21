@@ -122,6 +122,8 @@ The window has three parts:
 - a **tab area**: Table and Diagram
 - a **dispatch panel** at the side
 
+All text is 19 px (20% above Godot's default of 16), and the dispatch panel's ship name is 26 px.
+
 The clock bar and dispatch panel stay on screen in both tabs. Switching tabs keeps the selected ship selected. Clicking a row in the table, or a shape in the diagram, selects that ship.
 
 ## Table view
@@ -192,6 +194,8 @@ The layout follows fixed rules, worked out every frame by a pure function, so ea
 The rules minimize overlaps without eliminating them. A crossing can happen only under rule 4, or between trips headed in opposite directions to a cycler.
 
 ### Colors and shapes
+
+Cycler squares are 14.4 px wide and transport triangles 12 px long. A click within 14.4 px of a ship selects it.
 
 | Thing | Shape | Color |
 |---|---|---|

@@ -226,7 +226,7 @@ func test_no_lines_for_parked_and_docked() -> void:
 	var square: Vector2 = _entry_for(layout.cyclers, "cycler", fleet.cyclers[2]).pos
 	var parked_pos: Vector2 = _entry_for(layout.parked, "transport", parked).pos
 	var docked_pos: Vector2 = _entry_for(layout.parked, "transport", docked).pos
-	assert_near(parked_pos.distance_to(earth), 40.0 + 14.0, 0.01, "parked in a ring just outside Earth")
+	assert_near(parked_pos.distance_to(earth), 40.0 + 16.8, 0.01, "parked in a ring just outside Earth")
 	assert_true(docked_pos.distance_to(square + Vector2(0, -18)) < 0.01, "docked just above its cycler's square")
 
 
@@ -256,7 +256,7 @@ func test_docked_row_spacing() -> void:
 	var square: Vector2 = _entry_for(layout.cyclers, "cycler", host).pos
 	var positions: Array = layout.parked.map(func(entry: Dictionary) -> Vector2: return entry.pos)
 	assert_true(positions.all(func(p: Vector2) -> bool: return absf(p.y - (square.y - 18.0)) < 0.01), "row 18 px above")
-	assert_near(absf(positions[0].x - positions[1].x), 12.0, 0.01, "12 px apart")
+	assert_near(absf(positions[0].x - positions[1].x), 14.4, 0.01, "14.4 px apart")
 	assert_near((positions[0].x + positions[1].x) / 2.0, square.x, 0.01, "centered on the square")
 
 

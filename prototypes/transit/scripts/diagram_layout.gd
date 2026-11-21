@@ -35,9 +35,9 @@ const ROUTE_NEST_STEP := 36.0
 ## Earth-Moon routes bow off the Earth-Moon line by this much, plus a step per nested trip.
 const MOON_ROUTE_BOW := 40.0
 const MOON_ROUTE_NEST_STEP := 16.0
-const PARKED_RING_GAP := 14.0
+const PARKED_RING_GAP := 16.8
 const DOCKED_ROW_RISE := 18.0
-const DOCKED_ROW_SPACING := 12.0
+const DOCKED_ROW_SPACING := 14.4
 
 const _EARTH := Orbits.Body.EARTH
 const _MOON := Orbits.Body.MOON
