@@ -14,7 +14,7 @@ Prove a **logistics view of a ship's interior**: a dashboard that shows the stat
 
 ## Non-goals
 
-No player character, crew movement, walking or first-person view. No power generation, batteries or load limits. No hull damage, fire, or gases other than O₂, N₂ and CO₂. No adiabatic cooling during venting. No art, audio or save/load. Any of these can come later.
+No player character, passenger movement, walking or first-person view. No power generation, batteries or load limits. No hull damage, fire, or gases other than O₂, N₂ and CO₂. No adiabatic cooling during venting. No art, audio or save/load. Any of these can come later.
 
 ## Decisions
 
@@ -27,8 +27,8 @@ No player character, crew movement, walking or first-person view. No power gener
 | Life support reach | Each system reaches every room through its own ducts, so it works with every door closed |
 | Venting | Gas leaves through the open hatch. It reaches the hatch from other rooms only through open doors |
 | Repressurizing | Pressure control refills a room on its own once that room no longer connects to the outside |
-| CO₂ source | Two crew, fixed in place (one in the cockpit, one in the main room). They breathe O₂, exhale CO₂ and give off heat. They are a load on the atmosphere, not characters |
-| Gas supply | Finite O₂ and N₂ tanks. Pressure control draws from them. The recycler turns the crew's CO₂ back into O₂ and returns it to the O₂ tank, so while it runs the O₂ tank holds nearly steady. When the recycler is down, the O₂ tank empties as the crew breathe. Gas lost through the hatch is gone for good |
+| CO₂ source | Passengers, fixed in place (the ship starts with one in the cockpit and one in the main room). They breathe O₂, exhale CO₂ and give off heat. They are a load on the atmosphere, not characters |
+| Gas supply | Finite O₂ and N₂ tanks. Pressure control draws from them. The recycler turns the passengers' CO₂ back into O₂ and returns it to the O₂ tank, so while it runs the O₂ tank holds nearly steady. When the recycler is down, the O₂ tank empties as the passengers breathe. Gas lost through the hatch is gone for good |
 | Power | One unlimited ship bus. Each of the 9 components has its own breaker. The computer has no breaker |
 | Restart | A restart reboots a system: it goes offline for a few seconds, then comes back running. A restart clears a fault. It does not reset a breaker |
 | Breakers | Each breaker trips at random. A tripped breaker stays tripped until `breaker reset <breaker ID>` |
@@ -44,7 +44,7 @@ No player character, crew movement, walking or first-person view. No power gener
  ┌──────────┐    ┌────────────────────┐    ┌──────────────┐
  │ COCKPIT  │ d1 │        MAIN        │ d2 │    CARGO     │ hatch
  │  12 m³   ├────┤        40 m³       ├────┤    30 m³     ├──────  outside (vacuum)
- │  crew ×1 │    │       crew ×1      │    │              │
+ │ pass. ×1 │    │     passengers ×1  │    │              │
  └──────────┘    └────────────────────┘    └──────────────┘
 ```
 
@@ -65,7 +65,7 @@ Room
 ```
 
 - **Partial pressure** of a gas is `p = n R T / V`. **Pressure** is the sum of the three partial pressures.
-- **Composition** shows as each gas's share of the pressure. CO₂ shows as a partial pressure, since that is what crew safety depends on.
+- **Composition** shows as each gas's share of the pressure. CO₂ shows as a partial pressure, since that is what passenger safety depends on.
 - **Temperature belongs to the room**, not only its air: the structure's heat capacity is far larger than the air's. So a room has a temperature even in vacuum, and gas flowing in or out doesn't change it.
 
 The sim steps every 0.1 s of sim time. At 100× it runs 1,000 steps per real second. Every rate below is in the data file and can be tuned.
@@ -103,11 +103,11 @@ A room is **exposed** when a path of openings that are at least partly open lead
 
 Each room has a heat capacity of 5 kJ/K per m³. It loses heat through the hull to a fixed −20 °C at 0.5 W/K per m³. That loss is 820 W for the main room at setpoint, and an unheated room's temperature has a time constant of about 2.8 h.
 
-Heat sources: each crew member gives 100 W, each powered light that is on gives 40 W, and the HVAC adds or removes heat.
+Heat sources: each passenger gives 100 W, each powered light that is on gives 40 W, and the HVAC adds or removes heat.
 
-### Crew
+### Passengers
 
-Each crew member uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Crew can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 2 minutes at 100×. The larger main room takes about 12 h.
+The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 2 minutes at 100×. The larger main room takes about 12 h.
 
 ## Systems
 
@@ -133,12 +133,12 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 
 | Tank | Capacity | Starts | Filled by | Drained by |
 |---|---|---|---|---|
-| O₂ | 3,000 mol | full | the recycler | pressure control, replacing O₂ the crew breathe and O₂ lost to venting |
+| O₂ | 3,000 mol | full | the recycler | pressure control, replacing O₂ the passengers breathe and O₂ lost to venting |
 | N₂ | 8,000 mol | full | nothing | pressure control, replacing N₂ lost to venting |
 
-- The crew don't use N₂, so the N₂ tank only drains after a vent.
-- While the recycler keeps up, the O₂ tank loses only the gap between O₂ breathed and CO₂ exhaled: about 7 mol a day for two crew, so it lasts more than a year.
-- With the recycler down, the O₂ tank drains at the full rate the crew breathe, about 52 mol a day, so it empties in about 58 days. CO₂ reaches danger long before that.
+- Passengers don't use N₂, so the N₂ tank only drains after a vent.
+- While the recycler keeps up, the O₂ tank loses only the gap between O₂ breathed and CO₂ exhaled: about 7 mol a day for two passengers, so it lasts more than a year.
+- With the recycler down, the O₂ tank drains at the full rate the passengers breathe, about 52 mol a day, so it empties in about 58 days. CO₂ reaches danger long before that.
 - A tank never fills past its capacity. The recycler's O₂ is discarded when the tank is full.
 - The two tanks hold enough to refill the whole ship about three times.
 
@@ -149,8 +149,8 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 
 ### CO₂ recycler
 
-- For each room, while ppCO₂ is above 0.3 kPa, it removes CO₂ at up to 0.01 mol/s. That is about 20 times what one crew member exhales.
-- Each mole of CO₂ removed becomes one mole of O₂ in the O₂ tank. Pressure control then draws that O₂ back into the rooms as the crew use it.
+- For each room, while ppCO₂ is above 0.3 kPa, it removes CO₂ at up to 0.01 mol/s. That is about 20 times what one passenger exhales.
+- Each mole of CO₂ removed becomes one mole of O₂ in the O₂ tank. Pressure control then draws that O₂ back into the rooms as the passengers use it.
 - It skips a room that is exposed or whose pressure is below 10 kPa.
 
 ### Computer
@@ -283,17 +283,17 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
 ## Data file
 
 `data/ship.json` holds:
-- each room's volume, its crew count, and its starting gas and temperature
+- each room's volume, its passenger count, and its starting gas and temperature
 - the openings, with which rooms each joins, its conductance and its travel time
 - the setpoints and status thresholds
-- every rate in this spec: pressure control's feed rate, the HVAC limit, recycler capacity, crew metabolism, hull loss and heat capacity
+- every rate in this spec: pressure control's feed rate, the HVAC limit, recycler capacity, passenger metabolism, hull loss and heat capacity
 - tank capacities and starting levels
 - breaker IDs, draws, and system boot times
 - the mean time between random trips, and the random seed
 
 ## Code structure
 
-- **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, crew and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
+- **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, passengers and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
 - **Command interpreter:** a pure function from a command string and the ship to the ship's changes and a response line. It holds no nodes and is tested headless.
 - **UI:** a thin layer of scenes for the clock bar, the schematic, the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
 - **Tests:** headless, with the same runner as `prototypes/transit/tests`. They cover:
@@ -312,7 +312,7 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
   - pressure control never feeding an exposed room
   - an empty tank stopping only its own gas
   - the HVAC holding setpoint, and a room cooling with the HVAC unpowered
-  - the recycler holding CO₂ below 0.5 kPa with crew, and CO₂ rising with it unpowered
+  - the recycler holding CO₂ below 0.5 kPa with passengers, and CO₂ rising with it unpowered
   - a tripped breaker removing each component's function, and a reset bringing it back through BOOTING
   - a restart clearing a FAULT, and being refused with no power
   - the computer down: the command line rejecting input except `computer restart`, and life support still running

@@ -10,7 +10,7 @@
 		{
 			"id": "cockpit",
 			"volume_m3": 12,
-			"crew": 1,
+			"passengers": 1,
 			"start": {
 				"o2_kpa": 21.2,
 				"n2_kpa": 80.1,
@@ -21,7 +21,7 @@
 		{
 			"id": "main",
 			"volume_m3": 40,
-			"crew": 1,
+			"passengers": 1,
 			"start": {
 				"o2_kpa": 21.2,
 				"n2_kpa": 80.1,
@@ -32,7 +32,7 @@
 		{
 			"id": "cargo",
 			"volume_m3": 30,
-			"crew": 0,
+			"passengers": 0,
 			"start": {
 				"o2_kpa": 21.2,
 				"n2_kpa": 80.1,
@@ -78,10 +78,10 @@
 		"capacity_j_per_k_m3": 5000,
 		"hull_w_per_k_m3": 0.5,
 		"hull_temperature_c": -20,
-		"crew_w": 100,
+		"passenger_w": 100,
 		"light_w": 40
 	},
-	"crew": {
+	"passenger": {
 		"o2_mol_s": 0.0003,
 		"co2_mol_s": 0.00026
 	},

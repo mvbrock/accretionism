@@ -3,9 +3,9 @@ extends RefCounted
 ## Builds a Ship from the data file. Bad data is reported with push_error,
 ## naming the offending value, and yields null.
 
-const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "crew", "pressure_control",
+const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "passenger", "pressure_control",
 		"hvac", "air_recycler", "computer", "tanks", "breakers", "status"]
-const _ROOM_KEYS := ["id", "volume_m3", "crew", "start"]
+const _ROOM_KEYS := ["id", "volume_m3", "passengers", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
 const _TANK_KEYS := ["capacity_mol", "start_mol"]
 const _LIGHT_PREFIX := "light-"
@@ -113,7 +113,7 @@ static func _is_door_breaker(id: String) -> bool:
 
 static func _make_room(entry: Dictionary, heat: Dictionary) -> Room:
 	var start: Dictionary = entry.start
-	var room := Room.new(entry.id, float(entry.volume_m3), Units.kelvin(start.temperature_c), int(entry.crew))
+	var room := Room.new(entry.id, float(entry.volume_m3), Units.kelvin(start.temperature_c), int(entry.passengers))
 	room.heat_capacity = heat.capacity_j_per_k_m3 * room.volume
 	room.hull_conductance = heat.hull_w_per_k_m3 * room.volume
 	room.set_partial_pressure("O2", start.o2_kpa * 1000.0)
