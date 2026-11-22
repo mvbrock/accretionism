@@ -11,24 +11,24 @@ const _TANK_KEYS := ["capacity_mol", "start_mol"]
 const _LIGHT_PREFIX := "light-"
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
 
+## The message of the most recent failed load, for showing on screen.
+static var last_problem := ""
+
 
 static func load_file(path: String) -> Ship:
 	var text := FileAccess.get_file_as_string(path)
 	if text.is_empty():
-		push_error("Ship file '%s' is missing or empty" % path)
-		return null
+		return _fail("Ship file '%s' is missing or empty" % path)
 	var data: Variant = JSON.parse_string(text)
 	if not data is Dictionary:
-		push_error("Ship file '%s' is not a JSON object" % path)
-		return null
+		return _fail("Ship file '%s' is not a JSON object" % path)
 	return from_dict(data)
 
 
 static func from_dict(data: Dictionary) -> Ship:
 	var problem := _find_problem(data)
 	if problem != "":
-		push_error("Bad ship data: %s" % problem)
-		return null
+		return _fail("Bad ship data: %s" % problem)
 	var rooms: Array[Room] = []
 	for entry in data.rooms:
 		rooms.append(_make_room(entry, data.heat))
@@ -36,6 +36,12 @@ static func from_dict(data: Dictionary) -> Ship:
 	for entry in data.openings:
 		openings.append(_make_opening(entry))
 	return Ship.new(data, rooms, openings)
+
+
+static func _fail(message: String) -> Ship:
+	last_problem = message
+	push_error(message)
+	return null
 
 
 static func _find_problem(data: Dictionary) -> String:

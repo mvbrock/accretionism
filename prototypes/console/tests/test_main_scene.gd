@@ -195,3 +195,37 @@ func test_clock_bar_button_text() -> void:
 	main.clock.paused = true
 	main.refresh()
 	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)
+
+
+func _main_with_broken_data() -> Main:
+	var path := "user://broken_ship.json"
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Main.SHIP_PATH))
+	data.rooms[0].volume_m3 = 0
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+	expect_error("Bad ship data: room 'cockpit' has volume")
+	var main: Main = load("res://scenes/main.tscn").instantiate()
+	main.data_path = path
+	own(main)
+	return main
+
+
+func test_bad_data_file_shows_its_problem() -> void:
+	var main := _main_with_broken_data()
+	assert_true(main.ship == null, "no ship is built")
+	assert_true(main.error_label != null, "the message label exists")
+	if main.error_label == null:
+		return
+	assert_true(main.error_label.visible, "the message is up")
+	assert_true(main.error_label.text.begins_with("Could not load user://broken_ship.json: "),
+			"names the file, got '%s'" % main.error_label.text)
+	assert_true(main.error_label.text.contains("room 'cockpit' has volume 0.0 m3"),
+			"carries the loader's problem, got '%s'" % main.error_label.text)
+
+
+func test_bad_data_file_runs_no_sim() -> void:
+	var main := _main_with_broken_data()
+	assert_true(not main.is_processing(), "the frame loop is off")
+	main._input(_key(KEY_SPACE))
+	assert_true(main.ship == null, "Space has nothing to pause")

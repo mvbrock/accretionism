@@ -264,6 +264,7 @@ unknown command 'door shut'. Type 'help' for commands
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
+- **Bad data file:** if `data/ship.json` can't be loaded, the window shows "Could not load data/ship.json: <problem>" in place of the dashboard, the sim doesn't run, and Esc still quits.
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room order:** rooms draw left to right in the data file's order, each opening after the first room it joins, so list the rooms in the order they connect.

@@ -9,20 +9,25 @@ const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
 
+## Overridable so a test can load a different file.
+var data_path := SHIP_PATH
 var ship: Ship
 var clock := SimClock.new()
 var dashboard: DashboardView
 var console: Console
 var overlay: Label
 var stale_label: Label
+var error_label: Label
 
 var _capture: CaptureScript
 
 
 func _ready() -> void:
 	_match_display_scale()
-	ship = ShipLoader.load_file(SHIP_PATH)
-	assert(ship != null, "could not load %s" % SHIP_PATH)
+	ship = ShipLoader.load_file(data_path)
+	if ship == null:
+		_show_load_error()
+		return
 	_build_ui()
 	dashboard.pause_pressed.connect(_toggle_pause)
 	dashboard.speed_pressed.connect(_next_speed)
@@ -36,6 +41,16 @@ func _ready() -> void:
 			_capture = CaptureScript.new(self, args[i + 1])
 		else:
 			push_error("--capture needs a directory: godot --path . -- --capture <dir>")
+
+
+## No sim runs without a ship; Esc still quits.
+func _show_load_error() -> void:
+	set_process(false)
+	error_label = _make_banner("Could not load %s: %s" % [data_path.trim_prefix("res://"), ShipLoader.last_problem],
+			Control.PRESET_FULL_RECT, 24)
+	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	error_label.visible = true
+	add_child(error_label)
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
@@ -90,7 +105,7 @@ func _input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
-	elif event.keycode == KEY_SPACE and not console.input.has_focus():
+	elif event.keycode == KEY_SPACE and ship != null and not console.input.has_focus():
 		_toggle_pause()
 		get_viewport().set_input_as_handled()
 
