@@ -75,3 +75,32 @@ func test_crew_stop_breathing_without_o2() -> void:
 	assert_near(room.mol["CO2"], co2_before, 0.0, "no O2, no CO2 produced")
 	for gas in Units.GASES:
 		assert_true(room.mol[gas] >= 0.0, "%s never negative" % gas)
+
+func test_breathe_scales_by_crew() -> void:
+	var room := Room.new("main", 40.0, 294.15, 2)
+	room.mol["O2"] = 100.0
+	room.mol["CO2"] = 1.0
+	LifeSupport.breathe(room, 0.01, 0.008, DT)
+	assert_near(room.mol["O2"], 100.0 - 0.002, 1e-9, "O2 used by two crew")
+	assert_near(room.mol["CO2"], 1.0 + 0.0016, 1e-9, "CO2 made by two crew")
+
+func test_breathe_starved_scales_co2() -> void:
+	var room := Room.new("main", 40.0, 294.15, 2)
+	room.mol["O2"] = 0.001  # half of the 0.002 the crew need this step
+	room.mol["CO2"] = 1.0
+	LifeSupport.breathe(room, 0.01, 0.008, DT)
+	assert_near(room.mol["O2"], 0.0, 1e-12, "all O2 used")
+	assert_near(room.mol["CO2"], 1.0 + 0.0008, 1e-9, "half the CO2")
+
+func test_recycler_skips_exposed_room() -> void:
+	var room := _main_room(1000.0)
+	var tank := Tank.new("O2", 3000.0, 1000.0)
+	assert_near(LifeSupport.recycle(room, true, tank, 300.0, 10000.0, 0.01, DT), 0.0, 0.0, "exposed")
+	assert_near(tank.mol, 1000.0, 0.0, "tank untouched")
+
+func test_recycler_with_full_tank_discards_o2() -> void:
+	var room := _main_room(1000.0)
+	var tank := Tank.new("O2", 3000.0, 3000.0)
+	var removed := LifeSupport.recycle(room, false, tank, 300.0, 10000.0, 0.01, DT)
+	assert_near(removed, 0.001, 1e-9, "CO2 still removed")
+	assert_near(tank.mol, 3000.0, 0.0, "tank stays at capacity")

@@ -22,10 +22,10 @@ func draw(want: float) -> float:
 
 ## Puts up to `amount` mol in and returns what it accepted, never past capacity.
 func fill(amount: float) -> float:
-	var accepted := clampf(amount, 0.0, capacity - mol)
+	var accepted := clampf(amount, 0.0, maxf(0.0, capacity - mol))
 	mol += accepted
 	return accepted
 
 
 func fraction() -> float:
-	return mol / capacity
+	return 0.0 if capacity == 0.0 else mol / capacity

@@ -9,6 +9,7 @@ static func breathe(room: Room, o2_mol_s: float, co2_mol_s: float, dt: float) ->
 	var o2_wanted := o2_mol_s * room.crew * dt
 	if o2_wanted <= 0.0:
 		return
+	# CO2 is tied to the O2 actually used, so a starved crew makes proportionally less.
 	var ratio := minf(1.0, room.mol["O2"] / o2_wanted)
 	room.mol["O2"] -= o2_wanted * ratio
 	room.mol["CO2"] += co2_mol_s * room.crew * dt * ratio
