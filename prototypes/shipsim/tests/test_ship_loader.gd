@@ -29,6 +29,18 @@ func test_bad_room_volume_is_reported() -> void:
 	expect_error("volume 0")
 	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
 
+func test_negative_passenger_count_is_reported() -> void:
+	var data := _data()
+	data.rooms[1].passengers = -1
+	expect_error("room 'main' has passengers -1; it must be a whole number of at least 0")
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+func test_fractional_passenger_count_is_reported() -> void:
+	var data := _data()
+	data.rooms[1].passengers = 1.5
+	expect_error("room 'main' has passengers 1.5; it must be a whole number of at least 0")
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
 func test_temperature_below_absolute_zero_is_reported() -> void:
 	var data := _data()
 	data.rooms[0].start.temperature_c = -300

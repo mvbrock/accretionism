@@ -57,6 +57,9 @@ static func _find_problem(data: Dictionary) -> String:
 			return "room '%s' has no breaker 'light-%s' in the power panel" % [entry.id, entry.id]
 		if entry.volume_m3 <= 0:
 			return "room '%s' has volume %s m3, which must be above 0" % [entry.id, entry.volume_m3]
+		if entry.passengers < 0 or entry.passengers != floorf(entry.passengers):
+			return "room '%s' has passengers %s; it must be a whole number of at least 0" % [
+				entry.id, entry.passengers]
 		if Units.kelvin(entry.start.temperature_c) <= 0.0:
 			return "room '%s' starts at %s C, which is not above absolute zero" % [
 				entry.id, entry.start.temperature_c]
