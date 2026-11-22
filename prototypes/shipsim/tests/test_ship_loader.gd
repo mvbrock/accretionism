@@ -40,3 +40,15 @@ func test_bad_tank_capacity_is_reported() -> void:
 	data.tanks.O2.capacity_mol = 0
 	expect_error("tank 'O2' has capacity 0")
 	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+func test_outside_first_is_reported() -> void:
+	var data := _data()
+	data.openings[2].between = ["outside", "cargo"]
+	expect_error("opening 'hatch'")
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+func test_opening_to_itself_is_reported() -> void:
+	var data := _data()
+	data.openings[0].between = ["main", "main"]
+	expect_error("opening 'd1'")
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")

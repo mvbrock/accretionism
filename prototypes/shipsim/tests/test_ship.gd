@@ -72,7 +72,9 @@ func test_reset_boots_system() -> void:
 	ship.breaker_reset("hvac")
 	ship.advance(0.5)
 	assert_true(ship.systems["hvac"].state == SystemUnit.State.BOOTING, "booting after reset")
-	ship.advance(8.0)
+	ship.advance(7.0)
+	assert_true(ship.systems["hvac"].state == SystemUnit.State.BOOTING, "still booting just under 8 s")
+	ship.advance(1.0)
 	assert_true(ship.systems["hvac"].state == SystemUnit.State.RUNNING, "running after 8 s")
 
 func test_light_switch_survives_trip() -> void:
@@ -114,15 +116,19 @@ func _random_trip_run() -> Ship:
 	ship.advance(3600.0)
 	return ship
 
+func _trip_log(ship: Ship) -> Array:
+	return ship.events.entries.filter(func(e: Dictionary) -> bool: return e.text.contains("breaker tripped"))
+
 func test_same_seed_same_run() -> void:
 	var a := _random_trip_run()
 	var b := _random_trip_run()
-	assert_true(a.power.tripped == b.power.tripped, "same tripped breakers")
+	assert_true(not _trip_log(a).is_empty(), "at least one trip happened")
+	assert_true(_trip_log(a) == _trip_log(b), "same trips at the same times")
 	for room in a.rooms:
 		for gas in Units.GASES:
 			assert_near(room.mol[gas], b.room(room.id).mol[gas], 1e-9, "%s %s" % [room.id, gas])
 
-func test_exposure_and_empty_tank_are_logged() -> void:
+func test_exposure_is_logged() -> void:
 	var ship := ShipFixture.make()
 	assert_true(ship.events.entries.is_empty(), "nothing logged at load")
 	ship.set_opening("hatch", true)
@@ -132,3 +138,11 @@ func test_exposure_and_empty_tank_are_logged() -> void:
 	ship.set_opening("hatch", false)
 	ship.advance(10.0)
 	assert_true(ship.events.has_text("cargo: sealed"), "sealed logged")
+
+func test_empty_tank_is_logged_once() -> void:
+	var ship := ShipFixture.make({"tanks": {"O2": {"start_mol": 1.0}}})
+	_vent_cargo(ship)
+	ship.set_opening("hatch", false)
+	ship.advance(90.0)
+	var count := ship.events.entries.filter(func(e: Dictionary) -> bool: return e.text == "O2 tank empty").size()
+	assert_true(count == 1, "O2 tank empty logged exactly once (got %d)" % count)

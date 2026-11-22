@@ -8,7 +8,6 @@ const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "crew
 const _ROOM_KEYS := ["id", "volume_m3", "crew", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
-const _ABSOLUTE_ZERO_C := -273.15
 
 
 static func load_file(path: String) -> Ship:
@@ -55,7 +54,7 @@ static func _find_problem(data: Dictionary) -> String:
 		room_ids[entry.id] = true
 		if entry.volume_m3 <= 0:
 			return "room '%s' has volume %s m3, which must be above 0" % [entry.id, entry.volume_m3]
-		if entry.start.temperature_c <= _ABSOLUTE_ZERO_C:
+		if Units.kelvin(entry.start.temperature_c) <= 0.0:
 			return "room '%s' starts at %s C, which is not above absolute zero" % [
 				entry.id, entry.start.temperature_c]
 	var opening_ids := {}
@@ -68,6 +67,10 @@ static func _find_problem(data: Dictionary) -> String:
 		opening_ids[entry.id] = true
 		if entry.between.size() != 2:
 			return "opening '%s' must join exactly two places" % entry.id
+		if entry.between[0] == Opening.OUTSIDE:
+			return "opening '%s' must list the room first and outside second" % entry.id
+		if entry.between[0] == entry.between[1]:
+			return "opening '%s' joins '%s' to itself" % [entry.id, entry.between[0]]
 		for place in entry.between:
 			if place != Opening.OUTSIDE and not room_ids.has(place):
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]

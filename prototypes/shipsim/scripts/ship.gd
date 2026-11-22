@@ -69,6 +69,7 @@ func light_lit(room_id: String) -> bool:
 	return light_switches[room_id] and power.is_powered("light-" + room_id)
 
 
+## The command methods below expect known ids; the command interpreter validates them.
 func set_opening(id: String, want_open: bool) -> Dictionary:
 	var result := opening(id).command(want_open, power.is_powered(id))
 	return {"result": result, "auto_closed": [], "left_open": [], "onto_open_hatch": false}
@@ -102,7 +103,7 @@ func fault_system(id: String) -> bool:
 ## Runs as many whole steps as `sim_seconds` holds, carrying the rest to the next call.
 ## Returns the steps run.
 func advance(sim_seconds: float) -> int:
-	_pending_s += sim_seconds
+	_pending_s += maxf(sim_seconds, 0.0)
 	var steps := int(floor(_pending_s / STEP_S + _STEP_EPSILON))
 	_pending_s -= steps * STEP_S
 	for i in steps:
@@ -121,10 +122,11 @@ func step() -> void:
 		opening_.step(STEP_S, power.is_powered(opening_.id))
 	_update_exposure()
 	for opening_ in openings:
+		if not opening_.is_hatch():
+			Atmosphere.flow_through_door(room(opening_.room_a), room(opening_.room_b), opening_, STEP_S)
+	for opening_ in openings:
 		if opening_.is_hatch():
 			Atmosphere.vent_through_hatch(room(opening_.room_a), opening_, STEP_S)
-		else:
-			Atmosphere.flow_through_door(room(opening_.room_a), room(opening_.room_b), opening_, STEP_S)
 	_breathe()
 	_run_pressure_control()
 	_run_recycler()
