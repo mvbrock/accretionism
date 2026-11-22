@@ -12,7 +12,6 @@ const RED := Color("ee5050")
 const BAR_CELLS := 8
 const TILE_BORDER_PX := 3
 
-## The row of clock buttons, time and alarm along the top.
 var clock_bar: HBoxContainer
 var pause_button: Button
 var speed_button: Button

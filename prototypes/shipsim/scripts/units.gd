@@ -18,6 +18,5 @@ static func celsius(kelvin: float) -> float:
 	return kelvin - _ZERO_CELSIUS_K
 
 
-## Seconds left as a whole number, rounded up past float residue.
 static func whole_seconds_left(seconds: float) -> int:
 	return ceili(seconds - SECONDS_EPSILON)
