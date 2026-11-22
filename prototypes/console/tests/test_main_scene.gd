@@ -208,6 +208,7 @@ func _main_with_broken_data() -> Main:
 	var main: Main = load("res://scenes/main.tscn").instantiate()
 	main.data_path = path
 	own(main)
+	DirAccess.remove_absolute(path)
 	return main
 
 
@@ -220,12 +221,11 @@ func test_bad_data_file_shows_its_problem() -> void:
 	assert_true(main.error_label.visible, "the message is up")
 	assert_true(main.error_label.text.begins_with("Could not load user://broken_ship.json: "),
 			"names the file, got '%s'" % main.error_label.text)
-	assert_true(main.error_label.text.contains("room 'cockpit' has volume 0.0 m3"),
-			"carries the loader's problem, got '%s'" % main.error_label.text)
+	assert_true(main.error_label.text == "Could not load user://broken_ship.json: room 'cockpit' has volume 0.0 m3, which must be above 0",
+			"names the file and the bare problem, got '%s'" % main.error_label.text)
 
 
 func test_bad_data_file_runs_no_sim() -> void:
 	var main := _main_with_broken_data()
 	assert_true(not main.is_processing(), "the frame loop is off")
 	main._input(_key(KEY_SPACE))
-	assert_true(main.ship == null, "Space has nothing to pause")

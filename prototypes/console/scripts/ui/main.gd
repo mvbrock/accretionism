@@ -8,6 +8,7 @@ extends Control
 const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
+const ERROR_MARGIN_PX := 24
 
 ## Overridable so a test can load a different file.
 var data_path := SHIP_PATH
@@ -48,9 +49,12 @@ func _show_load_error() -> void:
 	set_process(false)
 	error_label = _make_banner("Could not load %s: %s" % [data_path.trim_prefix("res://"), ShipLoader.last_problem],
 			Control.PRESET_FULL_RECT, 24)
+	error_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, ERROR_MARGIN_PX)
 	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	error_label.visible = true
 	add_child(error_label)
+	if OS.get_cmdline_user_args().has("--capture"):
+		get_tree().quit(1)
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
