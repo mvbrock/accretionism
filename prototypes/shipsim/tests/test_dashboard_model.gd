@@ -12,6 +12,7 @@ func test_tile_at_start() -> void:
 	assert_true(tile.o2 == "20.9 %", "o2: %s" % tile.o2)
 	assert_true(tile.n2 == "79.0 %", "n2: %s" % tile.n2)
 	assert_true(tile.co2 == "0.04 kPa", "co2: %s" % tile.co2)
+	assert_true(tile.passengers == "passengers 1", "passengers: %s" % tile.passengers)
 	assert_true(tile.lit, "lit")
 	assert_true(tile.level == Status.Level.NOMINAL, "nominal")
 

@@ -142,6 +142,7 @@ func test_passenger_usage() -> void:
 	_check(ship, "passenger add", "usage: passenger add <cockpit|main|cargo>")
 	_check(ship, "passenger remove", "usage: passenger remove <cockpit|main|cargo>")
 	_check(ship, "passenger add main cargo", "usage: passenger add <cockpit|main|cargo>")
+	_check(ship, "passenger remove main cargo", "usage: passenger remove <cockpit|main|cargo>")
 
 func test_passenger_blocked_while_computer_down() -> void:
 	var ship := ShipFixture.make()

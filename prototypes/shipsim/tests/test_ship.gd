@@ -166,8 +166,10 @@ func test_added_passenger_raises_co2_faster() -> void:
 	more.add_passenger("main")
 	more.advance(3600.0)
 	base.advance(3600.0)
-	assert_true(more.room("main").partial_pressure("CO2") > base.room("main").partial_pressure("CO2") + 20.0,
-			"two passengers make more CO2 than one")
+	var main_room := more.room("main")
+	var extra_pa: float = more.params.passenger.co2_mol_s * 3600.0 * Units.R * main_room.temperature / main_room.volume
+	var rise_pa := main_room.partial_pressure("CO2") - base.room("main").partial_pressure("CO2")
+	assert_near(rise_pa, extra_pa, extra_pa * 0.05, "one extra passenger adds their CO2 over an hour")
 
 func test_removed_passengers_stop_breathing() -> void:
 	var ship := ShipFixture.make()
@@ -186,8 +188,9 @@ func test_passenger_adds_body_heat() -> void:
 	for ship in [more, base]:
 		ship.breaker_trip("hvac")
 	more.add_passenger("cargo")
+	more.add_passenger("cargo")
 	more.advance(60.0)
 	base.advance(60.0)
 	var rise_k := more.room("cargo").temperature - base.room("cargo").temperature
-	var expected_k: float = more.params.heat.passenger_w * 60.0 / more.room("cargo").heat_capacity
-	assert_near(rise_k, expected_k, expected_k * 0.01, "one passenger adds heat.passenger_w")
+	var expected_k: float = 2.0 * more.params.heat.passenger_w * 60.0 / more.room("cargo").heat_capacity
+	assert_near(rise_k, expected_k, expected_k * 0.01, "each passenger adds heat.passenger_w")
