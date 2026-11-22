@@ -39,3 +39,20 @@ func test_fault_without_power_refused() -> void:
 	unit.step(0.1, false)
 	assert_true(not unit.fault(), "fault refused without power")
 	assert_true(unit.state == SystemUnit.State.NO_POWER, "still no power")
+
+func test_restart_without_power_when_already_unpowered() -> void:
+	var unit := SystemUnit.new("hvac", 1.0)
+	unit.step(0.1, false)
+	assert_true(unit.restart(false) == SystemUnit.RestartResult.NO_POWER, "no power result")
+	assert_true(unit.state == SystemUnit.State.NO_POWER, "state stays NO_POWER")
+
+func test_power_cycle_clears_fault() -> void:
+	var unit := SystemUnit.new("hvac", 1.0)
+	unit.fault()
+	unit.step(0.1, false)
+	assert_true(unit.state == SystemUnit.State.NO_POWER, "no power")
+	unit.step(0.1, true)
+	assert_true(unit.state == SystemUnit.State.BOOTING, "booting after power returns")
+	for i in 10:
+		unit.step(0.1, true)
+	assert_true(unit.state == SystemUnit.State.RUNNING, "running after boot_s")

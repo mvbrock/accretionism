@@ -15,13 +15,14 @@ var _rng := RandomNumberGenerator.new()
 var _mean_time_between_trips_s: float
 
 
-func _init(seed: int, mean_time_between_trips_s: float) -> void:
-	_rng.seed = seed
+func _init(rng_seed: int, mean_time_between_trips_s: float) -> void:
+	_rng.seed = rng_seed
 	_mean_time_between_trips_s = mean_time_between_trips_s
 	for id in BREAKER_IDS:
 		tripped[id] = false
 
 
+## is_powered, trip and reset expect an id for which has() is true.
 func has(id: String) -> bool:
 	return tripped.has(id)
 

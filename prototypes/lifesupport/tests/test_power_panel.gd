@@ -40,3 +40,22 @@ func test_same_seed_same_trips() -> void:
 			a.reset(id)
 		for id in tb:
 			b.reset(id)
+
+func test_tripped_breakers_still_draw() -> void:
+	var a := PowerPanel.new(11, 10.0)
+	var b := PowerPanel.new(11, 10.0)
+	a.trip("light-cockpit")
+	var others_tripped := 0
+	for i in 2000:
+		var ta := a.roll_random_trips(0.1)
+		var tb := b.roll_random_trips(0.1)
+		ta.erase("light-cockpit")
+		tb.erase("light-cockpit")
+		others_tripped += ta.size()
+		assert_true(ta == tb, "other breakers trip on the same calls at call %d" % i)
+		for id in ta:
+			a.reset(id)
+		for id in tb:
+			b.reset(id)
+		b.reset("light-cockpit")
+	assert_true(others_tripped > 0, "other breakers tripped at least once")

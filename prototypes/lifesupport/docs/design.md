@@ -117,7 +117,7 @@ Each powered system has a state:
 |---|---|
 | RUNNING | powered and working |
 | BOOTING | powered, coming up after a restart or power returning; does nothing until done |
-| FAULT | powered but stopped; only a restart clears it |
+| FAULT | powered but stopped; a restart clears it, and so does losing power and getting it back, which also reboots the system |
 | NO POWER | its breaker is tripped |
 
 When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: pressure control 10 s, HVAC 8 s, recycler 15 s, computer 20 s.
