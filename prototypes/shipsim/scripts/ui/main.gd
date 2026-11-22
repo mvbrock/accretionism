@@ -8,8 +8,6 @@ extends Control
 const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
-## Height of the dashboard's clock bar, which the reboot overlay leaves uncovered.
-const CLOCK_BAR_PX := 44
 
 var ship: Ship
 var clock := SimClock.new()
@@ -108,15 +106,21 @@ func _build_ui() -> void:
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(dashboard)
 	overlay = _make_banner(OVERLAY_TEXT, Control.PRESET_FULL_RECT, 48)
-	overlay.offset_top = CLOCK_BAR_PX
 	overlay.add_theme_stylebox_override("normal", _scrim())
 	stage.add_child(overlay)
+	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)
 	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
 	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
 	stage.add_child(stale_label)
 	console = Console.new()
 	console.custom_minimum_size = Vector2(0, 130)
 	column.add_child(console)
+
+
+## The reboot overlay starts where the clock bar ends, wherever the layout puts it.
+func _leave_clock_bar_uncovered() -> void:
+	var stage := overlay.get_parent() as Control
+	overlay.offset_top = dashboard.clock_bar.get_global_rect().end.y - stage.get_global_rect().position.y
 
 
 func _make_banner(text: String, preset: Control.LayoutPreset, font_size: int) -> Label:

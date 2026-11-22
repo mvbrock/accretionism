@@ -143,9 +143,9 @@ func test_help() -> void:
 		"air-recycler restart — Reboot the recycler",
 		"computer restart — Reboot the computer",
 		"breaker reset <breaker ID> — Close a tripped breaker",
-		"help — List the commands.",
-		"debug trip <breaker ID> — Trip a breaker.",
-		"debug fault <system> — Put a system in FAULT.",
+		"help — List the commands",
+		"debug trip <breaker ID> — Trip a breaker",
+		"debug fault <system> — Put a system in FAULT",
 	])
 	_check(ShipFixture.make(), "help", expected)
 

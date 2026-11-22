@@ -12,8 +12,10 @@ const RED := Color("ee5050")
 const BAR_CELLS := 8
 const TILE_BORDER_PX := 3
 
-var _pause_button: Button
-var _speed_button: Button
+## The row of clock buttons, time and alarm along the top.
+var clock_bar: HBoxContainer
+var pause_button: Button
+var speed_button: Button
 var _clock_label: Label
 var _alarm_label: Label
 ## room id -> {panel: PanelContainer, style: StyleBoxFlat, labels: {key: Label}}
@@ -29,7 +31,8 @@ var _log_text := ""
 
 func _init() -> void:
 	add_theme_constant_override("separation", 10)
-	add_child(_build_clock_bar())
+	clock_bar = _build_clock_bar()
+	add_child(clock_bar)
 	add_child(_build_panels())
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
@@ -39,14 +42,15 @@ func _init() -> void:
 
 
 func show_clock(clock: SimClock) -> void:
-	_pause_button.text = "Play" if clock.paused else "Pause"
-	_speed_button.text = "Speed: %d×" % int(SimClock.SPEEDS[clock.speed_index])
+	pause_button.text = "Play" if clock.paused else "Pause"
+	speed_button.text = "Speed: %d×" % int(SimClock.SPEEDS[clock.speed_index])
 
 
 func show_ship(ship: Ship) -> void:
 	if _tiles.is_empty():
-		add_child(_build_schematic(ship))
-		move_child(get_child(-1), 1)
+		var schematic := _build_schematic(ship)
+		add_child(schematic)
+		move_child(schematic, 1)
 	_clock_label.text = DashboardModel.clock_text(ship.time_s)
 	var alarm := DashboardModel.top_alarm(ship)
 	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
@@ -75,16 +79,16 @@ func tile_label(room_id: String, key: String) -> Label:
 	return _tiles[room_id].labels[key]
 
 
-func _build_clock_bar() -> Control:
+func _build_clock_bar() -> HBoxContainer:
 	var bar := HBoxContainer.new()
 	bar.add_theme_constant_override("separation", 14)
-	_pause_button = _clock_button(pause_pressed)
-	_speed_button = _clock_button(speed_pressed)
+	pause_button = _clock_button(pause_pressed)
+	speed_button = _clock_button(speed_pressed)
 	_clock_label = Label.new()
 	_alarm_label = Label.new()
 	_alarm_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_alarm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	for node in [_pause_button, _speed_button, _clock_label, _alarm_label]:
+	for node in [pause_button, speed_button, _clock_label, _alarm_label]:
 		bar.add_child(node)
 	return bar
 
@@ -97,13 +101,15 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-## Each room is followed by the opening on its far side.
+## Each room is followed by the opening that has it as its `room_a`.
 func _build_schematic(ship: Ship) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	for i in ship.rooms.size():
-		row.add_child(_build_tile(ship.rooms[i].id))
-		row.add_child(_build_opening(ship.openings[i].id))
+	for room in ship.rooms:
+		row.add_child(_build_tile(room.id))
+		for opening in ship.openings:
+			if opening.room_a == room.id:
+				row.add_child(_build_opening(opening.id))
 	return row
 
 
@@ -178,7 +184,6 @@ func _show_tile(room_id: String, tile: Dictionary) -> void:
 	labels.light.text = "light ●" if tile.lit else "light ○"
 	_tiles[room_id].style.border_color = _color(tile.level)
 	labels.title.add_theme_color_override("font_color", _color(tile.level))
-
 
 
 func _show_status(label: Label, text: String, level: Status.Level) -> void:

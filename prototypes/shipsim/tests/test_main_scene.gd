@@ -124,6 +124,7 @@ func test_typing_continues_after_enter() -> void:
 
 func test_banners_are_inside_the_stage() -> void:
 	var main := _main()
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
 	main.size = Vector2(1600, 900) # the headless window is only 64x64
 	await tree.process_frame
 	var stage := main.stale_label.get_parent() as Control
@@ -131,8 +132,8 @@ func test_banners_are_inside_the_stage() -> void:
 	await tree.process_frame
 	assert_true(stage.get_global_rect().encloses(main.stale_label.get_global_rect()),
 			"STALE %s sits inside the stage %s" % [main.stale_label.get_global_rect(), stage.get_global_rect()])
-	assert_true(main.overlay.get_global_rect().position.y > stage.get_global_rect().position.y,
-			"the overlay leaves the clock bar uncovered")
+	assert_true(main.overlay.get_global_rect().position.y >= main.dashboard.clock_bar.get_global_rect().end.y,
+			"the overlay %s leaves the clock bar %s uncovered" % [main.overlay.get_global_rect(), main.dashboard.clock_bar.get_global_rect()])
 
 
 func test_scaled_window_size_doubles_on_retina() -> void:
@@ -150,9 +151,8 @@ func test_clock_bar_button_text() -> void:
 	main.clock.speed_index = 2
 	main.clock.paused = false
 	main.refresh()
-	var buttons := main.dashboard.find_children("*", "Button", true, false)
-	assert_true(buttons[0].text == "Pause", "playing offers Pause, got '%s'" % buttons[0].text)
-	assert_true(buttons[1].text == "Speed: 100×", "speed shows 100×, got '%s'" % buttons[1].text)
+	assert_true(main.dashboard.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.pause_button.text)
+	assert_true(main.dashboard.speed_button.text == "Speed: 100×", "speed shows 100×, got '%s'" % main.dashboard.speed_button.text)
 	main.clock.paused = true
 	main.refresh()
-	assert_true(buttons[0].text == "Play", "paused offers Play, got '%s'" % buttons[0].text)
+	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)

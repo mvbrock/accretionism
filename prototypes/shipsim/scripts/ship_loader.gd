@@ -8,7 +8,6 @@ const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "crew
 const _ROOM_KEYS := ["id", "volume_m3", "crew", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
 const _TANK_KEYS := ["capacity_mol", "start_mol"]
-const HATCH_ID := "hatch"
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
 
 
@@ -84,8 +83,8 @@ static func _find_problem(data: Dictionary) -> String:
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]
 	if outside_ids.size() != 1:
 		return "need exactly one opening to outside, found %d" % outside_ids.size()
-	if outside_ids[0] != HATCH_ID:
-		return "the opening to outside is '%s', which must be '%s'" % [outside_ids[0], HATCH_ID]
+	if outside_ids[0] != Opening.HATCH_ID:
+		return "the opening to outside is '%s', which must be '%s'" % [outside_ids[0], Opening.HATCH_ID]
 	for gas in Units.TANK_GASES:
 		if not data.tanks.has(gas):
 			return "missing tank '%s'" % gas

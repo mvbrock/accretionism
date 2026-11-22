@@ -4,6 +4,7 @@ extends RefCounted
 
 
 static var _WHITESPACE := _compile_whitespace()
+static var _COMMANDS := _build_commands()
 
 
 static func _compile_whitespace() -> RegEx:
@@ -23,7 +24,7 @@ static func run(ship: Ship, line: String) -> String:
 
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
-	var commands := _commands()
+	var commands := _COMMANDS
 	var key := " ".join(words.slice(0, 2))
 	if not commands.has(key) and commands.has(words[0]):
 		key = words[0]
@@ -41,7 +42,7 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	return command.handler.call(ship, words.slice(words.size() - arg_count))
 
 
-static func _commands() -> Dictionary:
+static func _build_commands() -> Dictionary:
 	var commands := {}
 	_add(commands, "door open", "door open <d1|d2|hatch>", "Start opening", 1, _door_open)
 	_add(commands, "door close", "door close <d1|d2|hatch>", "Start closing", 1, _door_close)
@@ -52,11 +53,10 @@ static func _commands() -> Dictionary:
 	_add(commands, "air-recycler restart", "air-recycler restart", "Reboot the recycler", 0, _restart.bind("air-recycler"))
 	_add(commands, "computer restart", "computer restart", "Reboot the computer", 0, _restart.bind("computer"))
 	_add(commands, "breaker reset", "breaker reset <breaker ID>", "Close a tripped breaker", 1, _breaker_reset)
-	_add(commands, "help", "help", "List the commands.", 0, _help)
-	_add(commands, "debug trip", "debug trip <breaker ID>", "Trip a breaker.", 1, _debug_trip)
-	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT.", 1, _debug_fault)
+	_add(commands, "help", "help", "List the commands", 0, _help)
+	_add(commands, "debug trip", "debug trip <breaker ID>", "Trip a breaker", 1, _debug_trip)
+	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT", 1, _debug_fault)
 	return commands
-
 
 
 static func _add(commands: Dictionary, key: String, usage: String, effect: String, args: int, handler: Callable) -> void:
@@ -65,7 +65,7 @@ static func _add(commands: Dictionary, key: String, usage: String, effect: Strin
 
 static func _help(_ship: Ship, _args: PackedStringArray) -> String:
 	var lines := PackedStringArray()
-	var commands := _commands()
+	var commands := _COMMANDS
 	for key in commands:
 		lines.append("%s — %s" % [commands[key].usage, commands[key].effect])
 	return "\n".join(lines)

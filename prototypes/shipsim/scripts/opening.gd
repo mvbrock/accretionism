@@ -7,6 +7,8 @@ enum State { CLOSED, OPENING, OPEN, CLOSING }
 enum CommandResult { STARTED, ALREADY, NO_POWER }
 
 const OUTSIDE := "outside"
+## The one opening to outside.
+const HATCH_ID := "hatch"
 const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
 
 var id: String

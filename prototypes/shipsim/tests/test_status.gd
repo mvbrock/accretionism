@@ -13,6 +13,8 @@ func test_pressure_bounds() -> void:
 
 func test_o2_bounds() -> void:
 	assert_true(_level("o2_kpa", 23.5) == Status.Level.NOMINAL, "23.5 nominal")
+	assert_true(_level("o2_kpa", 19.0) == Status.Level.NOMINAL, "19 nominal")
+	assert_true(_level("o2_kpa", 18.9) == Status.Level.WARNING, "18.9 warning")
 	assert_true(_level("o2_kpa", 15.9) == Status.Level.DANGER, "15.9 danger")
 	assert_true(_level("o2_kpa", 30.1) == Status.Level.DANGER, "30.1 danger")
 

@@ -6,7 +6,6 @@ extends RefCounted
 const NO_READING := "—"
 ## Below this the room has no air worth reporting a mix for.
 const _VACUUM_PA := 1000.0
-## Absorbs float residue so a boot with exactly 9 s left reads 9s.
 const _GAS_NAMES := {"O2": "O₂", "N2": "N₂", "CO2": "CO₂"}
 
 

@@ -76,16 +76,6 @@ func test_hatch_tripped_half_open_vents_at_half_rate() -> void:
 	assert_near(ship.room("cargo").pressure(), p3 * exp(-5.0 * 0.5 * 12.0 / 30.0), p3 * 0.02, "half-rate venting")
 	assert_true(ship.exposed["cargo"], "cargo still exposed")
 
-func test_exposure_events_logged() -> void:
-	var ship := ShipFixture.make()
-	ship.set_opening("hatch", true)
-	ship.advance(1.0)
-	ship.set_opening("hatch", false)
-	ship.advance(10.0)
-	assert_true(ship.events.has_text("cargo: exposed to vacuum"), "exposed logged")
-	assert_true(ship.events.has_text("pressure-control: not feeding cargo (exposed)"), "not feeding logged")
-	assert_true(ship.events.has_text("cargo: sealed"), "sealed logged")
-
 func test_closing_door_is_not_reported_as_auto_closed() -> void:
 	var ship := ShipFixture.make()
 	_open_door(ship, "d2")

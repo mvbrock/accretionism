@@ -53,10 +53,11 @@ func test_tank_percent_and_level() -> void:
 	var ship := ShipFixture.make()
 	assert_true(DashboardModel.tank_percent(ship, "O2") == 100, "full")
 	assert_true(DashboardModel.tank_level(ship, "O2") == Status.Level.NOMINAL, "nominal")
-	ship.tanks["O2"].mol = 3000.0 * 0.249
+	var capacity: float = ship.tanks["O2"].capacity
+	ship.tanks["O2"].mol = capacity * 0.249
 	assert_true(DashboardModel.tank_percent(ship, "O2") == 24, "rounded down")
 	assert_true(DashboardModel.tank_level(ship, "O2") == Status.Level.WARNING, "warning")
-	ship.tanks["O2"].mol = 3000.0 * 0.04
+	ship.tanks["O2"].mol = capacity * 0.04
 	assert_true(DashboardModel.tank_level(ship, "O2") == Status.Level.DANGER, "danger")
 
 func test_clock_text() -> void:
@@ -65,8 +66,9 @@ func test_clock_text() -> void:
 
 func test_total_draw_text() -> void:
 	var ship := ShipFixture.make()
-	var expected := "total %.1f kW" % (ship.total_draw_w() / 1000.0)
-	assert_true(DashboardModel.total_draw_text(ship) == expected, DashboardModel.total_draw_text(ship))
+	# 3 lights 120 + 3 idle openings 15 + pressure control 300 + HVAC base 200 + idle recycler 50 + computer 150
+	assert_near(ship.total_draw_w(), 835.0, 0.001, "the known draw")
+	assert_true(DashboardModel.total_draw_text(ship) == "total 0.8 kW", DashboardModel.total_draw_text(ship))
 
 func test_top_alarm_prefers_exposure() -> void:
 	var ship := ShipFixture.make()
@@ -84,7 +86,7 @@ func test_top_alarm_trip_only() -> void:
 	assert_true(alarm.text == "HVAC NO POWER", alarm.text)
 	assert_true(alarm.level == Status.Level.WARNING, "warning")
 
-func test_top_alarm_breaker_before_step_is_breaker() -> void:
+func test_top_alarm_names_a_tripped_breaker_before_the_next_step() -> void:
 	var ship := ShipFixture.make()
 	ship.breaker_trip("d1")
 	assert_true(DashboardModel.top_alarm(ship).text == "BREAKER d1 TRIPPED", "breaker")
