@@ -197,7 +197,7 @@ A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's sta
 
 ## Command line
 
-One line of input, with a scrollback of output above it. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't.
+One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't.
 
 | Command | Effect |
 |---|---|
@@ -263,8 +263,8 @@ unknown command 'door shut'. Type 'help' for commands
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
-- **Log:** the last 50 events with sim timestamps. Commands, state changes, exposure changes, alarms raised and cleared.
-- **Command line:** along the bottom, and it has focus at start.
+- **Log:** the last 50 events with sim timestamps. It holds the ship's own events (state changes, exposure changes, warnings, breaker trips, alarms raised and cleared), not commands.
+- **Command line:** along the bottom, and it has focus at start. Commands and their responses appear in the scrollback above the input. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
 

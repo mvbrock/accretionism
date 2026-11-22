@@ -152,20 +152,15 @@ func test_help() -> void:
 func test_tab_and_newline_separators() -> void:
 	_check(ShipFixture.make(), "door\topen\r\nhatch\n", "hatch: opening (6 s)")
 
-func test_echo_precedes_events_the_command_logs() -> void:
+func test_ships_own_event_is_logged_for_a_command() -> void:
 	var ship := ShipFixture.make()
-	_run(ship, "door open d1")
 	_run(ship, "door open d2")
 	ship.advance(10.0)
-	var before := ship.events.entries.size()
-	var response := _run(ship, "door open hatch")
+	_run(ship, "door open hatch")
 	var texts: Array[String] = []
-	for entry in ship.events.entries.slice(before):
+	for entry in ship.events.entries:
 		texts.append(entry.text)
-	assert_true(texts.size() == 4, "echo, two closings, response; got %s" % [texts])
-	assert_true(texts[0] == "> door open hatch", "echo first, got %s" % [texts])
-	assert_true(texts[1].contains("d1: closing") and texts[2].contains("d2: closing"), "closings next, got %s" % [texts])
-	assert_true(texts[3] == response, "response last, got %s" % [texts])
+	assert_true(texts.has("d2: closing (hatch opening)"), "the Ship logs its own closing, got %s" % [texts])
 
 func test_two_doors_left_open() -> void:
 	var ship := ShipFixture.make()
@@ -192,21 +187,14 @@ func test_missing_argument() -> void:
 	_check(ShipFixture.make(), "door open", USAGE_DOOR_OPEN)
 
 func test_blank_line() -> void:
-	var ship := ShipFixture.make()
-	_check(ship, "   ", "")
-	assert_true(ship.events.entries.is_empty(), "nothing logged")
+	_check(ShipFixture.make(), "   ", "")
 
-func test_command_logged() -> void:
+func test_command_adds_no_echo_or_response_to_the_log() -> void:
 	var ship := ShipFixture.make()
-	_run(ship, "light off main")
-	var entries := ship.events.entries
-	assert_true(entries[-2].text == "> light off main", "command logged as typed")
-	assert_true(entries[-1].text == "main light: off", "response logged")
-
-func test_command_logged_as_typed() -> void:
-	var ship := ShipFixture.make()
-	_run(ship, "LIGHT Off Main")
-	assert_true(ship.events.entries[-2].text == "> LIGHT Off Main", "keeps case")
+	var response := _run(ship, "light off main")
+	for entry in ship.events.entries:
+		assert_true(not entry.text.begins_with("> "), "no echo, got '%s'" % entry.text)
+		assert_true(entry.text != response, "no response, got '%s'" % entry.text)
 
 func test_computer_booting_blocks_input() -> void:
 	var ship := ShipFixture.make()

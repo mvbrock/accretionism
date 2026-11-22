@@ -30,6 +30,14 @@ func test_command_runs_from_console() -> void:
 	assert_true(main.ship.opening("hatch").state == Opening.State.OPENING, "the hatch is opening")
 
 
+func test_dashboard_log_has_no_command_line() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("door open hatch")
+	main.refresh()
+	var text := main.dashboard._log.get_parsed_text()
+	assert_true(not text.contains("> "), "the log shows no command, got '%s'" % text)
+
+
 func test_history_recall() -> void:
 	var main := _main()
 	main.console.input.text_submitted.emit("light off main")
@@ -59,6 +67,27 @@ func test_reboot_overlay() -> void:
 	main.ship.advance(21.0)
 	main.refresh()
 	assert_true(not main.overlay.visible, "the overlay hides once the computer runs")
+
+
+func test_overlay_leaves_the_console_uncovered() -> void:
+	var main := _main()
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
+	main.size = Vector2(1600, 900) # the headless window is only 64x64
+	await tree.process_frame
+	main.console.line_submitted.emit("computer restart")
+	main.refresh()
+	await tree.process_frame
+	assert_true(main.overlay.visible, "the overlay is up")
+	assert_true(not main.overlay.get_global_rect().intersects(main.console.get_global_rect()),
+			"overlay %s overlaps console %s" % [main.overlay.get_global_rect(), main.console.get_global_rect()])
+	main.console.line_submitted.emit("computer restart")
+	main.ship.advance(21.0)
+	main.console.line_submitted.emit("debug fault computer")
+	main.refresh()
+	await tree.process_frame
+	assert_true(main.stale_label.visible, "STALE is up")
+	assert_true(not main.stale_label.get_global_rect().intersects(main.console.get_global_rect()),
+			"stale label stays off the console")
 
 
 func test_stale_freeze() -> void:

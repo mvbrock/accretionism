@@ -1,6 +1,7 @@
 class_name CommandInterpreter
 extends RefCounted
-## Turns one typed line into calls on the Ship and one response line.
+## Turns one typed line into calls on the Ship and one response line. Echo and
+## response belong to the console; the Ship's own events are the only log entries.
 
 
 static var _WHITESPACE := _compile_whitespace()
@@ -17,10 +18,7 @@ static func run(ship: Ship, line: String) -> String:
 	var words := _WHITESPACE.sub(line.to_lower(), " ", true).split(" ", false)
 	if words.is_empty():
 		return ""
-	ship.events.add(ship.time_s, "> " + line.strip_edges())
-	var response := _respond(ship, words)
-	ship.events.add(ship.time_s, response)
-	return response
+	return _respond(ship, words)
 
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
