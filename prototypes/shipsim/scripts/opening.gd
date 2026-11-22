@@ -1,0 +1,72 @@
+class_name Opening
+extends RefCounted
+## A door between two rooms, or the hatch between a room and outside. It moves
+## at a fixed speed while powered and holds where it is without power.
+
+enum State { CLOSED, OPENING, OPEN, CLOSING }
+enum CommandResult { STARTED, ALREADY, NO_POWER }
+
+const OUTSIDE := "outside"
+## The one opening to outside.
+const HATCH_ID := "hatch"
+const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
+
+var id: String
+var room_a: String
+var room_b: String  # OUTSIDE for the hatch
+var travel_s: float
+var fraction := 0.0  # 0 closed, 1 fully open
+var state := State.CLOSED
+var conductance := 0.0  # m3/s, set by the loader
+var mixing := 0.0  # m3/s, set by the loader
+var heat_conductance := 0.0  # W/K, set by the loader
+
+
+func _init(opening_id: String, a: String, b: String, travel_time_s: float) -> void:
+	id = opening_id
+	room_a = a
+	room_b = b
+	travel_s = travel_time_s
+
+
+func is_hatch() -> bool:
+	return room_b == OUTSIDE
+
+
+func passes() -> bool:
+	return fraction > 0.0
+
+
+func command(want_open: bool, powered: bool) -> CommandResult:
+	if not powered:
+		return CommandResult.NO_POWER
+	var heading_there := (state == State.OPEN or state == State.OPENING) if want_open \
+			else (state == State.CLOSED or state == State.CLOSING)
+	if heading_there:
+		return CommandResult.ALREADY
+	state = State.OPENING if want_open else State.CLOSING
+	return CommandResult.STARTED
+
+
+func step(dt: float, powered: bool) -> void:
+	if not powered:
+		return
+	if state == State.OPENING:
+		fraction += dt / travel_s
+		if fraction >= 1.0 - END_SNAP:
+			fraction = 1.0
+			state = State.OPEN
+	elif state == State.CLOSING:
+		fraction -= dt / travel_s
+		if fraction <= END_SNAP:
+			fraction = 0.0
+			state = State.CLOSED
+
+
+func seconds_to_finish() -> float:
+	match state:
+		State.OPENING:
+			return (1.0 - fraction) * travel_s
+		State.CLOSING:
+			return fraction * travel_s
+	return 0.0
