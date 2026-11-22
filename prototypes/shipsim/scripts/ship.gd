@@ -92,12 +92,13 @@ func _close_doors_for_hatch(auto_closed: Array[String], left_open: Array[String]
 	for door in openings:
 		if door.is_hatch() or not (door.passes() or door.state == Opening.State.OPENING):
 			continue
-		if door.command(false, power.is_powered(door.id)) == Opening.CommandResult.NO_POWER:
-			left_open.append(door.id)
-			events.add(time_s, "%s: no power, left open with hatch opening" % door.id, EventLog.Level.WARNING)
-		else:
-			auto_closed.append(door.id)
-			events.add(time_s, "%s: closing (hatch opening)" % door.id)
+		match door.command(false, power.is_powered(door.id)):
+			Opening.CommandResult.NO_POWER:
+				left_open.append(door.id)
+				events.add(time_s, "%s: no power, left open with hatch opening" % door.id, EventLog.Level.WARNING)
+			Opening.CommandResult.STARTED:
+				auto_closed.append(door.id)
+				events.add(time_s, "%s: closing (hatch opening)" % door.id)
 
 
 ## Watts this breaker's load draws now; 0 when it is tripped.
