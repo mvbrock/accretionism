@@ -57,6 +57,16 @@ func test_tile_shows_pressure() -> void:
 			"got '%s'" % main.dashboard.tile_label("cockpit", "pressure").text)
 
 
+func test_tile_shows_passengers_after_command() -> void:
+	var main := _main()
+	assert_true(main.dashboard.tile_label("main", "passengers").text == "passengers 1",
+			"got '%s'" % main.dashboard.tile_label("main", "passengers").text)
+	main.console.line_submitted.emit("passenger add main")
+	main.refresh()
+	assert_true(main.dashboard.tile_label("main", "passengers").text == "passengers 2",
+			"got '%s'" % main.dashboard.tile_label("main", "passengers").text)
+
+
 func test_reboot_overlay() -> void:
 	var main := _main()
 	assert_true(not main.overlay.visible, "no overlay while running")

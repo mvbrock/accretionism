@@ -73,7 +73,7 @@ func show_ship(ship: Ship) -> void:
 	_show_log(ship)
 
 
-## One line of a room tile; `key` is title, pressure, temperature, o2, n2, co2 or light.
+## One line of a room tile; `key` is title, pressure, temperature, o2, n2, co2, passengers or light.
 func tile_label(room_id: String, key: String) -> Label:
 	return _tiles[room_id].labels[key]
 
@@ -118,7 +118,7 @@ func _build_tile(room_id: String) -> Control:
 	var column := VBoxContainer.new()
 	panel.add_child(column)
 	var labels := {}
-	for key in ["title", "pressure", "temperature", "o2", "n2", "co2", "light"]:
+	for key in ["title", "pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]:
 		var label := Label.new()
 		column.add_child(label)
 		labels[key] = label
@@ -180,6 +180,7 @@ func _show_tile(room_id: String, tile: Dictionary) -> void:
 	labels.o2.text = DashboardModel.gas_name("O2") + " " + tile.o2
 	labels.n2.text = DashboardModel.gas_name("N2") + " " + tile.n2
 	labels.co2.text = DashboardModel.gas_name("CO2") + " " + tile.co2
+	labels.passengers.text = tile.passengers
 	labels.light.text = "light ●" if tile.lit else "light ○"
 	_tiles[room_id].style.border_color = _color(tile.level)
 	labels.title.add_theme_color_override("font_color", _color(tile.level))

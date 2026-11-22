@@ -23,6 +23,7 @@ static func room_tile(ship: Ship, room_id: String) -> Dictionary:
 		"o2": NO_READING if in_vacuum else "%.1f %%" % (room.share("O2") * 100.0),
 		"n2": NO_READING if in_vacuum else "%.1f %%" % (room.share("N2") * 100.0),
 		"co2": NO_READING if in_vacuum else "%.2f kPa" % (room.partial_pressure("CO2") / 1000.0),
+		"passengers": "passengers %d" % room.passengers,
 		"lit": ship.light_lit(room_id),
 		"level": Status.worst(_readings(ship, room).map(func(reading: Dictionary) -> int: return reading.level)),
 	}

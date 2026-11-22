@@ -109,6 +109,8 @@ Heat sources: each passenger gives 100 W, each powered light that is on gives 40
 
 The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 2 minutes at 100×. The larger main room takes about 12 h.
 
+`passenger add` and `passenger remove` change the count in a room, one at a time, and a room can go down to none. A room with no passengers uses no O₂, makes no CO₂ and gives off no body heat.
+
 ## Systems
 
 Each powered system has a state:
@@ -205,6 +207,8 @@ One line of input, with a scrollback above it that shows each command and its re
 | `door close <d1\|d2\|hatch>` | Start closing |
 | `light on <cockpit\|main\|cargo>` | Switch that room's light on |
 | `light off <cockpit\|main\|cargo>` | Switch it off |
+| `passenger add <cockpit\|main\|cargo>` | Add a passenger to that room |
+| `passenger remove <cockpit\|main\|cargo>` | Remove a passenger from that room |
 | `pressure-control restart` | Reboot pressure control |
 | `hvac restart` | Reboot the HVAC |
 | `air-recycler restart` | Reboot the recycler |
@@ -242,6 +246,7 @@ unknown command 'door shut'. Type 'help' for commands
 │  │ O₂ 20.9 %     │    │ O₂ 20.8 %       │    │ O₂  —          │              │
 │  │ N₂ 79.0 %     │    │ N₂ 78.9 %       │    │ N₂  —          │              │
 │  │ CO₂ 0.21 kPa  │    │ CO₂ 0.28 kPa    │    │ CO₂ —          │              │
+│  │ passengers 1  │    │ passengers 1    │    │ passengers 0   │              │
 │  │ light ●       │    │ light ●         │    │ light ○        │              │
 │  └───────────────┘    └─────────────────┘    └────────────────┘              │
 │                                                                              │
@@ -261,7 +266,7 @@ unknown command 'door shut'. Type 'help' for commands
 
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
-- **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
+- **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
 - **Command line:** along the bottom, and it has focus at start. Commands and their responses appear in the scrollback above the input. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT.
@@ -318,6 +323,8 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
   - the computer down: the command line rejecting input except `computer restart`, and life support still running
   - an unpowered door holding its position, partly open included
   - a light's switch surviving a trip
+  - adding a passenger raising a sealed room's CO₂ faster, a passenger adding `heat.passenger_w` of heat, and removing the last one stopping breathing in that room
+  - each room tile's passenger count, in the model and on the main screen after `passenger add`
   - each command's success and error responses
   - the same commands from the same start always giving the same state
 

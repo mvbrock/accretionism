@@ -141,6 +141,21 @@ func set_light(room_id: String, on: bool) -> bool:
 	return true
 
 
+func add_passenger(room_id: String) -> int:
+	var target := room(room_id)
+	target.passengers += 1
+	return target.passengers
+
+
+## Returns the new count, or -1 when the room has none and nothing changed.
+func remove_passenger(room_id: String) -> int:
+	var target := room(room_id)
+	if target.passengers == 0:
+		return -1
+	target.passengers -= 1
+	return target.passengers
+
+
 func restart_system(id: String) -> SystemUnit.RestartResult:
 	return systems[id].restart(_system_powered(id))
 

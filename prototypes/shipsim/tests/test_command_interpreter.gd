@@ -122,6 +122,33 @@ func test_wrong_argument_count() -> void:
 	_check(ship, "debug fault", "usage: debug fault <system>")
 	_check(ship, "help me", "usage: help")
 
+func test_passenger_add_and_remove() -> void:
+	var ship := ShipFixture.make()
+	_check(ship, "passenger add main", "main: 2 passengers")
+	_check(ship, "passenger remove main", "main: 1 passenger")
+	_check(ship, "passenger remove main", "main: 0 passengers")
+	_check(ship, "passenger add cargo", "cargo: 1 passenger")
+
+func test_passenger_remove_from_empty_room() -> void:
+	_check(ShipFixture.make(), "passenger remove cargo", "cargo: no passengers to remove")
+
+func test_passenger_unknown_room() -> void:
+	var ship := ShipFixture.make()
+	_check(ship, "passenger add x", "unknown room 'x'. Rooms: cockpit, main, cargo")
+	_check(ship, "passenger remove x", "unknown room 'x'. Rooms: cockpit, main, cargo")
+
+func test_passenger_usage() -> void:
+	var ship := ShipFixture.make()
+	_check(ship, "passenger add", "usage: passenger add <cockpit|main|cargo>")
+	_check(ship, "passenger remove", "usage: passenger remove <cockpit|main|cargo>")
+	_check(ship, "passenger add main cargo", "usage: passenger add <cockpit|main|cargo>")
+
+func test_passenger_blocked_while_computer_down() -> void:
+	var ship := ShipFixture.make()
+	ship.fault_system("computer")
+	_check(ship, "passenger add main", "computer: fault; only 'computer restart' works")
+	assert_true(ship.room("main").passengers == 1, "nothing changed")
+
 func test_unknown_command() -> void:
 	var ship := ShipFixture.make()
 	_check(ship, "door shut d1", "unknown command 'door shut'. Type 'help' for commands")
@@ -138,6 +165,8 @@ func test_help() -> void:
 		"door close <d1|d2|hatch> — Start closing",
 		"light on <cockpit|main|cargo> — Switch that room's light on",
 		"light off <cockpit|main|cargo> — Switch it off",
+		"passenger add <cockpit|main|cargo> — Add a passenger to that room",
+		"passenger remove <cockpit|main|cargo> — Remove a passenger from that room",
 		"pressure-control restart — Reboot pressure control",
 		"hvac restart — Reboot the HVAC",
 		"air-recycler restart — Reboot the recycler",
