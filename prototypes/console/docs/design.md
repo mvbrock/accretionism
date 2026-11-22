@@ -238,30 +238,29 @@ unknown command 'door shut'. Type 'help' for commands
 ## Screen
 
 ```
-┌ console ───────────────┬ clock: ▶ 10×   T+00:42:17 ─────────────────────── ⚠ CARGO EXPOSED ┐
-│                        │                                                                  │
-│                        │                                                                  │
-│                        │  ┌ COCKPIT ─────┐ d1 ┌ MAIN ────────┐ d2 ┌ CARGO ───────┐ hatch  │
-│                        │  │ 101.3 kPa    │ ▌▐ │ 101.2 kPa    │ ▐▌ │   0.4 kPa ⛔ │ ◁▷ OPEN │
-│                        │  │  21.0 °C     │    │  20.8 °C     │    │  18.9 °C     │        │
-│                        │  │ O₂ 20.9 %    │    │ O₂ 20.8 %    │    │ O₂  —        │        │
-│                        │  │ N₂ 79.0 %    │    │ N₂ 78.9 %    │    │ N₂  —        │        │
-│                        │  │ CO₂ 0.21 kPa │    │ CO₂ 0.28 kPa │    │ CO₂ —        │        │
-│                        │  │ passengers 1 │    │ passengers 1 │    │ passengers 0 │        │
-│                        │  │ light ●      │    │ light ●      │    │ light ○      │        │
-│                        │  └──────────────┘    └──────────────┘    └──────────────┘        │
-│                        │                                                                  │
-│                        │  SYSTEMS            BREAKERS               TANKS                 │
-│                        │  pressure-control RUN  light-cockpit ■ 40 W  O₂ ██████░░ 78 %    │
-│                        │  hvac RUN              light-main    ■ 40 W  N₂ ███████░ 91 %    │
-│                        │  air-recycler BOOT 9s  light-cargo   □ TRIP                      │
-│                        │  computer RUN          d1 ■  d2 ■  hatch ■ ...  total 3.1 kW     │
-│                        │                                                                  │
-│                        │  LOG                                                             │
-│ > door open hatch      │  00:41:52  hatch opened; cargo exposed to vacuum                 │
-│ hatch: opening (6 s)   │  00:41:52  pressure-control: not feeding cargo (exposed)         │
-│ > _                    │                                                                  │
-└────────────────────────┴──────────────────────────────────────────────────────────────────┘
+┌ console ───────────────┬ clock: ▶ 10×   T+00:42:17 ────────────────────────── ⚠ CARGO EXPOSED ┐
+│                        │                                                                      │
+│                        │  ┌ COCKPIT ─────┐ d1 ┌ MAIN ────────┐ d2 ┌ CARGO ───────┐ hatch      │
+│                        │  │ 101.3 kPa    │ ▌▐ │ 101.2 kPa    │ ▐▌ │ 0.4 kPa   ⛔ │ ◁▷ OPEN    │
+│                        │  │ 21.0 °C      │    │ 20.8 °C      │    │ 18.9 °C      │            │
+│                        │  │ O₂ 20.9 %    │    │ O₂ 20.8 %    │    │ O₂ —         │            │
+│                        │  │ N₂ 79.0 %    │    │ N₂ 78.9 %    │    │ N₂ —         │            │
+│                        │  │ CO₂ 0.21 kPa │    │ CO₂ 0.28 kPa │    │ CO₂ —        │            │
+│                        │  │ passengers 1 │    │ passengers 1 │    │ passengers 0 │            │
+│                        │  │ light ●      │    │ light ●      │    │ light ○      │            │
+│                        │  └──────────────┘    └──────────────┘    └──────────────┘            │
+│                        │                                                                      │
+│                        │  SYSTEMS                 BREAKERS                  TANKS             │
+│                        │  pressure-control RUN    light-cockpit ■ 40 W      O₂ ██████░░ 78 %  │
+│                        │  hvac            RUN     light-main    ■ 40 W      N₂ ███████░ 91 %  │
+│                        │  air-recycler    BOOT 9s light-cargo   □ TRIP                        │
+│                        │  computer        RUN     d1 ■  d2 ■  hatch ■ ...   total 3.1 kW      │
+│                        │                                                                      │
+│ > door open hatch      │  LOG                                                                 │
+│ hatch: opening (6 s)   │  00:41:52  hatch opened; cargo exposed to vacuum                     │
+│ > _                    │  00:41:52  pressure-control: not feeding cargo (exposed)             │
+│                        │                                                                      │
+└────────────────────────┴──────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Bad data file:** if `data/ship.json` can't be loaded, the window shows "Could not load data/ship.json: <problem>" in place of the dashboard, the sim doesn't run, and Esc still quits.

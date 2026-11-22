@@ -1,9 +1,9 @@
 # Ship Sim Prototype
 
 A three-room ship (cockpit, main room, cargo hold) with an atmosphere, three life-support systems,
-doors, a hatch and a power panel. A dashboard on the right shows every room and system at a glance, and a
-command line down the left side is the only way to act on the ship. Open the hatch and the cargo hold vents; close it
-and the hold refills. Design: `docs/design.md`.
+doors, a hatch and a power panel. A dashboard on the right shows every room and system at a glance,
+and a command line down the left side is the only way to act on the ship. Open the hatch and the
+cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 
 ## Run
 
@@ -49,7 +49,7 @@ seed gives the same random breaker trips. Add a room or a door there and it gets
   time, so nothing depends on frame rate.
 - `scripts/dashboard_model.gd` turns a `Ship` into the strings and levels the screen shows.
 - `scripts/ui/` is a thin layer built in code: `Main` runs the clock and the command line,
-  `DashboardView` draws the model, `Console` is the input and scrollback, a column on the left of the window.
+  `DashboardView` draws the model, `Console` is the input and scrollback (the left column).
 
 ## Tests
 

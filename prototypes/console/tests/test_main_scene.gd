@@ -79,7 +79,7 @@ func test_reboot_overlay() -> void:
 	assert_true(not main.overlay.visible, "the overlay hides once the computer runs")
 
 
-func test_overlay_leaves_the_console_uncovered() -> void:
+func test_overlay_and_stale_cover_only_the_dashboard() -> void:
 	var main := _main()
 	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
 	main.size = Vector2(1600, 900) # the headless window is only 64x64
@@ -88,6 +88,8 @@ func test_overlay_leaves_the_console_uncovered() -> void:
 	main.refresh()
 	await tree.process_frame
 	assert_true(main.overlay.visible, "the overlay is up")
+	assert_true(main.dashboard.get_global_rect().encloses(main.overlay.get_global_rect()),
+			"overlay %s stays inside the dashboard %s" % [main.overlay.get_global_rect(), main.dashboard.get_global_rect()])
 	assert_true(not main.overlay.get_global_rect().intersects(main.console.get_global_rect()),
 			"overlay %s overlaps console %s" % [main.overlay.get_global_rect(), main.console.get_global_rect()])
 	main.console.line_submitted.emit("computer restart")
@@ -96,6 +98,8 @@ func test_overlay_leaves_the_console_uncovered() -> void:
 	main.refresh()
 	await tree.process_frame
 	assert_true(main.stale_label.visible, "STALE is up")
+	assert_true(main.dashboard.get_global_rect().encloses(main.stale_label.get_global_rect()),
+			"STALE stays inside the dashboard")
 	assert_true(not main.stale_label.get_global_rect().intersects(main.console.get_global_rect()),
 			"stale label stays off the console")
 
