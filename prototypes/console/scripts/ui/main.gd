@@ -79,7 +79,7 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
 func refresh() -> void:
 	dashboard.show_clock(clock)
-	match (ship.systems["computer"] as SystemUnit).state:
+	match (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state:
 		SystemUnit.State.BOOTING:
 			overlay.visible = true
 			stale_label.visible = false
