@@ -266,6 +266,7 @@ unknown command 'door shut'. Type 'help' for commands
 
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
+- **Room order:** rooms draw left to right in the data file's order, each opening after the first room it joins, so list the rooms in the order they connect.
 - **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.

@@ -12,7 +12,7 @@ func test_loads_with_a_breaker_per_room_light_and_opening() -> void:
 	assert_true(ship.power.has("d0"), "d0")
 
 func test_breaker_order_is_lights_then_openings_then_systems() -> void:
-	var expected: Array[String] = ["light-cockpit", "light-main", "light-cargo", "light-treehouse",
+	var expected: Array[String] = ["light-treehouse", "light-cockpit", "light-main", "light-cargo",
 			"d0", "d1", "d2", "hatch", "pressure-control", "hvac", "air-recycler"]
 	assert_true(_ship().power.breaker_ids == expected, str(_ship().power.breaker_ids))
 
@@ -32,3 +32,21 @@ func test_same_seed_gives_the_same_trips() -> void:
 	assert_true(a.events.entries.size() > 0, "some breakers tripped")
 	assert_true(a.power.tripped == b.power.tripped, "same breakers tripped")
 	assert_true(a.events.entries.size() == b.events.entries.size(), "same events")
+
+func test_schematic_draws_rooms_and_doors_in_data_order() -> void:
+	var view := DashboardView.new()
+	own(view)
+	view.show_ship(_ship())
+	var order: Array[String] = []
+	for node in view.get_child(1).get_children():
+		if node is Label:
+			order.append(node.text.split("\n")[0])
+		else:
+			order.append(_tile_title(view, node))
+	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))
+
+func _tile_title(view: DashboardView, tile: Node) -> String:
+	for room_id in ["treehouse", "cockpit", "main", "cargo"]:
+		if view.tile_label(room_id, "title").get_parent().get_parent() == tile:
+			return view.tile_label(room_id, "title").text
+	return "?"

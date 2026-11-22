@@ -13,12 +13,13 @@ static func make(overrides := {}) -> Ship:
 
 
 ## The shipped data plus a 12 m3 `treehouse` with one passenger, joined to the cockpit by `d0`.
+## The treehouse is the first room and `d0` the first opening, so the rooms connect in order.
 ## Random trips are off unless `mean_time_between_trips_h` is changed.
 static func four_room_data() -> Dictionary:
 	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/ship.json"))
 	data.breakers.mean_time_between_trips_h = 0
-	data.rooms.append({"id": "treehouse", "volume_m3": 12, "passengers": 1, "start": data.rooms[0].start.duplicate()})
-	data.openings.insert(0, {"id": "d0", "between": ["treehouse", "cockpit"], "travel_s": 2,
+	data.rooms.push_front({"id": "treehouse", "volume_m3": 12, "passengers": 1, "start": data.rooms[0].start.duplicate()})
+	data.openings.push_front({"id": "d0", "between": ["treehouse", "cockpit"], "travel_s": 2,
 			"conductance_m3s": 10})
 	return data
 
