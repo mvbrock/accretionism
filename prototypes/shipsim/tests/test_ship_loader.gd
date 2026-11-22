@@ -52,3 +52,88 @@ func test_opening_to_itself_is_reported() -> void:
 	data.openings[0].between = ["main", "main"]
 	expect_error("opening 'd1'")
 	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+func _assert_rejected(data: Dictionary, message: String) -> void:
+	expect_error(message)
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+func test_room_missing_key_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].erase("crew")
+	_assert_rejected(data, "room is missing 'crew'")
+
+func test_room_start_missing_key_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].start.erase("co2_kpa")
+	_assert_rejected(data, "room 'cockpit' start is missing 'co2_kpa'")
+
+func test_duplicate_room_is_reported() -> void:
+	var data := _data()
+	data.rooms[1].id = "cockpit"
+	_assert_rejected(data, "duplicate room 'cockpit'")
+
+func test_opening_missing_key_is_reported() -> void:
+	var data := _data()
+	data.openings[0].erase("travel_s")
+	_assert_rejected(data, "opening is missing 'travel_s'")
+
+func test_duplicate_opening_is_reported() -> void:
+	var data := _data()
+	data.openings[1].id = "d1"
+	_assert_rejected(data, "duplicate opening 'd1'")
+
+func test_opening_joining_three_places_is_reported() -> void:
+	var data := _data()
+	data.openings[0].between = ["cockpit", "main", "cargo"]
+	_assert_rejected(data, "opening 'd1' must join exactly two places")
+
+func test_missing_tank_is_reported() -> void:
+	var data := _data()
+	data.tanks.erase("N2")
+	_assert_rejected(data, "missing tank 'N2'")
+
+func test_room_without_light_breaker_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "galley"
+	_assert_rejected(data, "room 'galley' has no breaker 'light-galley'")
+
+func test_opening_without_breaker_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "d9"
+	_assert_rejected(data, "opening 'd9' has no breaker")
+
+func test_no_outside_opening_is_reported() -> void:
+	var data := _data()
+	data.openings[2].between = ["cargo", "main"]
+	_assert_rejected(data, "exactly one opening to outside")
+
+func test_two_outside_openings_are_reported() -> void:
+	var data := _data()
+	data.openings[1].between = ["cargo", "outside"]
+	_assert_rejected(data, "exactly one opening to outside")
+
+func test_outside_opening_not_named_hatch_is_reported() -> void:
+	var data := _data()
+	data.openings[1].between = ["cargo", "outside"]
+	data.openings[2].between = ["cargo", "main"]
+	_assert_rejected(data, "opening to outside is 'd2', which must be 'hatch'")
+
+func test_tank_missing_capacity_is_reported() -> void:
+	var data := _data()
+	data.tanks.O2.erase("capacity_mol")
+	_assert_rejected(data, "tank 'O2' is missing 'capacity_mol'")
+
+func test_tank_missing_start_is_reported() -> void:
+	var data := _data()
+	data.tanks.O2.erase("start_mol")
+	_assert_rejected(data, "tank 'O2' is missing 'start_mol'")
+
+func test_tank_start_above_capacity_is_reported() -> void:
+	var data := _data()
+	data.tanks.O2.start_mol = data.tanks.O2.capacity_mol + 1
+	_assert_rejected(data, "tank 'O2' starts at")
+
+func test_tank_start_below_zero_is_reported() -> void:
+	var data := _data()
+	data.tanks.O2.start_mol = -1
+	_assert_rejected(data, "tank 'O2' starts at -1")

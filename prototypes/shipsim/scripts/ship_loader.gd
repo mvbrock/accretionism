@@ -7,6 +7,8 @@ const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "crew
 		"hvac", "air_recycler", "computer", "tanks", "breakers", "status"]
 const _ROOM_KEYS := ["id", "volume_m3", "crew", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
+const _TANK_KEYS := ["capacity_mol", "start_mol"]
+const HATCH_ID := "hatch"
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
 
 
@@ -51,12 +53,15 @@ static func _find_problem(data: Dictionary) -> String:
 		if room_ids.has(entry.id):
 			return "duplicate room '%s'" % entry.id
 		room_ids[entry.id] = true
+		if not PowerPanel.BREAKER_IDS.has("light-%s" % entry.id):
+			return "room '%s' has no breaker 'light-%s' in the power panel" % [entry.id, entry.id]
 		if entry.volume_m3 <= 0:
 			return "room '%s' has volume %s m3, which must be above 0" % [entry.id, entry.volume_m3]
 		if Units.kelvin(entry.start.temperature_c) <= 0.0:
 			return "room '%s' starts at %s C, which is not above absolute zero" % [
 				entry.id, entry.start.temperature_c]
 	var opening_ids := {}
+	var outside_ids: Array = []
 	for entry in data.openings:
 		for key in _OPENING_KEYS:
 			if not entry.has(key):
@@ -64,20 +69,35 @@ static func _find_problem(data: Dictionary) -> String:
 		if opening_ids.has(entry.id):
 			return "duplicate opening '%s'" % entry.id
 		opening_ids[entry.id] = true
+		if not PowerPanel.BREAKER_IDS.has(entry.id):
+			return "opening '%s' has no breaker in the power panel" % entry.id
 		if entry.between.size() != 2:
 			return "opening '%s' must join exactly two places" % entry.id
 		if entry.between[0] == Opening.OUTSIDE:
 			return "opening '%s' must list the room first and outside second" % entry.id
 		if entry.between[0] == entry.between[1]:
 			return "opening '%s' joins '%s' to itself" % [entry.id, entry.between[0]]
+		if entry.between[1] == Opening.OUTSIDE:
+			outside_ids.append(entry.id)
 		for place in entry.between:
 			if place != Opening.OUTSIDE and not room_ids.has(place):
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]
+	if outside_ids.size() != 1:
+		return "need exactly one opening to outside, found %d" % outside_ids.size()
+	if outside_ids[0] != HATCH_ID:
+		return "the opening to outside is '%s', which must be '%s'" % [outside_ids[0], HATCH_ID]
 	for gas in Units.TANK_GASES:
 		if not data.tanks.has(gas):
 			return "missing tank '%s'" % gas
+		for key in _TANK_KEYS:
+			if not data.tanks[gas].has(key):
+				return "tank '%s' is missing '%s'" % [gas, key]
 		if data.tanks[gas].capacity_mol <= 0:
 			return "tank '%s' has capacity %s mol, which must be above 0" % [gas, data.tanks[gas].capacity_mol]
+		var start: float = data.tanks[gas].start_mol
+		if start < 0 or start > data.tanks[gas].capacity_mol:
+			return "tank '%s' starts at %s mol, which must be between 0 and its capacity %s mol" % [
+				gas, start, data.tanks[gas].capacity_mol]
 	return ""
 
 
