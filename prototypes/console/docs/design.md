@@ -263,6 +263,8 @@ unknown command 'door shut'. Type 'help' for commands
 └────────────────────────┴──────────────────────────────────────────────────────────────────────┘
 ```
 
+The sketch isn't to scale: the console takes the left 40% of the window, on a darker panel, and the dashboard the right 60%.
+
 - **Bad data file:** if `data/ship.json` can't be loaded, the window shows "Could not load data/ship.json: <problem>" in place of the dashboard, the sim doesn't run, and Esc still quits.
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
@@ -270,7 +272,7 @@ unknown command 'door shut'. Type 'help' for commands
 - **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
-- **Command line:** a column down the left side of the window, 460 px wide and the full window height, with the dashboard filling the rest on the right. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
+- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
 

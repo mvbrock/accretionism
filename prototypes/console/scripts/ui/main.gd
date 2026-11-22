@@ -10,7 +10,11 @@ const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
 const ERROR_MARGIN_PX := 24
 const WINDOW_MARGIN_PX := 12
-const CONSOLE_WIDTH_PX := 460
+## The console column and the dashboard split the width in this ratio.
+const CONSOLE_SHARE := 40.0
+const DASHBOARD_SHARE := 60.0
+const CONSOLE_PANEL_COLOR := Color("26282c")
+const CONSOLE_PADDING_PX := 8
 
 ## Overridable so a test can load a different file.
 var data_path := SHIP_PATH
@@ -18,6 +22,7 @@ var ship: Ship
 var clock := SimClock.new()
 var dashboard: DashboardView
 var console: Console
+var console_panel: PanelContainer
 var overlay: Label
 var stale_label: Label
 var error_label: Label
@@ -121,11 +126,19 @@ func _build_ui() -> void:
 	split.add_theme_constant_override("separation", WINDOW_MARGIN_PX)
 	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, WINDOW_MARGIN_PX)
 	add_child(split)
+	console_panel = PanelContainer.new()
+	console_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	console_panel.size_flags_stretch_ratio = CONSOLE_SHARE
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = CONSOLE_PANEL_COLOR
+	panel_style.set_content_margin_all(CONSOLE_PADDING_PX)
+	console_panel.add_theme_stylebox_override("panel", panel_style)
+	split.add_child(console_panel)
 	console = Console.new()
-	console.custom_minimum_size = Vector2(CONSOLE_WIDTH_PX, 0)
-	split.add_child(console)
+	console_panel.add_child(console)
 	var stage := Control.new()
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stage.size_flags_stretch_ratio = DASHBOARD_SHARE
 	split.add_child(stage)
 	dashboard = DashboardView.new()
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)

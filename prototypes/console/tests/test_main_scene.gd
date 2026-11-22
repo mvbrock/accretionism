@@ -109,12 +109,14 @@ func test_console_is_a_full_height_column_left_of_the_dashboard() -> void:
 	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
 	main.size = Vector2(1600, 900) # the headless window is only 64x64
 	await tree.process_frame
-	var console_rect := main.console.get_global_rect()
+	var console_rect := main.console_panel.get_global_rect()
 	var dashboard_rect := main.dashboard.get_global_rect()
 	assert_true(console_rect.end.x <= dashboard_rect.position.x,
 			"console %s is left of the dashboard %s" % [console_rect, dashboard_rect])
 	assert_true(console_rect.size.y >= 900 - 2 * Main.WINDOW_MARGIN_PX,
 			"console %s spans the window height" % console_rect)
+	var share: float = console_rect.size.x / 1600.0
+	assert_true(absf(share - 0.40) <= 0.03, "console panel takes about 40%% of the width, got %.3f" % share)
 	assert_true(dashboard_rect.end.x <= 1600, "dashboard %s stays inside the window" % dashboard_rect)
 
 
