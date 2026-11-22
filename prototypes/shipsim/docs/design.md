@@ -263,7 +263,7 @@ unknown command 'door shut'. Type 'help' for commands
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
-- **Log:** the last 50 events with sim timestamps. It holds the ship's own events (state changes, exposure changes, warnings, breaker trips, alarms raised and cleared), not commands.
+- **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
 - **Command line:** along the bottom, and it has focus at start. Commands and their responses appear in the scrollback above the input. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
