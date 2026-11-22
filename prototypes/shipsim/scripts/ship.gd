@@ -32,7 +32,6 @@ var _setpoint_k := 0.0
 var _hull_k := 0.0
 
 
-## `rooms` and `openings` come ready-made from the loader; `data` is the validated data file.
 func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Opening]) -> void:
 	params = data
 	rooms = ship_rooms
@@ -68,13 +67,11 @@ func opening(id: String) -> Opening:
 	return null
 
 
-## True when the room's switch is on and its light has power.
 func light_lit(room_id: String) -> bool:
 	return light_switches[room_id] and power.is_powered("light-" + room_id)
 
 
 ## The command methods below expect known ids; the command interpreter validates them.
-## A hatch that starts opening closes every door that is open or opening.
 func set_opening(id: String, want_open: bool) -> Dictionary:
 	var target := opening(id)
 	var hatch_passing := opening("hatch").passes()
@@ -105,7 +102,6 @@ func _close_doors_for_hatch(auto_closed: Array[String], left_open: Array[String]
 				events.add(time_s, "%s: closing (hatch opening)" % door.id)
 
 
-## Watts this breaker's load draws now; 0 when it is tripped.
 func draw_w(breaker_id: String) -> float:
 	if not power.is_powered(breaker_id):
 		return 0.0
@@ -138,7 +134,6 @@ func total_draw_w() -> float:
 	return total
 
 
-## False when the light was already in that position.
 func set_light(room_id: String, on: bool) -> bool:
 	if light_switches[room_id] == on:
 		return false
@@ -158,7 +153,6 @@ func breaker_trip(id: String) -> bool:
 	return power.trip(id)
 
 
-## Puts a system in FAULT. False when it has no power or is already faulted.
 func fault_system(id: String) -> bool:
 	return systems[id].fault()
 

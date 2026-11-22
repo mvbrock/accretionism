@@ -20,7 +20,6 @@ func _init(room_id: String, room_volume: float, room_temperature: float, room_cr
 		mol[gas] = 0.0
 
 
-## Moles of `gas` that make `pa` of partial pressure in `volume` at `temperature`.
 static func mol_for(pa: float, volume: float, temperature: float) -> float:
 	return pa * volume / (Units.R * temperature)
 
@@ -33,7 +32,6 @@ func pressure() -> float:
 	return total_mol() * Units.R * temperature / volume
 
 
-## The fraction of the room's gas that is `gas`; 0 when the room is empty.
 func share(gas: String) -> float:
 	var total := total_mol()
 	return 0.0 if total == 0.0 else mol[gas] / total

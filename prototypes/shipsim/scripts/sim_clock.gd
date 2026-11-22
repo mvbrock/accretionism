@@ -8,7 +8,6 @@ var paused := false
 var speed_index := 0
 
 
-## Sim seconds to advance for `real_delta` real seconds.
 func tick(real_delta: float) -> float:
 	return 0.0 if paused else real_delta * SPEEDS[speed_index]
 

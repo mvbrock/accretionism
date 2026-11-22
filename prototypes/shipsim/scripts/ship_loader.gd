@@ -36,7 +36,6 @@ static func from_dict(data: Dictionary) -> Ship:
 	return Ship.new(data, rooms, openings)
 
 
-## Empty string when the data is usable, otherwise what is wrong with it.
 static func _find_problem(data: Dictionary) -> String:
 	for key in _REQUIRED_KEYS:
 		if not data.has(key):

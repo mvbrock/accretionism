@@ -12,8 +12,6 @@ static func _compile_whitespace() -> RegEx:
 	return regex
 
 
-## Runs `line`, logs it and the response to the ship's event log, and returns
-## the response. A blank line does nothing and returns "".
 static func run(ship: Ship, line: String) -> String:
 	var words := _WHITESPACE.sub(line.to_lower(), " ", true).split(" ", false)
 	if words.is_empty():
@@ -43,7 +41,6 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	return command.handler.call(ship, words.slice(words.size() - arg_count))
 
 
-## Command key (its leading words) -> {usage, effect, args, handler}, in help order.
 static func _commands() -> Dictionary:
 	var commands := {}
 	_add(commands, "door open", "door open <d1|d2|hatch>", "Start opening", 1, _door_open)
@@ -61,7 +58,7 @@ static func _commands() -> Dictionary:
 	return commands
 
 
-## Rounds up to whole seconds, ignoring float residue from summed steps.
+## Summed steps leave float residue that must not tip into an extra second, so this rounds up to whole seconds past it.
 static func _whole_seconds(seconds: float) -> int:
 	return int(ceil(seconds - 1e-9))
 

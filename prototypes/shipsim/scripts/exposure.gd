@@ -3,7 +3,6 @@ extends RefCounted
 ## Which rooms are open to space.
 
 
-## Room id -> true when a chain of openings that pass leads from it to outside.
 static func exposed(room_ids: Array[String], openings: Array[Opening]) -> Dictionary:
 	var reached := {Opening.OUTSIDE: true}
 	var frontier: Array[String] = [Opening.OUTSIDE]

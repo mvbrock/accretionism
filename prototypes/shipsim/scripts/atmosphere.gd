@@ -3,7 +3,6 @@ extends RefCounted
 ## Gas flow between rooms, venting through the hatch, and heat. Stateless.
 
 
-## Moves gas and heat between the two rooms `door` joins, for `dt` seconds.
 static func flow_through_door(a: Room, b: Room, door: Opening, dt: float) -> void:
 	if not door.passes():
 		return
@@ -21,7 +20,6 @@ static func flow_through_door(a: Room, b: Room, door: Opening, dt: float) -> voi
 	b.temperature += heat / b.heat_capacity
 
 
-## Vents `room` to space through `hatch`; returns the moles lost.
 static func vent_through_hatch(room: Room, hatch: Opening, dt: float) -> float:
 	var before := room.total_mol()
 	var keep := exp(-hatch.conductance * hatch.fraction * dt / room.volume)
@@ -38,8 +36,6 @@ static func hull_loss(room: Room, hull_temperature: float, dt: float) -> void:
 	add_heat(room, -room.hull_conductance * (room.temperature - hull_temperature) * dt)
 
 
-## Pressure-driven flow from the higher-pressure room to the lower, capped at
-## the amount that would equalize them.
 static func _bulk_flow(a: Room, b: Room, door: Opening, dt: float) -> void:
 	var delta := a.pressure() - b.pressure()
 	var source := a if delta > 0.0 else b

@@ -52,8 +52,6 @@ func _match_display_scale() -> void:
 	window.move_to_center()
 
 
-## The window size that shows `base` logical pixels at `scale`, shrunk
-## proportionally to fit within `usable`.
 static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -> Vector2i:
 	var wanted := Vector2(base) * scale
 	var fit := minf(1.0, minf(usable.x / wanted.x, usable.y / wanted.y))

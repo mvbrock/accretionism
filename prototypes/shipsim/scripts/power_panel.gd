@@ -8,7 +8,6 @@ const BREAKER_IDS: Array[String] = [
 	"pressure-control", "hvac", "air-recycler",
 ]
 
-## Breaker id -> true when tripped.
 var tripped: Dictionary = {}
 
 var _rng := RandomNumberGenerator.new()
@@ -31,7 +30,6 @@ func is_powered(id: String) -> bool:
 	return not tripped[id]
 
 
-## Trips a closed breaker. False when it was already tripped.
 func trip(id: String) -> bool:
 	if tripped[id]:
 		return false
@@ -39,7 +37,6 @@ func trip(id: String) -> bool:
 	return true
 
 
-## Closes a tripped breaker. False when it was not tripped.
 func reset(id: String) -> bool:
 	if not tripped[id]:
 		return false
@@ -47,9 +44,8 @@ func reset(id: String) -> bool:
 	return true
 
 
-## Gives each closed breaker a chance of `dt / mean` to trip. Draws once per
-## breaker, tripped or not, so the random stream does not depend on state.
-## Returns the ids it tripped.
+## The random stream must not depend on breaker state, so this draws once per
+## breaker, tripped or not. Each closed breaker trips with chance `dt / mean`.
 func roll_random_trips(dt: float) -> Array[String]:
 	var result: Array[String] = []
 	if _mean_time_between_trips_s <= 0.0:

@@ -62,7 +62,6 @@ static func breaker_text(ship: Ship, id: String) -> String:
 	return "■ %d W" % roundi(ship.draw_w(id))
 
 
-## Whole percent, rounded down.
 static func tank_percent(ship: Ship, gas: String) -> int:
 	return floori(ship.tanks[gas].fraction() * 100.0)
 
@@ -71,7 +70,6 @@ static func tank_level(ship: Ship, gas: String) -> Status.Level:
 	return Status.classify(ship.tanks[gas].fraction() * 100.0, ship.params.status.tank_percent)
 
 
-## A faulted or unpowered system is a warning; a running or booting one is nominal.
 static func system_level(ship: Ship, id: String) -> Status.Level:
 	match ship.systems[id].state:
 		SystemUnit.State.FAULT, SystemUnit.State.NO_POWER:
@@ -79,7 +77,6 @@ static func system_level(ship: Ship, id: String) -> Status.Level:
 	return Status.Level.NOMINAL
 
 
-## A tripped breaker is a warning.
 static func breaker_level(ship: Ship, id: String) -> Status.Level:
 	return Status.Level.NOMINAL if ship.power.is_powered(id) else Status.Level.WARNING
 
@@ -93,8 +90,6 @@ static func total_draw_text(ship: Ship) -> String:
 	return "total %.1f kW" % (ship.total_draw_w() / 1000.0)
 
 
-## The most serious thing wrong, as {text, level}; the first one found at the
-## highest level, or an empty NOMINAL when nothing is.
 static func top_alarm(ship: Ship) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	for room in ship.rooms:
@@ -124,8 +119,6 @@ static func top_alarm(ship: Ship) -> Dictionary:
 	return top
 
 
-## A room's pressure, O₂, CO₂ and temperature as {name, level, direction}, in
-## that order. `direction` is LOW or HIGH against the nominal band.
 static func _readings(ship: Ship, room: Room) -> Array[Dictionary]:
 	var bands: Dictionary = ship.params.status
 	var values := [

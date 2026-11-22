@@ -31,13 +31,10 @@ func is_hatch() -> bool:
 	return room_b == OUTSIDE
 
 
-## True while any gas can pass.
 func passes() -> bool:
 	return fraction > 0.0
 
 
-## Asks the opening to head for open or closed. A moving opening reverses from
-## where it is. Without power nothing changes.
 func command(want_open: bool, powered: bool) -> CommandResult:
 	if not powered:
 		return CommandResult.NO_POWER
@@ -64,7 +61,6 @@ func step(dt: float, powered: bool) -> void:
 			state = State.CLOSED
 
 
-## Seconds left to reach the current target; 0 when not moving.
 func seconds_to_finish() -> float:
 	match state:
 		State.OPENING:

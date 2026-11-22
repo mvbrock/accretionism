@@ -20,7 +20,6 @@ func _init(unit_id: String, boot_time_s: float) -> void:
 	boot_s = boot_time_s
 
 
-## Advances `dt` seconds. True when the state changed.
 func step(dt: float, powered: bool) -> bool:
 	var before := state
 	if not powered:
@@ -35,7 +34,6 @@ func step(dt: float, powered: bool) -> bool:
 	return state != before
 
 
-## Starts a boot from any powered state, a fault included.
 func restart(powered: bool) -> RestartResult:
 	if not powered:
 		return RestartResult.NO_POWER
@@ -43,7 +41,6 @@ func restart(powered: bool) -> RestartResult:
 	return RestartResult.REBOOTING
 
 
-## Puts the system in FAULT. False when it has no power or is already faulted.
 func fault() -> bool:
 	if state == State.NO_POWER or state == State.FAULT:
 		return false

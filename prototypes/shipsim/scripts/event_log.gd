@@ -6,7 +6,6 @@ const CAPACITY := 50
 
 enum Level { INFO, WARNING, DANGER }
 
-## Each entry is {time_s, text, level}.
 var entries: Array[Dictionary] = []
 
 
@@ -16,7 +15,6 @@ func add(time_s: float, text: String, level := Level.INFO) -> void:
 		entries.pop_front()
 
 
-## True when any kept entry's text contains `substring`.
 func has_text(substring: String) -> bool:
 	for entry in entries:
 		if entry.text.contains(substring):
