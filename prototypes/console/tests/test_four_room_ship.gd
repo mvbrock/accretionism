@@ -29,9 +29,16 @@ func test_same_seed_gives_the_same_trips() -> void:
 	for i in 600:
 		a.step()
 		b.step()
-	assert_true(a.events.entries.size() > 0, "some breakers tripped")
-	assert_true(a.power.tripped == b.power.tripped, "same breakers tripped")
-	assert_true(a.events.entries.size() == b.events.entries.size(), "same events")
+	var trips_a := _trips(a)
+	assert_true(trips_a.size() > 0, "some breakers tripped")
+	assert_true(trips_a == _trips(b), "same trips at the same times")
+
+func _trips(ship: Ship) -> Array:
+	var trips := []
+	for entry in ship.events.entries:
+		if entry.text.ends_with("breaker tripped"):
+			trips.append([entry.text, entry.time_s])
+	return trips
 
 func test_schematic_draws_rooms_and_doors_in_data_order() -> void:
 	var view := DashboardView.new()
@@ -50,3 +57,14 @@ func _tile_title(view: DashboardView, tile: Node) -> String:
 		if view.tile_label(room_id, "title").get_parent().get_parent() == tile:
 			return view.tile_label(room_id, "title").text
 	return "?"
+
+func test_schematic_places_a_door_after_the_earlier_of_its_rooms() -> void:
+	var data := ShipFixture.four_room_data()
+	data.openings[0].between = ["cockpit", "treehouse"]
+	var view := DashboardView.new()
+	own(view)
+	view.show_ship(ShipLoader.from_dict(data))
+	var order: Array[String] = []
+	for node in view.get_child(1).get_children():
+		order.append(node.text.split("\n")[0] if node is Label else _tile_title(view, node))
+	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))

@@ -23,7 +23,6 @@ var _opening_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
 var _tank_labels := {}
-var _breakers_column: VBoxContainer
 var _breaker_grid: GridContainer
 var _total_label: Label
 var _log: RichTextLabel
@@ -103,16 +102,25 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-## Each room is followed by the opening that has it as its `room_a`.
+## Each opening follows whichever of its rooms comes first in the room order.
 func _build_schematic(ship: Ship) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	for room in ship.rooms:
 		row.add_child(_build_tile(room.id))
 		for opening in ship.openings:
-			if opening.room_a == room.id:
+			if _first_room_id(ship, opening) == room.id:
 				row.add_child(_build_opening(opening.id))
 	return row
+
+
+## Whichever of the opening's rooms comes first in the ship's room order; the hatch's is its room.
+func _first_room_id(ship: Ship, opening: Opening) -> String:
+	var index_a := ship.rooms.find(ship.room(opening.room_a))
+	var index_b := ship.rooms.find(ship.room(opening.room_b))
+	if index_b == -1 or (index_a != -1 and index_a < index_b):
+		return opening.room_a
+	return opening.room_b
 
 
 func _build_tile(room_id: String) -> Control:
@@ -155,14 +163,14 @@ func _build_panels() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 40)
 	row.add_child(_column("SYSTEMS", Ship.SYSTEM_IDS, _system_labels))
-	_breakers_column = _column("BREAKERS", [], _breaker_labels)
+	var breakers := _column("BREAKERS", [], _breaker_labels)
 	_breaker_grid = GridContainer.new()
 	_breaker_grid.columns = 2
 	_breaker_grid.add_theme_constant_override("h_separation", 24)
-	_breakers_column.add_child(_breaker_grid)
+	breakers.add_child(_breaker_grid)
 	_total_label = Label.new()
-	_breakers_column.add_child(_total_label)
-	row.add_child(_breakers_column)
+	breakers.add_child(_total_label)
+	row.add_child(breakers)
 	row.add_child(_column("TANKS", Units.TANK_GASES, _tank_labels))
 	return row
 

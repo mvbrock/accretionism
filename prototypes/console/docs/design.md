@@ -33,7 +33,7 @@ No player character, passenger movement, walking or first-person view. No power 
 | Restart | A restart reboots a system: it goes offline for a few seconds, then comes back running. A restart clears a fault. It does not reset a breaker |
 | Breakers | Each breaker trips at random. A tripped breaker stays tripped until `breaker reset <breaker ID>` |
 | Faults | System faults happen only when injected with `debug fault`. `debug trip` trips a breaker on demand, so tests and demos don't wait on chance |
-| Door auto-close | When the hatch starts opening, `d1` and `d2` close by themselves. A door without power stays where it is |
+| Door auto-close | When the hatch starts opening, every door except the hatch closes by itself. A door without power stays where it is |
 | IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
 | Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
 | Clock | Pause, 1×, 10× and 100× sim speed |
@@ -267,7 +267,7 @@ unknown command 'door shut'. Type 'help' for commands
 - **Bad data file:** if `data/ship.json` can't be loaded, the window shows "Could not load data/ship.json: <problem>" in place of the dashboard, the sim doesn't run, and Esc still quits.
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
-- **Room order:** rooms draw left to right in the data file's order, each opening after the first room it joins, so list the rooms in the order they connect.
+- **Room order:** rooms draw left to right in the data file's order, each door between the rooms it joins (after the earlier of the two), so list the rooms in the order they connect.
 - **Room tiles:** pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". The tile's border color is the room's worst status.
 - **Systems, breakers and tanks** panels, as above.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.

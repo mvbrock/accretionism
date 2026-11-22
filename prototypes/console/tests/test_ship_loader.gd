@@ -166,3 +166,26 @@ func test_tank_starting_full_is_accepted() -> void:
 	var data := _data()
 	data.tanks.O2.start_mol = data.tanks.O2.capacity_mol
 	assert_true(ShipLoader.from_dict(data) != null, "full tank loads")
+
+func test_uppercase_room_id_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "Cockpit"
+	data.openings[0].between = ["Cockpit", "main"]
+	_assert_rejected(data, "room id 'Cockpit' must be lowercase")
+
+func test_room_id_with_a_space_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "sky deck"
+	data.openings[0].between = ["sky deck", "main"]
+	_assert_rejected(data, "room id 'sky deck' must not contain whitespace")
+
+func test_opening_id_with_a_space_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "door 1"
+	_assert_rejected(data, "opening id 'door 1' must not contain whitespace")
+
+func test_room_named_outside_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "outside"
+	data.openings[0].between = ["outside", "main"]
+	_assert_rejected(data, "room id 'outside' is reserved")

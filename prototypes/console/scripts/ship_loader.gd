@@ -56,6 +56,9 @@ static func _find_problem(data: Dictionary) -> String:
 		for key in _START_KEYS:
 			if not entry.start.has(key):
 				return "room '%s' start is missing '%s'" % [entry.id, key]
+		var room_id_problem := _typing_problem(entry.id)
+		if room_id_problem != "":
+			return "room id '%s' %s" % [entry.id, room_id_problem]
 		if room_ids.has(entry.id):
 			return "duplicate room '%s'" % entry.id
 		room_ids[entry.id] = true
@@ -73,6 +76,9 @@ static func _find_problem(data: Dictionary) -> String:
 		for key in _OPENING_KEYS:
 			if not entry.has(key):
 				return "opening is missing '%s'" % key
+		var opening_id_problem := _typing_problem(entry.id)
+		if opening_id_problem != "":
+			return "opening id '%s' %s" % [entry.id, opening_id_problem]
 		if opening_ids.has(entry.id):
 			return "duplicate opening '%s'" % entry.id
 		opening_ids[entry.id] = true
@@ -105,6 +111,20 @@ static func _find_problem(data: Dictionary) -> String:
 		if start < 0 or start > data.tanks[gas].capacity_mol:
 			return "tank '%s' starts at %s mol, which must be between 0 and its capacity %s mol" % [
 				gas, start, data.tanks[gas].capacity_mol]
+	return ""
+
+
+## The command line lowercases its input and splits it on whitespace, so an id
+## that breaks those rules could never be typed.
+static func _typing_problem(id: String) -> String:
+	if id.is_empty():
+		return "is empty"
+	if id != id.to_lower():
+		return "must be lowercase"
+	if id.contains(" ") or id.contains("\t") or id.contains("\n"):
+		return "must not contain whitespace"
+	if id == Opening.OUTSIDE:
+		return "is reserved for the outside"
 	return ""
 
 
