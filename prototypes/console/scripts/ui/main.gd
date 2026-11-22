@@ -3,7 +3,7 @@ extends Control
 ## Wires the ship, the clock, the dashboard and the console. Space pauses unless
 ## the command line has focus; Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, opens the
-## hatch, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
+## hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
 const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
@@ -39,6 +39,7 @@ func _ready() -> void:
 	_build_ui()
 	dashboard.pause_pressed.connect(_toggle_pause)
 	dashboard.speed_pressed.connect(_next_speed)
+	dashboard.room_selected.connect(refresh)
 	console.line_submitted.connect(_on_line_submitted)
 	console.input.grab_focus()
 	refresh()
@@ -217,6 +218,7 @@ class CaptureScript:
 		main.clock.speed_index = SPEED_INDEX
 		main.clock.paused = false
 		CommandInterpreter.run(main.ship, "door open hatch")
+		main.dashboard.select_room("cargo")
 
 	## Sim seconds to run this frame, never past the current stop.
 	func limit(sim_seconds: float) -> float:

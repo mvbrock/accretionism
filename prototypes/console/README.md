@@ -13,6 +13,10 @@ cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 Space pauses unless the command line has focus; the clock bar also has Pause/Play and Speed (1×, 10×,
 100×) buttons. Up and down recall earlier commands. Esc quits.
 
+| Control | Effect |
+|---|---|
+| Click a room | Show that room's readings in the ROOM panel |
+
 ## Commands
 
 Commands and IDs are case-insensitive. Every command prints one line, except `help`.
@@ -62,5 +66,5 @@ godot --headless --path . -s res://tests/run_tests.gd -- main_scene   # filter b
 A test fails if it logs an engine or script error. A test that deliberately triggers one declares
 it with `expect_error("part of the message")`.
 
-Screenshots: `godot --path . -- --capture <dir>` runs at 100×, opens the hatch, saves `venting.png`
+Screenshots: `godot --path . -- --capture <dir>` runs at 100×, opens the hatch, selects cargo, saves `venting.png`
 at 20 s of sim time, closes the hatch, saves `refilled.png` at 120 s, then quits.

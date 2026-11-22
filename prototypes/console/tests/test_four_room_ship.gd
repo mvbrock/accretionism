@@ -56,8 +56,8 @@ func _schematic_order(view: DashboardView) -> Array[String]:
 
 func _tile_title(view: DashboardView, tile: Node) -> String:
 	for room_id in ["treehouse", "cockpit", "main", "cargo"]:
-		if view.tile_label(room_id, "title").get_parent().get_parent() == tile:
-			return view.tile_label(room_id, "title").text
+		if view.tile(room_id) == tile:
+			return room_id.to_upper()
 	return "?"
 
 func test_schematic_places_a_door_after_the_earlier_of_its_rooms() -> void:

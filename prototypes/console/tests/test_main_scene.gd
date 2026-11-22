@@ -51,20 +51,136 @@ func test_history_recall() -> void:
 	assert_true(main.console.input.text == "light off cargo", "Down steps forward, got '%s'" % main.console.input.text)
 
 
-func test_tile_shows_pressure() -> void:
-	var main := _main()
-	assert_true(main.dashboard.tile_label("cockpit", "pressure").text == "101.3 kPa",
-			"got '%s'" % main.dashboard.tile_label("cockpit", "pressure").text)
+func _click(tile: Control) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	tile.gui_input.emit(event)
 
 
-func test_tile_shows_passengers_after_command() -> void:
+func _panel_text(main: Main, key: String) -> String:
+	return main.dashboard.room_label(key).text
+
+
+func _label_texts(node: Node) -> Array[String]:
+	var texts: Array[String] = []
+	for child in node.find_children("*", "Label", true, false):
+		texts.append((child as Label).text)
+	return texts
+
+
+func test_tiles_show_only_the_room_name() -> void:
 	var main := _main()
-	assert_true(main.dashboard.tile_label("main", "passengers").text == "passengers 1",
-			"got '%s'" % main.dashboard.tile_label("main", "passengers").text)
-	main.console.line_submitted.emit("passenger add main")
+	for room in main.ship.rooms:
+		var texts := _label_texts(main.dashboard.tile(room.id))
+		assert_true(texts == [room.id.to_upper()], "%s tile text is just its name, got %s" % [room.id, texts])
+
+
+func test_tile_border_is_the_rooms_status_colour() -> void:
+	var main := _main()
+	var style := main.dashboard.tile(("cargo")).get_theme_stylebox("panel") as StyleBoxFlat
+	assert_true(style.border_color == DashboardView.GREEN, "nominal cargo is green, got %s" % style.border_color)
+	_vent(main.ship.room("cargo"))
 	main.refresh()
-	assert_true(main.dashboard.tile_label("main", "passengers").text == "passengers 2",
-			"got '%s'" % main.dashboard.tile_label("main", "passengers").text)
+	assert_true(style.border_color == DashboardView.RED, "vented cargo is red, got %s" % style.border_color)
+
+
+func test_room_panel_starts_on_the_first_room() -> void:
+	var main := _main()
+	assert_true(main.dashboard.room_heading.text == "COCKPIT", "got '%s'" % main.dashboard.room_heading.text)
+	assert_true(_panel_text(main, "pressure") == "101.3 kPa", "got '%s'" % _panel_text(main, "pressure"))
+
+
+func test_room_panel_is_the_left_most_panel() -> void:
+	var main := _main()
+	var heading_x := main.dashboard.room_heading.get_global_rect().position.x
+	assert_true(main.dashboard.room_heading.get_parent().get_index() == 0, "ROOM is the first child of the panels row")
+	assert_true(heading_x <= main.dashboard.panels.get_global_rect().position.x + 1.0, "ROOM sits at the row's left edge")
+
+
+func test_clicking_a_tile_shows_that_room() -> void:
+	var main := _main()
+	_click(main.dashboard.tile("main"))
+	assert_true(main.dashboard.room_heading.text == "MAIN", "got '%s'" % main.dashboard.room_heading.text)
+	assert_true(_panel_text(main, "pressure") == "101.3 kPa", "got '%s'" % _panel_text(main, "pressure"))
+	_vent(main.ship.room("main"))
+	main.refresh()
+	assert_true(_panel_text(main, "o2") == "O₂ —", "vacuum reads — in the panel, got '%s'" % _panel_text(main, "o2"))
+
+
+func test_clicking_the_selected_room_keeps_it_selected() -> void:
+	var main := _main()
+	_click(main.dashboard.tile("main"))
+	_click(main.dashboard.tile("main"))
+	assert_true(main.dashboard.selected_room == "main", "got '%s'" % main.dashboard.selected_room)
+	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel still shows MAIN")
+
+
+func test_one_room_is_highlighted() -> void:
+	var main := _main()
+	_click(main.dashboard.tile("cargo"))
+	var widths := {}
+	for room in main.ship.rooms:
+		widths[room.id] = (main.dashboard.tile(room.id).get_theme_stylebox("panel") as StyleBoxFlat).border_width_left
+	assert_true(widths.cargo > widths.cockpit and widths.cockpit == widths.main,
+			"only the selected tile has the thicker border, got %s" % widths)
+
+
+func test_panel_shows_passengers_after_command() -> void:
+	var main := _main()
+	main.dashboard.select_room("cargo")
+	main.refresh()
+	assert_true(_panel_text(main, "passengers") == "passengers 0", "got '%s'" % _panel_text(main, "passengers"))
+	main.console.line_submitted.emit("passenger add cargo")
+	main.refresh()
+	assert_true(_panel_text(main, "passengers") == "passengers 1", "got '%s'" % _panel_text(main, "passengers"))
+
+
+func test_clicking_while_the_computer_is_down_keeps_the_frozen_values() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("debug fault computer")
+	main.refresh()
+	_click(main.dashboard.tile("main"))
+	assert_true(main.dashboard.selected_room == "main", "the selection changes")
+	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the panel stays frozen, got '%s'" % main.dashboard.room_heading.text)
+	main.console.line_submitted.emit("computer restart")
+	main.ship.advance(21.0)
+	main.refresh()
+	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel catches up once the computer runs")
+
+
+func test_capture_selects_cargo() -> void:
+	var main := _main()
+	Main.CaptureScript.new(main, "user://capture_test")
+	main.refresh()
+	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
+
+
+func _fits(main: Main) -> void:
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	main.size = Vector2(1600, 900)
+	await tree.process_frame
+	await tree.process_frame
+	var bounds := main.dashboard.get_global_rect()
+	for part in [main.dashboard.schematic, main.dashboard.panels]:
+		assert_true(bounds.encloses(part.get_global_rect()), "%s stays inside the dashboard %s" % [part.get_global_rect(), bounds])
+
+
+func test_three_rooms_fit_the_dashboard() -> void:
+	await _fits(_main())
+
+
+func test_four_rooms_fit_the_dashboard() -> void:
+	var path := "user://four_room_ship.json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(ShipFixture.four_room_data()))
+	file.close()
+	var main: Main = load("res://scenes/main.tscn").instantiate()
+	main.data_path = path
+	own(main)
+	main.set_process(false)
+	DirAccess.remove_absolute(path)
+	await _fits(main)
 
 
 func test_reboot_overlay() -> void:
@@ -126,7 +242,7 @@ func test_stale_freeze() -> void:
 	main.refresh()
 	assert_true(main.stale_label.visible, "STALE shows in FAULT")
 	assert_true(main.stale_label.text == "STALE", "got '%s'" % main.stale_label.text)
-	var label := main.dashboard.tile_label("cockpit", "pressure")
+	var label := main.dashboard.room_label("pressure")
 	var before := label.text
 	_vent(main.ship.room("cockpit"))
 	main.refresh()
