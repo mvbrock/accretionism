@@ -3,29 +3,44 @@ extends Control
 ## Wires the ship, the clock, the dashboard and the console. Space pauses unless
 ## the command line has focus; Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, opens the
-## hatch, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
+## hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
 const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
+const ERROR_MARGIN_PX := 24
+const WINDOW_MARGIN_PX := 12
+## The console column and the dashboard split the width in this ratio.
+const CONSOLE_SHARE := 40.0
+const DASHBOARD_SHARE := 60.0
+const CONSOLE_PANEL_COLOR := Color("26282c")
+const CONSOLE_PADDING_PX := 8
 
+## Overridable so a test can load a different file.
+var data_path := SHIP_PATH
 var ship: Ship
 var clock := SimClock.new()
 var dashboard: DashboardView
 var console: Console
+var console_panel: PanelContainer
 var overlay: Label
 var stale_label: Label
+var error_label: Label
 
 var _capture: CaptureScript
 
 
 func _ready() -> void:
 	_match_display_scale()
-	ship = ShipLoader.load_file(SHIP_PATH)
-	assert(ship != null, "could not load %s" % SHIP_PATH)
+	ship = ShipLoader.load_file(data_path)
+	if ship == null:
+		_show_load_error()
+		return
 	_build_ui()
 	dashboard.pause_pressed.connect(_toggle_pause)
 	dashboard.speed_pressed.connect(_next_speed)
+	dashboard.room_clicked.connect(_on_room_clicked)
+	dashboard.room_selected.connect(refresh)
 	console.line_submitted.connect(_on_line_submitted)
 	console.input.grab_focus()
 	refresh()
@@ -36,6 +51,19 @@ func _ready() -> void:
 			_capture = CaptureScript.new(self, args[i + 1])
 		else:
 			push_error("--capture needs a directory: godot --path . -- --capture <dir>")
+
+
+## No sim runs without a ship; Esc still quits.
+func _show_load_error() -> void:
+	set_process(false)
+	error_label = _make_banner("Could not load %s: %s" % [data_path.trim_prefix("res://"), ShipLoader.last_problem],
+			Control.PRESET_FULL_RECT, 24)
+	error_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, ERROR_MARGIN_PX)
+	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	error_label.visible = true
+	add_child(error_label)
+	if OS.get_cmdline_user_args().has("--capture"):
+		get_tree().quit(1)
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
@@ -60,7 +88,7 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
 func refresh() -> void:
 	dashboard.show_clock(clock)
-	match (ship.systems["computer"] as SystemUnit).state:
+	match (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state:
 		SystemUnit.State.BOOTING:
 			overlay.visible = true
 			stale_label.visible = false
@@ -90,18 +118,30 @@ func _input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
-	elif event.keycode == KEY_SPACE and not console.input.has_focus():
+	elif event.keycode == KEY_SPACE and ship != null and not console.input.has_focus():
 		_toggle_pause()
 		get_viewport().set_input_as_handled()
 
 
 func _build_ui() -> void:
-	var column := VBoxContainer.new()
-	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 12)
-	add_child(column)
+	var split := HBoxContainer.new()
+	split.add_theme_constant_override("separation", WINDOW_MARGIN_PX)
+	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, WINDOW_MARGIN_PX)
+	add_child(split)
+	console_panel = PanelContainer.new()
+	console_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	console_panel.size_flags_stretch_ratio = CONSOLE_SHARE
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = CONSOLE_PANEL_COLOR
+	panel_style.set_content_margin_all(CONSOLE_PADDING_PX)
+	console_panel.add_theme_stylebox_override("panel", panel_style)
+	split.add_child(console_panel)
+	console = Console.new()
+	console_panel.add_child(console)
 	var stage := Control.new()
-	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(stage)
+	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stage.size_flags_stretch_ratio = DASHBOARD_SHARE
+	split.add_child(stage)
 	dashboard = DashboardView.new()
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(dashboard)
@@ -112,9 +152,6 @@ func _build_ui() -> void:
 	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
 	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
 	stage.add_child(stale_label)
-	console = Console.new()
-	console.custom_minimum_size = Vector2(0, 130)
-	column.add_child(console)
 
 
 ## The reboot overlay starts where the clock bar ends, wherever the layout puts it.
@@ -146,6 +183,17 @@ func _on_line_submitted(line: String) -> void:
 	if response != "":
 		console.print_line(response)
 	refresh()
+
+
+## A frozen dashboard (computer booting or in FAULT) takes no clicks.
+func _on_room_clicked(room_id: String) -> void:
+	if not _dashboard_frozen():
+		dashboard.select_room(room_id)
+
+
+func _dashboard_frozen() -> bool:
+	var state := (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state
+	return state == SystemUnit.State.BOOTING or state == SystemUnit.State.FAULT
 
 
 func _toggle_pause() -> void:
@@ -182,6 +230,7 @@ class CaptureScript:
 		main.clock.speed_index = SPEED_INDEX
 		main.clock.paused = false
 		CommandInterpreter.run(main.ship, "door open hatch")
+		main.dashboard.select_room("cargo")
 
 	## Sim seconds to run this frame, never past the current stop.
 	func limit(sim_seconds: float) -> float:

@@ -104,16 +104,6 @@ func test_missing_tank_is_reported() -> void:
 	data.tanks.erase("N2")
 	_assert_rejected(data, "missing tank 'N2'")
 
-func test_room_without_light_breaker_is_reported() -> void:
-	var data := _data()
-	data.rooms[0].id = "galley"
-	_assert_rejected(data, "room 'galley' has no breaker 'light-galley'")
-
-func test_opening_without_breaker_is_reported() -> void:
-	var data := _data()
-	data.openings[0].id = "d9"
-	_assert_rejected(data, "opening 'd9' is not a door breaker")
-
 func test_no_outside_opening_is_reported() -> void:
 	var data := _data()
 	data.openings[2].between = ["cargo", "main"]
@@ -150,22 +140,37 @@ func test_tank_start_below_zero_is_reported() -> void:
 	data.tanks.O2.start_mol = -1
 	_assert_rejected(data, "tank 'O2' starts at -1")
 
-func test_missing_room_for_light_breaker_is_reported() -> void:
-	var data := _data()
-	data.rooms.remove_at(2)
-	data.openings.remove_at(2)
-	data.openings.remove_at(1)
-	_assert_rejected(data, "breaker 'light-cargo' has no room 'cargo'")
-
-func test_missing_opening_for_door_breaker_is_reported() -> void:
-	var data := _data()
-	data.openings.remove_at(1)
-	_assert_rejected(data, "breaker 'd2' has no opening 'd2'")
-
-func test_opening_named_after_a_system_is_reported() -> void:
+func test_opening_named_after_a_system_breaker_is_reported() -> void:
 	var data := _data()
 	data.openings[0].id = "hvac"
-	_assert_rejected(data, "opening 'hvac' is not a door breaker")
+	_assert_rejected(data, "opening 'hvac' cannot be a system's id or start with 'light-'")
+
+func test_opening_named_after_a_room_light_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "light-main"
+	_assert_rejected(data, "opening 'light-main' cannot be a system's id or start with 'light-'")
+
+func test_opening_with_the_light_prefix_and_no_room_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "light-galley"
+	_assert_rejected(data, "opening 'light-galley' cannot be a system's id or start with 'light-'")
+
+func test_opening_named_after_the_computer_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "computer"
+	_assert_rejected(data, "opening 'computer' cannot be a system's id or start with 'light-'")
+
+func test_opening_id_with_a_carriage_return_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "d\r1"
+	_assert_rejected(data, "opening id 'd\r1' must be lowercase and contain no whitespace")
+
+func test_room_and_opening_ids_are_free() -> void:
+	var data := _data()
+	data.rooms[0].id = "galley"
+	data.openings[0].between = ["galley", "main"]
+	data.openings[0].id = "d9"
+	assert_true(ShipLoader.from_dict(data) != null, "any room and door ids load")
 
 func test_tank_starting_empty_is_accepted() -> void:
 	var data := _data()
@@ -176,3 +181,26 @@ func test_tank_starting_full_is_accepted() -> void:
 	var data := _data()
 	data.tanks.O2.start_mol = data.tanks.O2.capacity_mol
 	assert_true(ShipLoader.from_dict(data) != null, "full tank loads")
+
+func test_uppercase_room_id_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "Cockpit"
+	data.openings[0].between = ["Cockpit", "main"]
+	_assert_rejected(data, "room id 'Cockpit' must be lowercase and contain no whitespace")
+
+func test_room_id_with_a_space_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "sky deck"
+	data.openings[0].between = ["sky deck", "main"]
+	_assert_rejected(data, "room id 'sky deck' must be lowercase and contain no whitespace")
+
+func test_opening_id_with_a_space_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "door 1"
+	_assert_rejected(data, "opening id 'door 1' must be lowercase and contain no whitespace")
+
+func test_room_named_outside_is_reported() -> void:
+	var data := _data()
+	data.rooms[0].id = "outside"
+	data.openings[0].between = ["outside", "main"]
+	_assert_rejected(data, "room id 'outside' is reserved")

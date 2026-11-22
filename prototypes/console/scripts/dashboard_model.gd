@@ -112,7 +112,7 @@ static func top_alarm(ship: Ship) -> Dictionary:
 		if state == SystemUnit.State.FAULT or state == SystemUnit.State.NO_POWER:
 			candidates.append({"text": "%s %s" % [id.to_upper(), system_text(ship, id)],
 					"level": Status.Level.WARNING})
-	for id in PowerPanel.BREAKER_IDS:
+	for id in ship.power.breaker_ids:
 		if not ship.power.is_powered(id):
 			candidates.append({"text": "BREAKER %s TRIPPED" % id, "level": Status.Level.WARNING})
 	var top := {"text": "", "level": Status.Level.NOMINAL}

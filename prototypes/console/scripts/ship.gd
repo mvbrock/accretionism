@@ -4,9 +4,16 @@ extends RefCounted
 ## fixed rate. Build one with ShipLoader.
 
 const STEP_S := 0.1
-const SYSTEM_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler", "computer"]
+const COMPUTER_ID := "computer"
+## The systems that have a breaker. The computer has none.
+const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler"]
+## A breaker id with this prefix is a room light's.
+const LIGHT_BREAKER_PREFIX := "light-"
 ## Float residue from summing steps must not cost a whole step.
 const _STEP_EPSILON := 1e-9
+
+## Every system, the computer last.
+static var SYSTEM_IDS: Array[String] = _system_ids()
 
 var rooms: Array[Room] = []
 var openings: Array[Opening] = []
@@ -36,7 +43,8 @@ func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Openi
 	params = data
 	rooms = ship_rooms
 	openings = ship_openings
-	power = PowerPanel.new(int(data.seed), float(data.breakers.mean_time_between_trips_h) * 3600.0)
+	power = PowerPanel.new(int(data.seed), float(data.breakers.mean_time_between_trips_h) * 3600.0,
+			_breaker_ids())
 	for id in SYSTEM_IDS:
 		var section: Dictionary = data[id.replace("-", "_")]
 		systems[id] = SystemUnit.new(id, float(section.boot_s))
@@ -51,6 +59,27 @@ func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Openi
 	_setpoint_k = Units.kelvin(data.setpoints.temperature_c)
 	_hull_k = Units.kelvin(data.heat.hull_temperature_c)
 	exposed = _compute_exposed()
+
+
+static func _system_ids() -> Array[String]:
+	var ids: Array[String] = SYSTEM_BREAKER_IDS.duplicate()
+	ids.append(COMPUTER_ID)
+	return ids
+
+
+static func light_breaker_id(room_id: String) -> String:
+	return LIGHT_BREAKER_PREFIX + room_id
+
+
+## Room lights in room order, then openings in opening order, then the systems.
+func _breaker_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for room_ in rooms:
+		ids.append(light_breaker_id(room_.id))
+	for opening_ in openings:
+		ids.append(opening_.id)
+	ids.append_array(SYSTEM_BREAKER_IDS)
+	return ids
 
 
 func room(id: String) -> Room:
@@ -68,7 +97,7 @@ func opening(id: String) -> Opening:
 
 
 func light_lit(room_id: String) -> bool:
-	return light_switches[room_id] and power.is_powered("light-" + room_id)
+	return light_switches[room_id] and power.is_powered(light_breaker_id(room_id))
 
 
 ## The command methods below expect known ids; the command interpreter validates them.
@@ -106,8 +135,8 @@ func draw_w(breaker_id: String) -> float:
 	if not power.is_powered(breaker_id):
 		return 0.0
 	var draw: Dictionary = params.breakers.draw_w
-	if breaker_id.begins_with("light-"):
-		return draw.light if light_lit(breaker_id.trim_prefix("light-")) else 0.0
+	if breaker_id.begins_with(LIGHT_BREAKER_PREFIX):
+		return draw.light if light_lit(breaker_id.trim_prefix(LIGHT_BREAKER_PREFIX)) else 0.0
 	match breaker_id:
 		"pressure-control":
 			return draw.pressure_control
@@ -129,7 +158,7 @@ func computer_draw_w() -> float:
 
 func total_draw_w() -> float:
 	var total := computer_draw_w()
-	for id in PowerPanel.BREAKER_IDS:
+	for id in power.breaker_ids:
 		total += draw_w(id)
 	return total
 
@@ -208,7 +237,7 @@ func step() -> void:
 
 
 func _system_powered(id: String) -> bool:
-	return id == "computer" or power.is_powered(id)
+	return id == COMPUTER_ID or power.is_powered(id)
 
 
 func _state_text(state: SystemUnit.State) -> String:

@@ -1,28 +1,40 @@
 class_name DashboardView
 extends VBoxContainer
-## The ship at a glance: clock bar, room tiles, systems, breakers, tanks and the
-## log. Built in code; show_ship() redraws it from a Ship.
+## The ship at a glance: clock bar, room tiles, the selected room's readings,
+## systems, breakers, tanks and the log. Built in code; show_ship() redraws it
+## from a Ship.
 
 signal pause_pressed
 signal speed_pressed
+signal room_clicked(room_id: String)
+signal room_selected
 
 const GREEN := Color("5fd068")
 const AMBER := Color("f0b030")
 const RED := Color("ee5050")
 const BAR_CELLS := 8
-const TILE_BORDER_PX := 3
+const TILE_BORDER_PX := 2
+const SELECTED_TILE_BORDER_PX := 4
+const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]
 
 var clock_bar: HBoxContainer
 var pause_button: Button
 var speed_button: Button
+var schematic: Control
+var panels: Control
+## The id of the room the ROOM panel shows; "" until a ship is shown.
+var selected_room := ""
+var room_heading: Label
 var _clock_label: Label
 var _alarm_label: Label
-## room id -> {panel: PanelContainer, style: StyleBoxFlat, labels: {key: Label}}
+## room id -> {panel: PanelContainer, style: StyleBoxFlat}
 var _tiles := {}
+var _room_labels := {}
 var _opening_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
 var _tank_labels := {}
+var _breaker_grid: GridContainer
 var _total_label: Label
 var _log: RichTextLabel
 var _log_text := ""
@@ -32,7 +44,8 @@ func _init() -> void:
 	add_theme_constant_override("separation", 10)
 	clock_bar = _build_clock_bar()
 	add_child(clock_bar)
-	add_child(_build_panels())
+	panels = _build_panels()
+	add_child(panels)
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
 	_log.scroll_following = true
@@ -47,15 +60,18 @@ func show_clock(clock: SimClock) -> void:
 
 func show_ship(ship: Ship) -> void:
 	if _tiles.is_empty():
-		var schematic := _build_schematic(ship)
+		schematic = _build_schematic(ship)
 		add_child(schematic)
 		move_child(schematic, 1)
+		_build_breaker_labels(ship)
+		selected_room = ship.rooms[0].id
 	_clock_label.text = DashboardModel.clock_text(ship.time_s)
 	var alarm := DashboardModel.top_alarm(ship)
 	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
 	_alarm_label.add_theme_color_override("font_color", _color(alarm.level))
 	for room in ship.rooms:
 		_show_tile(room.id, DashboardModel.room_tile(ship, room.id))
+	_show_room_panel(DashboardModel.room_tile(ship, selected_room))
 	for id in _opening_labels:
 		_opening_labels[id].text = "%s\n%s" % [id, DashboardModel.opening_text(ship, id)]
 	for id in _system_labels:
@@ -73,9 +89,19 @@ func show_ship(ship: Ship) -> void:
 	_show_log(ship)
 
 
-## One line of a room tile; `key` is title, pressure, temperature, o2, n2, co2, passengers or light.
-func tile_label(room_id: String, key: String) -> Label:
-	return _tiles[room_id].labels[key]
+## The clickable tile of a room.
+func tile(room_id: String) -> PanelContainer:
+	return _tiles[room_id].panel
+
+
+## One reading of the ROOM panel; `key` is pressure, temperature, o2, n2, co2, passengers or light.
+func room_label(key: String) -> Label:
+	return _room_labels[key]
+
+
+func select_room(room_id: String) -> void:
+	selected_room = room_id
+	room_selected.emit()
 
 
 func _build_clock_bar() -> HBoxContainer:
@@ -100,59 +126,78 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-## Each room is followed by the opening that has it as its `room_a`.
+## Each opening follows whichever of its rooms comes first in the room order.
 func _build_schematic(ship: Ship) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	for room in ship.rooms:
 		row.add_child(_build_tile(room.id))
 		for opening in ship.openings:
-			if opening.room_a == room.id:
+			if _first_room_id(ship, opening) == room.id:
 				row.add_child(_build_opening(opening.id))
 	return row
+
+
+## Whichever of the opening's rooms comes first in the ship's room order; the hatch's is its room.
+func _first_room_id(ship: Ship, opening: Opening) -> String:
+	var index_a := ship.rooms.find(ship.room(opening.room_a))
+	var index_b := ship.rooms.find(ship.room(opening.room_b))
+	if index_b == -1 or (index_a != -1 and index_a < index_b):
+		return opening.room_a
+	return opening.room_b
 
 
 func _build_tile(room_id: String) -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var column := VBoxContainer.new()
-	panel.add_child(column)
-	var labels := {}
-	for key in ["title", "pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]:
-		var label := Label.new()
-		column.add_child(label)
-		labels[key] = label
+	var label := Label.new()
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(label)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0.25)
 	style.set_border_width_all(TILE_BORDER_PX)
 	style.set_content_margin_all(8)
 	panel.add_theme_stylebox_override("panel", style)
-	_tiles[room_id] = {"panel": panel, "labels": labels, "style": style}
+	panel.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			room_clicked.emit(room_id))
+	_tiles[room_id] = {"panel": panel, "label": label, "style": style}
 	return panel
+
+
+## The ship's own breakers; the panel is empty until a ship is shown.
+func _build_breaker_labels(ship: Ship) -> void:
+	for id in ship.power.breaker_ids:
+		var label := Label.new()
+		_breaker_grid.add_child(label)
+		_breaker_labels[id] = label
 
 
 func _build_opening(id: String) -> Control:
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.custom_minimum_size = Vector2(120, 0)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(90, 0)
 	_opening_labels[id] = label
 	return label
 
 
 func _build_panels() -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 40)
+	row.add_theme_constant_override("separation", 24)
+	var room := _column("ROOM", [], {})
+	room_heading = room.get_child(0)
+	for key in ROOM_READING_KEYS:
+		var label := Label.new()
+		room.add_child(label)
+		_room_labels[key] = label
+	row.add_child(room)
 	row.add_child(_column("SYSTEMS", Ship.SYSTEM_IDS, _system_labels))
 	var breakers := _column("BREAKERS", [], _breaker_labels)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 24)
-	breakers.add_child(grid)
-	for id in PowerPanel.BREAKER_IDS:
-		var label := Label.new()
-		grid.add_child(label)
-		_breaker_labels[id] = label
+	_breaker_grid = GridContainer.new()
+	_breaker_grid.columns = 1
+	breakers.add_child(_breaker_grid)
 	_total_label = Label.new()
 	breakers.add_child(_total_label)
 	row.add_child(breakers)
@@ -173,17 +218,23 @@ func _column(title: String, ids: Array[String], labels: Dictionary) -> VBoxConta
 
 
 func _show_tile(room_id: String, tile: Dictionary) -> void:
-	var labels: Dictionary = _tiles[room_id].labels
-	labels.title.text = tile.title
-	labels.pressure.text = tile.pressure
-	labels.temperature.text = tile.temperature
-	labels.o2.text = DashboardModel.gas_name("O2") + " " + tile.o2
-	labels.n2.text = DashboardModel.gas_name("N2") + " " + tile.n2
-	labels.co2.text = DashboardModel.gas_name("CO2") + " " + tile.co2
-	labels.passengers.text = tile.passengers
-	labels.light.text = "light ●" if tile.lit else "light ○"
-	_tiles[room_id].style.border_color = _color(tile.level)
-	labels.title.add_theme_color_override("font_color", _color(tile.level))
+	var entry: Dictionary = _tiles[room_id]
+	entry.label.text = tile.title
+	entry.label.add_theme_color_override("font_color", _color(tile.level))
+	entry.style.border_color = _color(tile.level)
+	entry.style.set_border_width_all(SELECTED_TILE_BORDER_PX if room_id == selected_room else TILE_BORDER_PX)
+
+
+func _show_room_panel(tile: Dictionary) -> void:
+	room_heading.text = tile.title
+	room_heading.add_theme_color_override("font_color", _color(tile.level))
+	_room_labels.pressure.text = tile.pressure
+	_room_labels.temperature.text = tile.temperature
+	_room_labels.o2.text = DashboardModel.gas_name("O2") + " " + tile.o2
+	_room_labels.n2.text = DashboardModel.gas_name("N2") + " " + tile.n2
+	_room_labels.co2.text = DashboardModel.gas_name("CO2") + " " + tile.co2
+	_room_labels.passengers.text = tile.passengers
+	_room_labels.light.text = "light ●" if tile.lit else "light ○"
 
 
 func _show_status(label: Label, text: String, level: Status.Level) -> void:
