@@ -133,10 +133,54 @@ func test_system_restart_unknown_system() -> void:
 	_check(ShipFixture.make(), "warp restart", "unknown command 'warp restart'. Type 'help' for commands")
 
 func test_help() -> void:
-	var lines := _run(ShipFixture.make(), "help").split("\n")
-	assert_true(lines.size() == 12, "one line per command, got %d" % lines.size())
-	assert_true(lines[0] == "door open <d1|d2|hatch> — Start opening", "first line '%s'" % lines[0])
-	assert_true(lines[11] == "debug fault <system> — Put a system in FAULT. For testing and demos", "last line '%s'" % lines[11])
+	var expected := "\n".join([
+		"door open <d1|d2|hatch> — Start opening",
+		"door close <d1|d2|hatch> — Start closing",
+		"light on <cockpit|main|cargo> — Switch that room's light on",
+		"light off <cockpit|main|cargo> — Switch it off",
+		"pressure-control restart — Reboot pressure control",
+		"hvac restart — Reboot the HVAC",
+		"air-recycler restart — Reboot the recycler",
+		"computer restart — Reboot the computer",
+		"breaker reset <breaker ID> — Close a tripped breaker",
+		"help — List the commands.",
+		"debug trip <breaker ID> — Trip a breaker.",
+		"debug fault <system> — Put a system in FAULT.",
+	])
+	_check(ShipFixture.make(), "help", expected)
+
+func test_tab_and_newline_separators() -> void:
+	_check(ShipFixture.make(), "door\topen\r\nhatch\n", "hatch: opening (6 s)")
+
+func test_echo_precedes_events_the_command_logs() -> void:
+	var ship := ShipFixture.make()
+	_run(ship, "door open d1")
+	_run(ship, "door open d2")
+	ship.advance(10.0)
+	var before := ship.events.entries.size()
+	var response := _run(ship, "door open hatch")
+	var texts: Array[String] = []
+	for entry in ship.events.entries.slice(before):
+		texts.append(entry.text)
+	assert_true(texts.size() == 4, "echo, two closings, response; got %s" % [texts])
+	assert_true(texts[0] == "> door open hatch", "echo first, got %s" % [texts])
+	assert_true(texts[1].contains("d1: closing") and texts[2].contains("d2: closing"), "closings next, got %s" % [texts])
+	assert_true(texts[3] == response, "response last, got %s" % [texts])
+
+func test_two_doors_left_open() -> void:
+	var ship := ShipFixture.make()
+	_run(ship, "door open d1")
+	_run(ship, "door open d2")
+	ship.advance(10.0)
+	ship.breaker_trip("d1")
+	ship.breaker_trip("d2")
+	_check(ship, "door open hatch", "hatch: opening (6 s); d1, d2 have no power and stay open")
+
+func test_seconds_ignore_float_residue() -> void:
+	var ship := ShipFixture.make()
+	_run(ship, "computer restart")
+	ship.systems["computer"].boot_left_s = 19.0 + 1e-10
+	_check(ship, "help", "computer: rebooting; try again in 19 s")
 
 func test_case_and_spacing() -> void:
 	_check(ShipFixture.make(), "  DOOR   Open   HATCH ", "hatch: opening (6 s)")

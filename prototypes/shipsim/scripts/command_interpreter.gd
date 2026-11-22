@@ -3,14 +3,23 @@ extends RefCounted
 ## Turns one typed line into calls on the Ship and one response line.
 
 
+static var _WHITESPACE := _compile_whitespace()
+
+
+static func _compile_whitespace() -> RegEx:
+	var regex := RegEx.new()
+	regex.compile("\\s+")
+	return regex
+
+
 ## Runs `line`, logs it and the response to the ship's event log, and returns
 ## the response. A blank line does nothing and returns "".
 static func run(ship: Ship, line: String) -> String:
-	var words := line.to_lower().replace("\t", " ").split(" ", false)
+	var words := _WHITESPACE.sub(line.to_lower(), " ", true).split(" ", false)
 	if words.is_empty():
 		return ""
-	var response := _respond(ship, words)
 	ship.events.add(ship.time_s, "> " + line.strip_edges())
+	var response := _respond(ship, words)
 	ship.events.add(ship.time_s, response)
 	return response
 
@@ -23,7 +32,7 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	var arg_count := words.size() - key.count(" ") - 1
 	var computer := ship.systems["computer"] as SystemUnit
 	if computer.state == SystemUnit.State.BOOTING:
-		return "computer: rebooting; try again in %d s" % int(ceil(computer.boot_left_s))
+		return "computer: rebooting; try again in %d s" % _whole_seconds(computer.boot_left_s)
 	if computer.state == SystemUnit.State.FAULT and key != "computer restart":
 		return "computer: fault; only 'computer restart' works"
 	if not commands.has(key):
@@ -41,18 +50,20 @@ static func _commands() -> Dictionary:
 	_add(commands, "door close", "door close <d1|d2|hatch>", "Start closing", 1, _door_close)
 	_add(commands, "light on", "light on <cockpit|main|cargo>", "Switch that room's light on", 1, _light_on)
 	_add(commands, "light off", "light off <cockpit|main|cargo>", "Switch it off", 1, _light_off)
-	for id in Ship.SYSTEM_IDS:
-		var effect := "Reboot " + id
-		match id:
-			"hvac": effect = "Reboot the HVAC"
-			"air-recycler": effect = "Reboot the recycler"
-			"computer": effect = "Reboot the computer"
-		_add(commands, id + " restart", id + " restart", effect, 0, _restart.bind(id))
+	_add(commands, "pressure-control restart", "pressure-control restart", "Reboot pressure control", 0, _restart.bind("pressure-control"))
+	_add(commands, "hvac restart", "hvac restart", "Reboot the HVAC", 0, _restart.bind("hvac"))
+	_add(commands, "air-recycler restart", "air-recycler restart", "Reboot the recycler", 0, _restart.bind("air-recycler"))
+	_add(commands, "computer restart", "computer restart", "Reboot the computer", 0, _restart.bind("computer"))
 	_add(commands, "breaker reset", "breaker reset <breaker ID>", "Close a tripped breaker", 1, _breaker_reset)
-	_add(commands, "help", "help", "List the commands", 0, _help)
-	_add(commands, "debug trip", "debug trip <breaker ID>", "Trip a breaker. For testing and demos", 1, _debug_trip)
-	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT. For testing and demos", 1, _debug_fault)
+	_add(commands, "help", "help", "List the commands.", 0, _help)
+	_add(commands, "debug trip", "debug trip <breaker ID>", "Trip a breaker.", 1, _debug_trip)
+	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT.", 1, _debug_fault)
 	return commands
+
+
+## Rounds up to whole seconds, ignoring float residue from summed steps.
+static func _whole_seconds(seconds: float) -> int:
+	return int(ceil(seconds - 1e-9))
 
 
 static func _add(commands: Dictionary, key: String, usage: String, effect: String, args: int, handler: Callable) -> void:
@@ -88,12 +99,13 @@ static func _door(ship: Ship, id: String, want_open: bool) -> String:
 			return "%s: no power (breaker tripped)" % id
 		Opening.CommandResult.ALREADY:
 			return "%s: already %s" % [id, _state_word(door.state)]
-	var response := "%s: %s (%d s)" % [id, "opening" if want_open else "closing", int(ceil(door.seconds_to_finish()))]
+	var response := "%s: %s (%d s)" % [id, "opening" if want_open else "closing", _whole_seconds(door.seconds_to_finish())]
 	if not outcome.auto_closed.is_empty():
 		response += "; closing " + ", ".join(outcome.auto_closed)
 	if not outcome.left_open.is_empty():
-		var verb := "has" if outcome.left_open.size() == 1 else "have"
-		response += "; %s %s no power and stays open" % [", ".join(outcome.left_open), verb]
+		var many: bool = outcome.left_open.size() > 1
+		response += "; %s %s no power and %s open" % [", ".join(outcome.left_open),
+				"have" if many else "has", "stay" if many else "stays"]
 	if outcome.onto_open_hatch:
 		response += "; warning: hatch is open"
 	return response
@@ -132,7 +144,7 @@ static func _light(ship: Ship, room_id: String, on: bool) -> String:
 static func _restart(ship: Ship, _args: PackedStringArray, id: String) -> String:
 	if ship.restart_system(id) == SystemUnit.RestartResult.NO_POWER:
 		return "%s: no power; reset breaker '%s' first" % [id, id]
-	return "%s: rebooting (%d s)" % [id, int(ceil(ship.systems[id].boot_s))]
+	return "%s: rebooting (%d s)" % [id, _whole_seconds(ship.systems[id].boot_s)]
 
 
 static func _breaker_reset(ship: Ship, args: PackedStringArray) -> String:
