@@ -70,9 +70,67 @@ func light_lit(room_id: String) -> bool:
 
 
 ## The command methods below expect known ids; the command interpreter validates them.
+## A hatch that starts opening closes every door that is open or opening.
 func set_opening(id: String, want_open: bool) -> Dictionary:
-	var result := opening(id).command(want_open, power.is_powered(id))
-	return {"result": result, "auto_closed": [], "left_open": [], "onto_open_hatch": false}
+	var target := opening(id)
+	var hatch_passing := opening("hatch").passes()
+	var result := target.command(want_open, power.is_powered(id))
+	var auto_closed: Array[String] = []
+	var left_open: Array[String] = []
+	var onto_open_hatch := false
+	if result == Opening.CommandResult.STARTED and want_open:
+		if target.is_hatch():
+			_close_doors_for_hatch(auto_closed, left_open)
+		elif hatch_passing:
+			onto_open_hatch = true
+			events.add(time_s, "%s: opened onto an open hatch" % id, EventLog.Level.WARNING)
+	return {"result": result, "auto_closed": auto_closed, "left_open": left_open,
+			"onto_open_hatch": onto_open_hatch}
+
+
+func _close_doors_for_hatch(auto_closed: Array[String], left_open: Array[String]) -> void:
+	for door in openings:
+		if door.is_hatch() or not (door.passes() or door.state == Opening.State.OPENING):
+			continue
+		if door.command(false, power.is_powered(door.id)) == Opening.CommandResult.NO_POWER:
+			left_open.append(door.id)
+			events.add(time_s, "%s: no power, left open with hatch opening" % door.id, EventLog.Level.WARNING)
+		else:
+			auto_closed.append(door.id)
+			events.add(time_s, "%s: closing (hatch opening)" % door.id)
+
+
+## Watts this breaker's load draws now; 0 when it is tripped.
+func draw_w(breaker_id: String) -> float:
+	if not power.is_powered(breaker_id):
+		return 0.0
+	var draw: Dictionary = params.breakers.draw_w
+	if breaker_id.begins_with("light-"):
+		return draw.light if light_lit(breaker_id.trim_prefix("light-")) else 0.0
+	match breaker_id:
+		"pressure-control":
+			return draw.pressure_control if systems[breaker_id].state != SystemUnit.State.NO_POWER else 0.0
+		"hvac":
+			var total: float = draw.hvac_base
+			for room_id in last_hvac_w:
+				total += absf(last_hvac_w[room_id])
+			return total
+		"air-recycler":
+			return draw.air_recycler_scrubbing if recycler_scrubbing else draw.air_recycler_idle
+	var moving := opening(breaker_id).state in [Opening.State.OPENING, Opening.State.CLOSING]
+	var prefix := "hatch" if breaker_id == "hatch" else "door"
+	return draw["%s_moving" % prefix] if moving else draw["%s_idle" % prefix]
+
+
+func computer_draw_w() -> float:
+	return params.breakers.draw_w.computer
+
+
+func total_draw_w() -> float:
+	var total := computer_draw_w()
+	for id in PowerPanel.BREAKER_IDS:
+		total += draw_w(id)
+	return total
 
 
 ## False when the light was already in that position.
