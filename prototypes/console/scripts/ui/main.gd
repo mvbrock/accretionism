@@ -9,6 +9,8 @@ const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
 const ERROR_MARGIN_PX := 24
+const WINDOW_MARGIN_PX := 12
+const CONSOLE_WIDTH_PX := 460
 
 ## Overridable so a test can load a different file.
 var data_path := SHIP_PATH
@@ -115,12 +117,16 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_ui() -> void:
-	var column := VBoxContainer.new()
-	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 12)
-	add_child(column)
+	var split := HBoxContainer.new()
+	split.add_theme_constant_override("separation", WINDOW_MARGIN_PX)
+	split.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, WINDOW_MARGIN_PX)
+	add_child(split)
+	console = Console.new()
+	console.custom_minimum_size = Vector2(CONSOLE_WIDTH_PX, 0)
+	split.add_child(console)
 	var stage := Control.new()
-	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(stage)
+	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.add_child(stage)
 	dashboard = DashboardView.new()
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(dashboard)
@@ -131,9 +137,6 @@ func _build_ui() -> void:
 	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
 	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
 	stage.add_child(stale_label)
-	console = Console.new()
-	console.custom_minimum_size = Vector2(0, 130)
-	column.add_child(console)
 
 
 ## The reboot overlay starts where the clock bar ends, wherever the layout puts it.

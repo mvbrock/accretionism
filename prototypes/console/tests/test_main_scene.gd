@@ -100,6 +100,20 @@ func test_overlay_leaves_the_console_uncovered() -> void:
 			"stale label stays off the console")
 
 
+func test_console_is_a_full_height_column_left_of_the_dashboard() -> void:
+	var main := _main()
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
+	main.size = Vector2(1600, 900) # the headless window is only 64x64
+	await tree.process_frame
+	var console_rect := main.console.get_global_rect()
+	var dashboard_rect := main.dashboard.get_global_rect()
+	assert_true(console_rect.end.x <= dashboard_rect.position.x,
+			"console %s is left of the dashboard %s" % [console_rect, dashboard_rect])
+	assert_true(console_rect.size.y >= 900 - 2 * Main.WINDOW_MARGIN_PX,
+			"console %s spans the window height" % console_rect)
+	assert_true(dashboard_rect.end.x <= 1600, "dashboard %s stays inside the window" % dashboard_rect)
+
+
 func test_stale_freeze() -> void:
 	var main := _main()
 	main.console.line_submitted.emit("debug fault computer")
