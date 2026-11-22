@@ -24,7 +24,7 @@ func test_total_is_sum() -> void:
 	ship.set_opening("d1", true)
 	ship.advance(5.0)
 	var expected := ship.computer_draw_w()
-	for id in PowerPanel.BREAKER_IDS:
+	for id in ship.power.breaker_ids:
 		expected += ship.draw_w(id)
 	assert_near(ship.total_draw_w(), expected, 0.001, "total")
 

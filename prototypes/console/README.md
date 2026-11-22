@@ -19,12 +19,12 @@ Commands and IDs are case-insensitive. Every command prints one line, except `he
 
 | Command | Effect |
 |---|---|
-| `door open <d1\|d2\|hatch>` | Start opening |
-| `door close <d1\|d2\|hatch>` | Start closing |
-| `light on <cockpit\|main\|cargo>` | Switch that room's light on |
-| `light off <cockpit\|main\|cargo>` | Switch it off |
-| `passenger add <cockpit\|main\|cargo>` | Add a passenger to that room |
-| `passenger remove <cockpit\|main\|cargo>` | Remove a passenger from that room |
+| `door open <door id>` | Start opening |
+| `door close <door id>` | Start closing |
+| `light on <room id>` | Switch that room's light on |
+| `light off <room id>` | Switch it off |
+| `passenger add <room id>` | Add a passenger to that room |
+| `passenger remove <room id>` | Remove a passenger from that room |
 | `pressure-control restart` | Reboot pressure control |
 | `hvac restart` | Reboot the HVAC |
 | `air-recycler restart` | Reboot the recycler |
@@ -41,7 +41,7 @@ dashboard freezes and shows "STALE" until `computer restart`.
 
 `data/ship.json` holds every tunable number: room volumes and starting air, the openings, setpoints
 and status bands, system rates, tank sizes, breaker draws, boot times and the random seed. The same
-seed gives the same random breaker trips.
+seed gives the same random breaker trips. Add a room or a door there and it gets its own breaker.
 
 ## How it works
 

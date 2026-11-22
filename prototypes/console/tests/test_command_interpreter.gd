@@ -9,6 +9,24 @@ func _check(ship: Ship, line: String, expected: String) -> void:
 	var actual := _run(ship, line)
 	assert_true(actual == expected, "'%s' gave '%s', expected '%s'" % [line, actual, expected])
 
+func _four_room_ship() -> Ship:
+	return ShipLoader.from_dict(ShipFixture.four_room_data())
+
+func test_four_room_ship_commands_work() -> void:
+	var ship := _four_room_ship()
+	_check(ship, "door open d0", "d0: opening (2 s)")
+	_check(ship, "light off treehouse", "treehouse light: off")
+
+func test_help_lists_rooms_and_openings_from_the_data() -> void:
+	var help := _run(_four_room_ship(), "help")
+	assert_true(help.contains("door open <d0|d1|d2|hatch>"), "doors in help")
+	assert_true(help.contains("light on <cockpit|main|cargo|treehouse>"), "rooms in help")
+	_check(_four_room_ship(), "door open", "usage: door open <d0|d1|d2|hatch>")
+
+func test_unknown_breaker_lists_the_ships_breakers() -> void:
+	var text := _run(_four_room_ship(), "breaker reset zz")
+	assert_true(text.contains("light-treehouse") and text.contains("d0"), text)
+
 func test_door_open_started() -> void:
 	_check(ShipFixture.make(), "door open d1", "d1: opening (2 s)")
 

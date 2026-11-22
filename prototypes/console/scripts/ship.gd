@@ -36,7 +36,8 @@ func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Openi
 	params = data
 	rooms = ship_rooms
 	openings = ship_openings
-	power = PowerPanel.new(int(data.seed), float(data.breakers.mean_time_between_trips_h) * 3600.0)
+	power = PowerPanel.new(int(data.seed), float(data.breakers.mean_time_between_trips_h) * 3600.0,
+			_breaker_ids())
 	for id in SYSTEM_IDS:
 		var section: Dictionary = data[id.replace("-", "_")]
 		systems[id] = SystemUnit.new(id, float(section.boot_s))
@@ -51,6 +52,17 @@ func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Openi
 	_setpoint_k = Units.kelvin(data.setpoints.temperature_c)
 	_hull_k = Units.kelvin(data.heat.hull_temperature_c)
 	exposed = _compute_exposed()
+
+
+## Room lights in room order, then openings in opening order, then the systems.
+func _breaker_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for room_ in rooms:
+		ids.append("light-" + room_.id)
+	for opening_ in openings:
+		ids.append(opening_.id)
+	ids.append_array(PowerPanel.SYSTEM_BREAKER_IDS)
+	return ids
 
 
 func room(id: String) -> Room:
@@ -129,7 +141,7 @@ func computer_draw_w() -> float:
 
 func total_draw_w() -> float:
 	var total := computer_draw_w()
-	for id in PowerPanel.BREAKER_IDS:
+	for id in power.breaker_ids:
 		total += draw_w(id)
 	return total
 

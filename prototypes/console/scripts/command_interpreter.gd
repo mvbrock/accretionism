@@ -5,7 +5,6 @@ extends RefCounted
 
 
 static var _WHITESPACE := _compile_whitespace()
-static var _COMMANDS := _build_commands()
 
 
 static func _compile_whitespace() -> RegEx:
@@ -22,7 +21,7 @@ static func run(ship: Ship, line: String) -> String:
 
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
-	var commands := _COMMANDS
+	var commands := _build_commands(ship)
 	var key := " ".join(words.slice(0, 2))
 	if not commands.has(key) and commands.has(words[0]):
 		key = words[0]
@@ -40,14 +39,17 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	return command.handler.call(ship, words.slice(words.size() - arg_count))
 
 
-static func _build_commands() -> Dictionary:
+## The usage lines list the ship's own door and room ids.
+static func _build_commands(ship: Ship) -> Dictionary:
+	var doors := "<%s>" % "|".join(ship.openings.map(func(opening: Opening) -> String: return opening.id))
+	var rooms := "<%s>" % "|".join(ship.rooms.map(func(room: Room) -> String: return room.id))
 	var commands := {}
-	_add(commands, "door open", "door open <d1|d2|hatch>", "Start opening", 1, _door_open)
-	_add(commands, "door close", "door close <d1|d2|hatch>", "Start closing", 1, _door_close)
-	_add(commands, "light on", "light on <cockpit|main|cargo>", "Switch that room's light on", 1, _light_on)
-	_add(commands, "light off", "light off <cockpit|main|cargo>", "Switch it off", 1, _light_off)
-	_add(commands, "passenger add", "passenger add <cockpit|main|cargo>", "Add a passenger to that room", 1, _passenger_add)
-	_add(commands, "passenger remove", "passenger remove <cockpit|main|cargo>", "Remove a passenger from that room", 1, _passenger_remove)
+	_add(commands, "door open", "door open " + doors, "Start opening", 1, _door_open)
+	_add(commands, "door close", "door close " + doors, "Start closing", 1, _door_close)
+	_add(commands, "light on", "light on " + rooms, "Switch that room's light on", 1, _light_on)
+	_add(commands, "light off", "light off " + rooms, "Switch it off", 1, _light_off)
+	_add(commands, "passenger add", "passenger add " + rooms, "Add a passenger to that room", 1, _passenger_add)
+	_add(commands, "passenger remove", "passenger remove " + rooms, "Remove a passenger from that room", 1, _passenger_remove)
 	_add(commands, "pressure-control restart", "pressure-control restart", "Reboot pressure control", 0, _restart.bind("pressure-control"))
 	_add(commands, "hvac restart", "hvac restart", "Reboot the HVAC", 0, _restart.bind("hvac"))
 	_add(commands, "air-recycler restart", "air-recycler restart", "Reboot the recycler", 0, _restart.bind("air-recycler"))
@@ -63,9 +65,9 @@ static func _add(commands: Dictionary, key: String, usage: String, effect: Strin
 	commands[key] = {"usage": usage, "effect": effect, "args": args, "handler": handler}
 
 
-static func _help(_ship: Ship, _args: PackedStringArray) -> String:
+static func _help(ship: Ship, _args: PackedStringArray) -> String:
 	var lines := PackedStringArray()
-	var commands := _COMMANDS
+	var commands := _build_commands(ship)
 	for key in commands:
 		lines.append("%s — %s" % [commands[key].usage, commands[key].effect])
 	return "\n".join(lines)
@@ -165,7 +167,7 @@ static func _restart(ship: Ship, _args: PackedStringArray, id: String) -> String
 
 static func _breaker_reset(ship: Ship, args: PackedStringArray) -> String:
 	if not ship.power.has(args[0]):
-		return _unknown_breaker(args[0])
+		return _unknown_breaker(ship, args[0])
 	if ship.breaker_reset(args[0]):
 		return "%s: breaker reset" % args[0]
 	return "%s: breaker is not tripped" % args[0]
@@ -173,14 +175,14 @@ static func _breaker_reset(ship: Ship, args: PackedStringArray) -> String:
 
 static func _debug_trip(ship: Ship, args: PackedStringArray) -> String:
 	if not ship.power.has(args[0]):
-		return _unknown_breaker(args[0])
+		return _unknown_breaker(ship, args[0])
 	if ship.breaker_trip(args[0]):
 		return "%s: breaker tripped" % args[0]
 	return "%s: breaker already tripped" % args[0]
 
 
-static func _unknown_breaker(id: String) -> String:
-	return "unknown breaker '%s'. Breakers: %s" % [id, ", ".join(PowerPanel.BREAKER_IDS)]
+static func _unknown_breaker(ship: Ship, id: String) -> String:
+	return "unknown breaker '%s'. Breakers: %s" % [id, ", ".join(ship.power.breaker_ids)]
 
 
 static func _debug_fault(ship: Ship, args: PackedStringArray) -> String:

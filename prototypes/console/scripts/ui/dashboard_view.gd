@@ -23,6 +23,8 @@ var _opening_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
 var _tank_labels := {}
+var _breakers_column: VBoxContainer
+var _breaker_grid: GridContainer
 var _total_label: Label
 var _log: RichTextLabel
 var _log_text := ""
@@ -50,6 +52,7 @@ func show_ship(ship: Ship) -> void:
 		var schematic := _build_schematic(ship)
 		add_child(schematic)
 		move_child(schematic, 1)
+		_build_breaker_labels(ship)
 	_clock_label.text = DashboardModel.clock_text(ship.time_s)
 	var alarm := DashboardModel.top_alarm(ship)
 	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
@@ -131,6 +134,14 @@ func _build_tile(room_id: String) -> Control:
 	return panel
 
 
+## The ship's own breakers; the panel is empty until a ship is shown.
+func _build_breaker_labels(ship: Ship) -> void:
+	for id in ship.power.breaker_ids:
+		var label := Label.new()
+		_breaker_grid.add_child(label)
+		_breaker_labels[id] = label
+
+
 func _build_opening(id: String) -> Control:
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -144,18 +155,14 @@ func _build_panels() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 40)
 	row.add_child(_column("SYSTEMS", Ship.SYSTEM_IDS, _system_labels))
-	var breakers := _column("BREAKERS", [], _breaker_labels)
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 24)
-	breakers.add_child(grid)
-	for id in PowerPanel.BREAKER_IDS:
-		var label := Label.new()
-		grid.add_child(label)
-		_breaker_labels[id] = label
+	_breakers_column = _column("BREAKERS", [], _breaker_labels)
+	_breaker_grid = GridContainer.new()
+	_breaker_grid.columns = 2
+	_breaker_grid.add_theme_constant_override("h_separation", 24)
+	_breakers_column.add_child(_breaker_grid)
 	_total_label = Label.new()
-	breakers.add_child(_total_label)
-	row.add_child(breakers)
+	_breakers_column.add_child(_total_label)
+	row.add_child(_breakers_column)
 	row.add_child(_column("TANKS", Units.TANK_GASES, _tank_labels))
 	return row
 

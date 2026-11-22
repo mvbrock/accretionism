@@ -29,12 +29,12 @@ No player character, passenger movement, walking or first-person view. No power 
 | Repressurizing | Pressure control refills a room on its own once that room no longer connects to the outside |
 | CO₂ source | Passengers, fixed in place (the ship starts with one in the cockpit and one in the main room). They breathe O₂, exhale CO₂ and give off heat. They are a load on the atmosphere, not characters |
 | Gas supply | Finite O₂ and N₂ tanks. Pressure control draws from them. The recycler turns the passengers' CO₂ back into O₂ and returns it to the O₂ tank, so while it runs the O₂ tank holds nearly steady. When the recycler is down, the O₂ tank empties as the passengers breathe. Gas lost through the hatch is gone for good |
-| Power | One unlimited ship bus. Each of the 9 components has its own breaker. The computer has no breaker |
+| Power | One unlimited ship bus. Each room light, each opening and each of the three life-support systems has its own breaker. The computer has no breaker |
 | Restart | A restart reboots a system: it goes offline for a few seconds, then comes back running. A restart clears a fault. It does not reset a breaker |
 | Breakers | Each breaker trips at random. A tripped breaker stays tripped until `breaker reset <breaker ID>` |
 | Faults | System faults happen only when injected with `debug fault`. `debug trip` trips a breaker on demand, so tests and demos don't wait on chance |
 | Door auto-close | When the hatch starts opening, `d1` and `d2` close by themselves. A door without power stays where it is |
-| IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power |
+| IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
 | Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
 | Clock | Pause, 1×, 10× and 100× sim speed |
 
@@ -178,21 +178,21 @@ Each room has one light with a switch that is on or off. A light shines only whe
 
 | Breaker ID | Component | Draw |
 |---|---|---|
-| `light-cockpit`, `light-main`, `light-cargo` | room lights | 40 W each when lit |
-| `d1`, `d2` | door motors | 5 W idle, 200 W moving |
+| `light-<room id>`, one per room (`light-cockpit`, `light-main`, `light-cargo`) | room lights | 40 W each when lit |
+| the id of each opening other than the hatch (`d1`, `d2`) | door motors | 5 W idle, 200 W moving |
 | `hatch` | hatch motor | 5 W idle, 500 W moving |
 | `pressure-control` | pressure control | 300 W |
 | `hvac` | HVAC | 200 W, plus the heat it moves |
 | `air-recycler` | CO₂ recycler | 800 W while scrubbing, 50 W idle |
 | — | computer, not on the breaker panel | 150 W |
 
-The breaker IDs are the names in the first column.
+The breaker IDs are the names in the first column. Breakers come from the data file: a room adds its `light-<room id>` breaker and an opening adds a breaker with its own id, alongside the three fixed system breakers. Breaker IDs are unique, so an opening cannot be named `pressure-control`, `hvac`, `air-recycler` or `light-<room id>`. The random draws go in the order room lights, openings, systems.
 
 A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's state and draw, and the total.
 
 ### Random trips
 
-- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. Across nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 1.6 minutes at 100×.
+- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 1.6 minutes at 100×.
 - A trip is checked on every step with probability `dt / mean_time_between_trips`. That rate is in the data file, and setting it to 0 turns random trips off.
 - A trip is logged and raises a warning on the dashboard.
 - The random source is seeded from the data file and draws once per breaker per step, so a run is repeatable.
@@ -203,18 +203,18 @@ One line of input, with a scrollback above it that shows each command and its re
 
 | Command | Effect |
 |---|---|
-| `door open <d1\|d2\|hatch>` | Start opening |
-| `door close <d1\|d2\|hatch>` | Start closing |
-| `light on <cockpit\|main\|cargo>` | Switch that room's light on |
-| `light off <cockpit\|main\|cargo>` | Switch it off |
-| `passenger add <cockpit\|main\|cargo>` | Add a passenger to that room |
-| `passenger remove <cockpit\|main\|cargo>` | Remove a passenger from that room |
+| `door open <door id>` | Start opening |
+| `door close <door id>` | Start closing |
+| `light on <room id>` | Switch that room's light on |
+| `light off <room id>` | Switch it off |
+| `passenger add <room id>` | Add a passenger to that room |
+| `passenger remove <room id>` | Remove a passenger from that room |
 | `pressure-control restart` | Reboot pressure control |
 | `hvac restart` | Reboot the HVAC |
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands. *Added* |
+| `help` | List the commands, with the door and room ids from the data file in place of `<door id>` and `<room id>`. *Added* |
 | `debug trip <breaker ID>` | Trip a breaker. *Added, for testing and demos* |
 | `debug fault <system>` | Put a system in FAULT. *Added, for testing and demos* |
 
@@ -293,7 +293,7 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
 - the setpoints and status thresholds
 - every rate in this spec: pressure control's feed rate, the HVAC limit, recycler capacity, passenger metabolism, hull loss and heat capacity
 - tank capacities and starting levels
-- breaker IDs, draws, and system boot times
+- breaker draws and system boot times. The breakers themselves follow the rooms and openings: one light per room, one breaker per opening
 - the mean time between random trips, and the random seed
 
 ## Code structure

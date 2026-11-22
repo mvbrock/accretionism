@@ -53,8 +53,6 @@ static func _find_problem(data: Dictionary) -> String:
 		if room_ids.has(entry.id):
 			return "duplicate room '%s'" % entry.id
 		room_ids[entry.id] = true
-		if not PowerPanel.BREAKER_IDS.has(_LIGHT_PREFIX + entry.id):
-			return "room '%s' has no breaker 'light-%s' in the power panel" % [entry.id, entry.id]
 		if entry.volume_m3 <= 0:
 			return "room '%s' has volume %s m3, which must be above 0" % [entry.id, entry.volume_m3]
 		if entry.passengers < 0 or entry.passengers != floorf(entry.passengers):
@@ -63,9 +61,6 @@ static func _find_problem(data: Dictionary) -> String:
 		if Units.kelvin(entry.start.temperature_c) <= 0.0:
 			return "room '%s' starts at %s C, which is not above absolute zero" % [
 				entry.id, entry.start.temperature_c]
-	for breaker_id in PowerPanel.BREAKER_IDS:
-		if breaker_id.begins_with(_LIGHT_PREFIX) and not room_ids.has(breaker_id.trim_prefix(_LIGHT_PREFIX)):
-			return "breaker '%s' has no room '%s'" % [breaker_id, breaker_id.trim_prefix(_LIGHT_PREFIX)]
 	var opening_ids := {}
 	var outside_ids: Array = []
 	for entry in data.openings:
@@ -75,8 +70,8 @@ static func _find_problem(data: Dictionary) -> String:
 		if opening_ids.has(entry.id):
 			return "duplicate opening '%s'" % entry.id
 		opening_ids[entry.id] = true
-		if not _is_door_breaker(entry.id):
-			return "opening '%s' is not a door breaker in the power panel" % entry.id
+		if _is_breaker_of_another_kind(entry.id, room_ids):
+			return "opening '%s' has the same id as a breaker" % entry.id
 		if entry.between.size() != 2:
 			return "opening '%s' must join exactly two places" % entry.id
 		if entry.between[0] == Opening.OUTSIDE:
@@ -88,9 +83,6 @@ static func _find_problem(data: Dictionary) -> String:
 		for place in entry.between:
 			if place != Opening.OUTSIDE and not room_ids.has(place):
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]
-	for breaker_id in PowerPanel.BREAKER_IDS:
-		if _is_door_breaker(breaker_id) and not opening_ids.has(breaker_id):
-			return "breaker '%s' has no opening '%s'" % [breaker_id, breaker_id]
 	if outside_ids.size() != 1:
 		return "need exactly one opening to outside, found %d" % outside_ids.size()
 	if outside_ids[0] != Opening.HATCH_ID:
@@ -110,8 +102,10 @@ static func _find_problem(data: Dictionary) -> String:
 	return ""
 
 
-static func _is_door_breaker(id: String) -> bool:
-	return PowerPanel.BREAKER_IDS.has(id) and not id.begins_with(_LIGHT_PREFIX) and not Ship.SYSTEM_IDS.has(id)
+## Breaker ids are unique, so an opening cannot take a system's id or a room light's.
+static func _is_breaker_of_another_kind(id: String, room_ids: Dictionary) -> bool:
+	return PowerPanel.SYSTEM_BREAKER_IDS.has(id) \
+			or (id.begins_with(_LIGHT_PREFIX) and room_ids.has(id.trim_prefix(_LIGHT_PREFIX)))
 
 
 static func _make_room(entry: Dictionary, heat: Dictionary) -> Room:

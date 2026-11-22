@@ -3,21 +3,21 @@ extends RefCounted
 ## Circuit breakers. A tripped breaker cuts power to whatever it feeds, and
 ## stays tripped until it is reset. Breakers also trip at random.
 
-const BREAKER_IDS: Array[String] = [
-	"light-cockpit", "light-main", "light-cargo", "d1", "d2", "hatch",
-	"pressure-control", "hvac", "air-recycler",
-]
+const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler"]
 
+## Every breaker id, in the order random trips draw.
+var breaker_ids: Array[String]
 var tripped: Dictionary = {}
 
 var _rng := RandomNumberGenerator.new()
 var _mean_time_between_trips_s: float
 
 
-func _init(rng_seed: int, mean_time_between_trips_s: float) -> void:
+func _init(rng_seed: int, mean_time_between_trips_s: float, ids: Array[String]) -> void:
 	_rng.seed = rng_seed
 	_mean_time_between_trips_s = mean_time_between_trips_s
-	for id in BREAKER_IDS:
+	breaker_ids = ids
+	for id in breaker_ids:
 		tripped[id] = false
 
 
@@ -51,7 +51,7 @@ func roll_random_trips(dt: float) -> Array[String]:
 	if _mean_time_between_trips_s <= 0.0:
 		return result
 	var chance := dt / _mean_time_between_trips_s
-	for id in BREAKER_IDS:
+	for id in breaker_ids:
 		var draw := _rng.randf()
 		if not tripped[id] and draw < chance:
 			tripped[id] = true
