@@ -6,6 +6,7 @@ extends VBoxContainer
 
 signal pause_pressed
 signal speed_pressed
+signal room_clicked(room_id: String)
 signal room_selected
 
 const GREEN := Color("5fd068")
@@ -98,7 +99,6 @@ func room_label(key: String) -> Label:
 	return _room_labels[key]
 
 
-## Takes effect on the next redraw, so it shows nothing while the dashboard is frozen.
 func select_room(room_id: String) -> void:
 	selected_room = room_id
 	room_selected.emit()
@@ -160,7 +160,7 @@ func _build_tile(room_id: String) -> Control:
 	panel.add_theme_stylebox_override("panel", style)
 	panel.gui_input.connect(func(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			select_room(room_id))
+			room_clicked.emit(room_id))
 	_tiles[room_id] = {"panel": panel, "label": label, "style": style}
 	return panel
 

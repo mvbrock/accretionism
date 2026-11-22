@@ -39,6 +39,7 @@ func _ready() -> void:
 	_build_ui()
 	dashboard.pause_pressed.connect(_toggle_pause)
 	dashboard.speed_pressed.connect(_next_speed)
+	dashboard.room_clicked.connect(_on_room_clicked)
 	dashboard.room_selected.connect(refresh)
 	console.line_submitted.connect(_on_line_submitted)
 	console.input.grab_focus()
@@ -182,6 +183,17 @@ func _on_line_submitted(line: String) -> void:
 	if response != "":
 		console.print_line(response)
 	refresh()
+
+
+## A frozen dashboard (computer booting or in FAULT) takes no clicks.
+func _on_room_clicked(room_id: String) -> void:
+	if not _dashboard_frozen():
+		dashboard.select_room(room_id)
+
+
+func _dashboard_frozen() -> bool:
+	var state := (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state
+	return state == SystemUnit.State.BOOTING or state == SystemUnit.State.FAULT
 
 
 func _toggle_pause() -> void:

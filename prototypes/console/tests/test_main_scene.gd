@@ -136,17 +136,21 @@ func test_panel_shows_passengers_after_command() -> void:
 	assert_true(_panel_text(main, "passengers") == "passengers 1", "got '%s'" % _panel_text(main, "passengers"))
 
 
-func test_clicking_while_the_computer_is_down_keeps_the_frozen_values() -> void:
+func test_clicking_while_the_computer_is_down_does_nothing() -> void:
 	var main := _main()
 	main.console.line_submitted.emit("debug fault computer")
 	main.refresh()
 	_click(main.dashboard.tile("main"))
-	assert_true(main.dashboard.selected_room == "main", "the selection changes")
-	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the panel stays frozen, got '%s'" % main.dashboard.room_heading.text)
+	assert_true(main.dashboard.selected_room == "cockpit", "FAULT: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
 	main.console.line_submitted.emit("computer restart")
+	main.refresh()
+	_click(main.dashboard.tile("main"))
+	assert_true(main.dashboard.selected_room == "cockpit", "BOOTING: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
 	main.ship.advance(21.0)
 	main.refresh()
-	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel catches up once the computer runs")
+	_click(main.dashboard.tile("main"))
+	assert_true(main.dashboard.selected_room == "main", "RUN: the click selects, got '%s'" % main.dashboard.selected_room)
+	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel shows MAIN")
 
 
 func test_capture_selects_cargo() -> void:
