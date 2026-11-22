@@ -143,3 +143,16 @@ func test_scaled_window_size_doubles_on_retina() -> void:
 func test_scaled_window_size_fits_the_screen() -> void:
 	var size := Main.scaled_window_size(Vector2i(1600, 900), 2.0, Vector2i(3024, 1890))
 	assert_true(size.x <= 3024 and size.y <= 1890, "fits the usable screen (got %s)" % size)
+
+
+func test_clock_bar_button_text() -> void:
+	var main := _main()
+	main.clock.speed_index = 2
+	main.clock.paused = false
+	main.refresh()
+	var buttons := main.dashboard.find_children("*", "Button", true, false)
+	assert_true(buttons[0].text == "Pause", "playing offers Pause, got '%s'" % buttons[0].text)
+	assert_true(buttons[1].text == "Speed: 100×", "speed shows 100×, got '%s'" % buttons[1].text)
+	main.clock.paused = true
+	main.refresh()
+	assert_true(buttons[0].text == "Play", "paused offers Play, got '%s'" % buttons[0].text)

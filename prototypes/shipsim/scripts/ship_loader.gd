@@ -73,7 +73,7 @@ static func _find_problem(data: Dictionary) -> String:
 		for place in entry.between:
 			if place != Opening.OUTSIDE and not room_ids.has(place):
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]
-	for gas in ["O2", "N2"]:
+	for gas in Units.TANK_GASES:
 		if not data.tanks.has(gas):
 			return "missing tank '%s'" % gas
 		if data.tanks[gas].capacity_mol <= 0:

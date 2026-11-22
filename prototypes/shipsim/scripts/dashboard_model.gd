@@ -7,8 +7,11 @@ const NO_READING := "—"
 ## Below this the room has no air worth reporting a mix for.
 const _VACUUM_PA := 1000.0
 ## Absorbs float residue so a boot with exactly 9 s left reads 9s.
-const _BOOT_EPSILON_S := 1e-6
 const _GAS_NAMES := {"O2": "O₂", "N2": "N₂", "CO2": "CO₂"}
+
+
+static func gas_name(gas: String) -> String:
+	return _GAS_NAMES[gas]
 
 
 static func room_tile(ship: Ship, room_id: String) -> Dictionary:
@@ -48,7 +51,7 @@ static func system_text(ship: Ship, id: String) -> String:
 	var unit: SystemUnit = ship.systems[id]
 	match unit.state:
 		SystemUnit.State.BOOTING:
-			return "BOOT %ds" % ceili(unit.boot_left_s - _BOOT_EPSILON_S)
+			return "BOOT %ds" % Units.whole_seconds_left(unit.boot_left_s)
 		SystemUnit.State.FAULT:
 			return "FAULT"
 		SystemUnit.State.NO_POWER:
@@ -100,10 +103,10 @@ static func top_alarm(ship: Ship) -> Dictionary:
 			if reading.level != Status.Level.NOMINAL:
 				candidates.append({"text": "%s %s %s" % [room.id.to_upper(), reading.name, reading.direction],
 						"level": reading.level})
-	for gas in ship.tanks:
+	for gas in Units.TANK_GASES:
 		var level := tank_level(ship, gas)
 		if level != Status.Level.NOMINAL:
-			candidates.append({"text": "%s TANK LOW" % _GAS_NAMES[gas], "level": level})
+			candidates.append({"text": "%s TANK LOW" % gas_name(gas), "level": level})
 	for id in Ship.SYSTEM_IDS:
 		var state: SystemUnit.State = ship.systems[id].state
 		if state == SystemUnit.State.FAULT or state == SystemUnit.State.NO_POWER:
@@ -123,8 +126,8 @@ static func _readings(ship: Ship, room: Room) -> Array[Dictionary]:
 	var bands: Dictionary = ship.params.status
 	var values := [
 		["PRESSURE", room.pressure() / 1000.0, bands.pressure_kpa],
-		["O₂", room.partial_pressure("O2") / 1000.0, bands.o2_kpa],
-		["CO₂", room.partial_pressure("CO2") / 1000.0, bands.co2_kpa],
+		[gas_name("O2"), room.partial_pressure("O2") / 1000.0, bands.o2_kpa],
+		[gas_name("CO2"), room.partial_pressure("CO2") / 1000.0, bands.co2_kpa],
 		["TEMPERATURE", Units.celsius(room.temperature), bands.temperature_c],
 	]
 	var readings: Array[Dictionary] = []

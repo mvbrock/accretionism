@@ -30,7 +30,7 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	var arg_count := words.size() - key.count(" ") - 1
 	var computer := ship.systems["computer"] as SystemUnit
 	if computer.state == SystemUnit.State.BOOTING:
-		return "computer: rebooting; try again in %d s" % _whole_seconds(computer.boot_left_s)
+		return "computer: rebooting; try again in %d s" % Units.whole_seconds_left(computer.boot_left_s)
 	if computer.state == SystemUnit.State.FAULT and key != "computer restart":
 		return "computer: fault; only 'computer restart' works"
 	if not commands.has(key):
@@ -57,10 +57,6 @@ static func _commands() -> Dictionary:
 	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT.", 1, _debug_fault)
 	return commands
 
-
-## Summed steps leave float residue that must not tip into an extra second, so this rounds up to whole seconds past it.
-static func _whole_seconds(seconds: float) -> int:
-	return int(ceil(seconds - 1e-9))
 
 
 static func _add(commands: Dictionary, key: String, usage: String, effect: String, args: int, handler: Callable) -> void:
@@ -96,7 +92,7 @@ static func _door(ship: Ship, id: String, want_open: bool) -> String:
 			return "%s: no power (breaker tripped)" % id
 		Opening.CommandResult.ALREADY:
 			return "%s: already %s" % [id, _state_word(door.state)]
-	var response := "%s: %s (%d s)" % [id, "opening" if want_open else "closing", _whole_seconds(door.seconds_to_finish())]
+	var response := "%s: %s (%d s)" % [id, "opening" if want_open else "closing", Units.whole_seconds_left(door.seconds_to_finish())]
 	if not outcome.auto_closed.is_empty():
 		response += "; closing " + ", ".join(outcome.auto_closed)
 	if not outcome.left_open.is_empty():
@@ -141,7 +137,7 @@ static func _light(ship: Ship, room_id: String, on: bool) -> String:
 static func _restart(ship: Ship, _args: PackedStringArray, id: String) -> String:
 	if ship.restart_system(id) == SystemUnit.RestartResult.NO_POWER:
 		return "%s: no power; reset breaker '%s' first" % [id, id]
-	return "%s: rebooting (%d s)" % [id, _whole_seconds(ship.systems[id].boot_s)]
+	return "%s: rebooting (%d s)" % [id, Units.whole_seconds_left(ship.systems[id].boot_s)]
 
 
 static func _breaker_reset(ship: Ship, args: PackedStringArray) -> String:

@@ -17,7 +17,7 @@ static func pressure_control(room: Room, exposed: bool, tanks: Dictionary, setpo
 		max_mol_s: float, dt: float) -> void:
 	if exposed:
 		return
-	for gas in ["O2", "N2"]:
+	for gas in Units.TANK_GASES:
 		var missing: float = Room.mol_for(setpoints_pa[gas], room.volume, room.temperature) - room.mol[gas]
 		var wanted := minf(missing, max_mol_s * dt)
 		if wanted > 0.0:

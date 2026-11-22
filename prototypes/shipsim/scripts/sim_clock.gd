@@ -10,9 +10,3 @@ var speed_index := 0
 
 func tick(real_delta: float) -> float:
 	return 0.0 if paused else real_delta * SPEEDS[speed_index]
-
-
-func label() -> String:
-	if paused:
-		return "❚❚ Paused"
-	return "▶ %d×" % int(SPEEDS[speed_index])

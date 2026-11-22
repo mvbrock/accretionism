@@ -9,10 +9,6 @@ signal speed_pressed
 const GREEN := Color("5fd068")
 const AMBER := Color("f0b030")
 const RED := Color("ee5050")
-const ROOM_IDS: Array[String] = ["cockpit", "main", "cargo"]
-const DOOR_IDS: Array[String] = ["d1", "d2"]
-const TANK_GASES: Array[String] = ["O2", "N2"]
-const TANK_NAMES := {"O2": "O₂", "N2": "N₂"}
 const BAR_CELLS := 8
 const TILE_BORDER_PX := 3
 
@@ -34,7 +30,6 @@ var _log_text := ""
 func _init() -> void:
 	add_theme_constant_override("separation", 10)
 	add_child(_build_clock_bar())
-	add_child(_build_schematic())
 	add_child(_build_panels())
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
@@ -49,12 +44,15 @@ func show_clock(clock: SimClock) -> void:
 
 
 func show_ship(ship: Ship) -> void:
+	if _tiles.is_empty():
+		add_child(_build_schematic(ship))
+		move_child(get_child(-1), 1)
 	_clock_label.text = DashboardModel.clock_text(ship.time_s)
 	var alarm := DashboardModel.top_alarm(ship)
 	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
 	_alarm_label.add_theme_color_override("font_color", _color(alarm.level))
-	for room_id in ROOM_IDS:
-		_show_tile(room_id, DashboardModel.room_tile(ship, room_id))
+	for room in ship.rooms:
+		_show_tile(room.id, DashboardModel.room_tile(ship, room.id))
 	for id in _opening_labels:
 		_opening_labels[id].text = "%s\n%s" % [id, DashboardModel.opening_text(ship, id)]
 	for id in _system_labels:
@@ -63,10 +61,10 @@ func show_ship(ship: Ship) -> void:
 		var text := DashboardModel.breaker_text(ship, id)
 		_show_status(_breaker_labels[id], "%s  %s" % [id, text],
 				DashboardModel.breaker_level(ship, id))
-	for gas in TANK_GASES:
+	for gas in Units.TANK_GASES:
 		var percent := DashboardModel.tank_percent(ship, gas)
 		var filled := clampi(percent * BAR_CELLS / 100, 0, BAR_CELLS)
-		_show_status(_tank_labels[gas], "%s %s%s %d %%" % [TANK_NAMES[gas], "█".repeat(filled),
+		_show_status(_tank_labels[gas], "%s %s%s %d %%" % [DashboardModel.gas_name(gas), "█".repeat(filled),
 				"░".repeat(BAR_CELLS - filled), percent], DashboardModel.tank_level(ship, gas))
 	_total_label.text = DashboardModel.total_draw_text(ship)
 	_show_log(ship)
@@ -99,13 +97,13 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-func _build_schematic() -> Control:
+## Each room is followed by the opening on its far side.
+func _build_schematic(ship: Ship) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	for i in ROOM_IDS.size():
-		row.add_child(_build_tile(ROOM_IDS[i]))
-		var opening_id := DOOR_IDS[i] if i < DOOR_IDS.size() else "hatch"
-		row.add_child(_build_opening(opening_id))
+	for i in ship.rooms.size():
+		row.add_child(_build_tile(ship.rooms[i].id))
+		row.add_child(_build_opening(ship.openings[i].id))
 	return row
 
 
@@ -153,7 +151,7 @@ func _build_panels() -> Control:
 	_total_label = Label.new()
 	breakers.add_child(_total_label)
 	row.add_child(breakers)
-	row.add_child(_column("TANKS", TANK_GASES, _tank_labels))
+	row.add_child(_column("TANKS", Units.TANK_GASES, _tank_labels))
 	return row
 
 
@@ -174,9 +172,9 @@ func _show_tile(room_id: String, tile: Dictionary) -> void:
 	labels.title.text = tile.title
 	labels.pressure.text = tile.pressure
 	labels.temperature.text = tile.temperature
-	labels.o2.text = "O₂ " + tile.o2
-	labels.n2.text = "N₂ " + tile.n2
-	labels.co2.text = "CO₂ " + tile.co2
+	labels.o2.text = DashboardModel.gas_name("O2") + " " + tile.o2
+	labels.n2.text = DashboardModel.gas_name("N2") + " " + tile.n2
+	labels.co2.text = DashboardModel.gas_name("CO2") + " " + tile.co2
 	labels.light.text = "light ●" if tile.lit else "light ○"
 	_tiles[room_id].style.border_color = _color(tile.level)
 	labels.title.add_theme_color_override("font_color", _color(tile.level))

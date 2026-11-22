@@ -119,3 +119,8 @@ func test_clock_reads_exact_after_whole_steps() -> void:
 	for i in 1200:
 		ship.step()
 	assert_true(DashboardModel.clock_text(ship.time_s) == "T+00:02:00", "got %s" % DashboardModel.clock_text(ship.time_s))
+
+func test_gas_names_use_subscripts() -> void:
+	assert_true(DashboardModel.gas_name("O2") == "O₂", "O2")
+	assert_true(DashboardModel.gas_name("N2") == "N₂", "N2")
+	assert_true(DashboardModel.gas_name("CO2") == "CO₂", "CO2")
