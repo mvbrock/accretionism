@@ -8,7 +8,6 @@ const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "pass
 const _ROOM_KEYS := ["id", "volume_m3", "passengers", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
 const _TANK_KEYS := ["capacity_mol", "start_mol"]
-const _LIGHT_PREFIX := "light-"
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
 
 ## What was wrong with the most recent load; empty when it succeeded.
@@ -19,10 +18,10 @@ static func load_file(path: String) -> Ship:
 	last_problem = ""
 	var text := FileAccess.get_file_as_string(path)
 	if text.is_empty():
-		return _fail("file '%s' is missing or empty" % path, "Ship ")
+		return _fail("file is missing or empty", "Ship file '%s' is missing or empty" % path)
 	var data: Variant = JSON.parse_string(text)
 	if not data is Dictionary:
-		return _fail("file '%s' is not a JSON object" % path, "Ship ")
+		return _fail("file is not a JSON object", "Ship file '%s' is not a JSON object" % path)
 	return from_dict(data)
 
 
@@ -30,7 +29,7 @@ static func from_dict(data: Dictionary) -> Ship:
 	last_problem = ""
 	var problem := _find_problem(data)
 	if problem != "":
-		return _fail(problem, "Bad ship data: ")
+		return _fail(problem, "Bad ship data: " + problem)
 	var rooms: Array[Room] = []
 	for entry in data.rooms:
 		rooms.append(_make_room(entry, data.heat))
@@ -40,9 +39,9 @@ static func from_dict(data: Dictionary) -> Ship:
 	return Ship.new(data, rooms, openings)
 
 
-static func _fail(problem: String, log_prefix: String) -> Ship:
+static func _fail(problem: String, log_line: String) -> Ship:
 	last_problem = problem
-	push_error(log_prefix + problem)
+	push_error(log_line)
 	return null
 
 
@@ -84,8 +83,8 @@ static func _find_problem(data: Dictionary) -> String:
 		if opening_ids.has(entry.id):
 			return "duplicate opening '%s'" % entry.id
 		opening_ids[entry.id] = true
-		if _is_breaker_of_another_kind(entry.id, room_ids):
-			return "opening '%s' has the same id as a breaker" % entry.id
+		if _clashes_with_a_breaker(entry.id):
+			return "opening '%s' cannot be a system's id or start with '%s'" % [entry.id, Ship.LIGHT_BREAKER_PREFIX]
 		if entry.between.size() != 2:
 			return "opening '%s' must join exactly two places" % entry.id
 		if entry.between[0] == Opening.OUTSIDE:
@@ -116,24 +115,20 @@ static func _find_problem(data: Dictionary) -> String:
 	return ""
 
 
-## The command line lowercases its input and splits it on whitespace, so an id
-## that breaks those rules could never be typed.
+## An id the command line cannot spell could never be typed.
 static func _typing_problem(id: String) -> String:
 	if id.is_empty():
 		return "is empty"
-	if id != id.to_lower():
-		return "must be lowercase"
-	if id.contains(" ") or id.contains("\t") or id.contains("\n"):
-		return "must not contain whitespace"
+	if not CommandInterpreter.is_typeable(id):
+		return "must be lowercase and contain no whitespace"
 	if id == Opening.OUTSIDE:
 		return "is reserved for the outside"
 	return ""
 
 
-## Breaker ids are unique, so an opening cannot take a system's id or a room light's.
-static func _is_breaker_of_another_kind(id: String, room_ids: Dictionary) -> bool:
-	return PowerPanel.SYSTEM_BREAKER_IDS.has(id) \
-			or (id.begins_with(_LIGHT_PREFIX) and room_ids.has(id.trim_prefix(_LIGHT_PREFIX)))
+## Breaker ids are unique. An opening's breaker takes its id, which a system's id or a room light's prefix would collide with.
+static func _clashes_with_a_breaker(id: String) -> bool:
+	return Ship.SYSTEM_IDS.has(id) or id.begins_with(Ship.LIGHT_BREAKER_PREFIX)
 
 
 static func _make_room(entry: Dictionary, heat: Dictionary) -> Room:

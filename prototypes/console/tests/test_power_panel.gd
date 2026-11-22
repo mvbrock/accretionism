@@ -8,10 +8,6 @@ func test_exposes_its_breaker_ids_in_order() -> void:
 	assert_true(panel.breaker_ids == _ids(), "ids in the given order")
 	assert_true(not panel.has("light-main"), "a breaker not given does not exist")
 
-func test_system_breaker_ids() -> void:
-	var expected: Array[String] = ["pressure-control", "hvac", "air-recycler"]
-	assert_true(PowerPanel.SYSTEM_BREAKER_IDS == expected, "system breakers")
-
 func test_trip_and_reset() -> void:
 	var panel := PowerPanel.new(1, 0.0, _ids())
 	assert_true(panel.has("hvac"), "known breaker")

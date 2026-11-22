@@ -3,8 +3,6 @@ extends RefCounted
 ## Circuit breakers. A tripped breaker cuts power to whatever it feeds, and
 ## stays tripped until it is reset. Breakers also trip at random.
 
-const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler"]
-
 ## Every breaker id, in the order random trips draw.
 var breaker_ids: Array[String]
 var tripped: Dictionary = {}

@@ -14,7 +14,8 @@ func test_loads_with_a_breaker_per_room_light_and_opening() -> void:
 func test_breaker_order_is_lights_then_openings_then_systems() -> void:
 	var expected: Array[String] = ["light-treehouse", "light-cockpit", "light-main", "light-cargo",
 			"d0", "d1", "d2", "hatch", "pressure-control", "hvac", "air-recycler"]
-	assert_true(_ship().power.breaker_ids == expected, str(_ship().power.breaker_ids))
+	var ids := _ship().power.breaker_ids
+	assert_true(ids == expected, str(ids))
 
 func test_steps_for_a_minute_without_errors() -> void:
 	var ship := _ship()
@@ -44,13 +45,14 @@ func test_schematic_draws_rooms_and_doors_in_data_order() -> void:
 	var view := DashboardView.new()
 	own(view)
 	view.show_ship(_ship())
+	var order := _schematic_order(view)
+	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))
+
+func _schematic_order(view: DashboardView) -> Array[String]:
 	var order: Array[String] = []
 	for node in view.get_child(1).get_children():
-		if node is Label:
-			order.append(node.text.split("\n")[0])
-		else:
-			order.append(_tile_title(view, node))
-	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))
+		order.append(node.text.split("\n")[0] if node is Label else _tile_title(view, node))
+	return order
 
 func _tile_title(view: DashboardView, tile: Node) -> String:
 	for room_id in ["treehouse", "cockpit", "main", "cargo"]:
@@ -64,7 +66,5 @@ func test_schematic_places_a_door_after_the_earlier_of_its_rooms() -> void:
 	var view := DashboardView.new()
 	own(view)
 	view.show_ship(ShipLoader.from_dict(data))
-	var order: Array[String] = []
-	for node in view.get_child(1).get_children():
-		order.append(node.text.split("\n")[0] if node is Label else _tile_title(view, node))
+	var order := _schematic_order(view)
 	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))

@@ -186,7 +186,7 @@ Each room has one light with a switch that is on or off. A light shines only whe
 | `air-recycler` | CO₂ recycler | 800 W while scrubbing, 50 W idle |
 | — | computer, not on the breaker panel | 150 W |
 
-The breaker IDs are the names in the first column. Breakers come from the data file: a room adds its `light-<room id>` breaker and an opening adds a breaker with its own id, alongside the three fixed system breakers. Breaker IDs are unique, so an opening cannot be named `pressure-control`, `hvac`, `air-recycler` or `light-<room id>`. The random draws go in the order room lights, openings, systems.
+The breaker IDs are the names in the first column. Breakers come from the data file: a room adds its `light-<room id>` breaker and an opening adds a breaker with its own id, alongside the three fixed system breakers. Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
 
 A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's state and draw, and the total.
 

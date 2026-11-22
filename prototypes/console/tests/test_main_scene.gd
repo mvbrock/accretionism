@@ -225,6 +225,18 @@ func test_bad_data_file_shows_its_problem() -> void:
 			"names the file and the bare problem, got '%s'" % main.error_label.text)
 
 
+func test_missing_data_file_names_its_path_once() -> void:
+	expect_error("Ship file 'user://missing_ship.json' is missing or empty")
+	var main: Main = load("res://scenes/main.tscn").instantiate()
+	main.data_path = "user://missing_ship.json"
+	own(main)
+	assert_true(main.error_label != null, "the message label exists")
+	if main.error_label == null:
+		return
+	assert_true(main.error_label.text == "Could not load user://missing_ship.json: file is missing or empty",
+			"got '%s'" % main.error_label.text)
+
+
 func test_bad_data_file_runs_no_sim() -> void:
 	var main := _main_with_broken_data()
 	assert_true(not main.is_processing(), "the frame loop is off")

@@ -4,9 +4,16 @@ extends RefCounted
 ## fixed rate. Build one with ShipLoader.
 
 const STEP_S := 0.1
-const SYSTEM_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler", "computer"]
+const COMPUTER_ID := "computer"
+## The systems that have a breaker. The computer has none.
+const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler"]
+## A breaker id with this prefix is a room light's.
+const LIGHT_BREAKER_PREFIX := "light-"
 ## Float residue from summing steps must not cost a whole step.
 const _STEP_EPSILON := 1e-9
+
+## Every system, the computer last.
+static var SYSTEM_IDS: Array[String] = _system_ids()
 
 var rooms: Array[Room] = []
 var openings: Array[Opening] = []
@@ -54,14 +61,24 @@ func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Openi
 	exposed = _compute_exposed()
 
 
+static func _system_ids() -> Array[String]:
+	var ids: Array[String] = SYSTEM_BREAKER_IDS.duplicate()
+	ids.append(COMPUTER_ID)
+	return ids
+
+
+static func light_breaker_id(room_id: String) -> String:
+	return LIGHT_BREAKER_PREFIX + room_id
+
+
 ## Room lights in room order, then openings in opening order, then the systems.
 func _breaker_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for room_ in rooms:
-		ids.append("light-" + room_.id)
+		ids.append(light_breaker_id(room_.id))
 	for opening_ in openings:
 		ids.append(opening_.id)
-	ids.append_array(PowerPanel.SYSTEM_BREAKER_IDS)
+	ids.append_array(SYSTEM_BREAKER_IDS)
 	return ids
 
 
@@ -80,7 +97,7 @@ func opening(id: String) -> Opening:
 
 
 func light_lit(room_id: String) -> bool:
-	return light_switches[room_id] and power.is_powered("light-" + room_id)
+	return light_switches[room_id] and power.is_powered(light_breaker_id(room_id))
 
 
 ## The command methods below expect known ids; the command interpreter validates them.
@@ -118,8 +135,8 @@ func draw_w(breaker_id: String) -> float:
 	if not power.is_powered(breaker_id):
 		return 0.0
 	var draw: Dictionary = params.breakers.draw_w
-	if breaker_id.begins_with("light-"):
-		return draw.light if light_lit(breaker_id.trim_prefix("light-")) else 0.0
+	if breaker_id.begins_with(LIGHT_BREAKER_PREFIX):
+		return draw.light if light_lit(breaker_id.trim_prefix(LIGHT_BREAKER_PREFIX)) else 0.0
 	match breaker_id:
 		"pressure-control":
 			return draw.pressure_control
@@ -220,7 +237,7 @@ func step() -> void:
 
 
 func _system_powered(id: String) -> bool:
-	return id == "computer" or power.is_powered(id)
+	return id == COMPUTER_ID or power.is_powered(id)
 
 
 func _state_text(state: SystemUnit.State) -> String:
