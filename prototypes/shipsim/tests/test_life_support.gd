@@ -66,7 +66,7 @@ func test_recycler_skips_vacuum() -> void:
 	assert_near(LifeSupport.recycle(room, false, tank, 300.0, 10000.0, 0.01, DT), 0.0, 0.0, "below min pressure")
 	assert_near(tank.mol, 1000.0, 0.0, "tank untouched")
 
-func test_crew_stop_breathing_without_o2() -> void:
+func test_passengers_stop_breathing_without_o2() -> void:
 	var room := Room.new("main", 40.0, 294.15, 2)
 	room.set_partial_pressure("N2", 80100.0)
 	room.set_partial_pressure("CO2", 100.0)
@@ -76,17 +76,17 @@ func test_crew_stop_breathing_without_o2() -> void:
 	for gas in Units.GASES:
 		assert_true(room.mol[gas] >= 0.0, "%s never negative" % gas)
 
-func test_breathe_scales_by_crew() -> void:
+func test_breathe_scales_by_passengers() -> void:
 	var room := Room.new("main", 40.0, 294.15, 2)
 	room.mol["O2"] = 100.0
 	room.mol["CO2"] = 1.0
 	LifeSupport.breathe(room, 0.01, 0.008, DT)
-	assert_near(room.mol["O2"], 100.0 - 0.002, 1e-9, "O2 used by two crew")
-	assert_near(room.mol["CO2"], 1.0 + 0.0016, 1e-9, "CO2 made by two crew")
+	assert_near(room.mol["O2"], 100.0 - 0.002, 1e-9, "O2 used by two passengers")
+	assert_near(room.mol["CO2"], 1.0 + 0.0016, 1e-9, "CO2 made by two passengers")
 
 func test_breathe_starved_scales_co2() -> void:
 	var room := Room.new("main", 40.0, 294.15, 2)
-	room.mol["O2"] = 0.001  # half of the 0.002 the crew need this step
+	room.mol["O2"] = 0.001  # half of the 0.002 the passengers need this step
 	room.mol["CO2"] = 1.0
 	LifeSupport.breathe(room, 0.01, 0.008, DT)
 	assert_near(room.mol["O2"], 0.0, 1e-12, "all O2 used")

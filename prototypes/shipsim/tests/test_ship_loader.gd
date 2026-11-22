@@ -59,8 +59,8 @@ func _assert_rejected(data: Dictionary, message: String) -> void:
 
 func test_room_missing_key_is_reported() -> void:
 	var data := _data()
-	data.rooms[0].erase("crew")
-	_assert_rejected(data, "room is missing 'crew'")
+	data.rooms[0].erase("passengers")
+	_assert_rejected(data, "room is missing 'passengers'")
 
 func test_room_start_missing_key_is_reported() -> void:
 	var data := _data()

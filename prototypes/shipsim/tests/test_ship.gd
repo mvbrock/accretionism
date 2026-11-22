@@ -146,3 +146,51 @@ func test_empty_tank_is_logged_once() -> void:
 	ship.advance(90.0)
 	var count := ship.events.entries.filter(func(e: Dictionary) -> bool: return e.text == "O2 tank empty").size()
 	assert_true(count == 1, "O2 tank empty logged exactly once (got %d)" % count)
+
+func test_add_passenger_returns_new_count() -> void:
+	var ship := ShipFixture.make()
+	assert_true(ship.add_passenger("main") == 2, "main goes from 1 to 2")
+	assert_true(ship.room("main").passengers == 2, "the room holds the count")
+
+func test_remove_passenger_returns_new_count_or_minus_one() -> void:
+	var ship := ShipFixture.make()
+	assert_true(ship.remove_passenger("main") == 0, "main goes from 1 to 0")
+	assert_true(ship.remove_passenger("main") == -1, "an empty room refuses")
+	assert_true(ship.room("main").passengers == 0, "and stays at 0")
+
+func test_added_passenger_raises_co2_faster() -> void:
+	var more := ShipFixture.make()
+	var base := ShipFixture.make()
+	for ship in [more, base]:
+		ship.breaker_trip("air-recycler")
+	more.add_passenger("main")
+	more.advance(3600.0)
+	base.advance(3600.0)
+	var main_room := more.room("main")
+	var extra_pa: float = more.params.passenger.co2_mol_s * 3600.0 * Units.R * main_room.temperature / main_room.volume
+	var rise_pa := main_room.partial_pressure("CO2") - base.room("main").partial_pressure("CO2")
+	assert_near(rise_pa, extra_pa, extra_pa * 0.05, "one extra passenger adds their CO2 over an hour")
+
+func test_removed_passengers_stop_breathing() -> void:
+	var ship := ShipFixture.make()
+	ship.remove_passenger("main")
+	var o2: float = ship.room("main").mol["O2"]
+	var co2: float = ship.room("main").mol["CO2"]
+	ship.breaker_trip("pressure-control")
+	ship.breaker_trip("air-recycler")
+	ship.advance(600.0)
+	assert_near(ship.room("main").mol["O2"], o2, 1e-9, "no O2 used")
+	assert_near(ship.room("main").mol["CO2"], co2, 1e-9, "no CO2 made")
+
+func test_passenger_adds_body_heat() -> void:
+	var more := ShipFixture.make()
+	var base := ShipFixture.make()
+	for ship in [more, base]:
+		ship.breaker_trip("hvac")
+	more.add_passenger("cargo")
+	more.add_passenger("cargo")
+	more.advance(60.0)
+	base.advance(60.0)
+	var rise_k := more.room("cargo").temperature - base.room("cargo").temperature
+	var expected_k: float = 2.0 * more.params.heat.passenger_w * 60.0 / more.room("cargo").heat_capacity
+	assert_near(rise_k, expected_k, expected_k * 0.01, "each passenger adds heat.passenger_w")

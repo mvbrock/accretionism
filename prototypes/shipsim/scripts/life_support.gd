@@ -1,16 +1,16 @@
 class_name LifeSupport
 extends RefCounted
-## What crew, pressure control, HVAC and the CO2 recycler do to one room in one step.
+## What passengers, pressure control, HVAC and the CO2 recycler do to one room in one step.
 
 
 static func breathe(room: Room, o2_mol_s: float, co2_mol_s: float, dt: float) -> void:
-	var o2_wanted := o2_mol_s * room.crew * dt
+	var o2_wanted := o2_mol_s * room.passengers * dt
 	if o2_wanted <= 0.0:
 		return
-	# CO2 is tied to the O2 actually used, so a starved crew makes proportionally less.
+	# CO2 is tied to the O2 actually used, so starved passengers make proportionally less.
 	var ratio := minf(1.0, room.mol["O2"] / o2_wanted)
 	room.mol["O2"] -= o2_wanted * ratio
-	room.mol["CO2"] += co2_mol_s * room.crew * dt * ratio
+	room.mol["CO2"] += co2_mol_s * room.passengers * dt * ratio
 
 
 static func pressure_control(room: Room, exposed: bool, tanks: Dictionary, setpoints_pa: Dictionary,

@@ -12,8 +12,16 @@ func test_tile_at_start() -> void:
 	assert_true(tile.o2 == "20.9 %", "o2: %s" % tile.o2)
 	assert_true(tile.n2 == "79.0 %", "n2: %s" % tile.n2)
 	assert_true(tile.co2 == "0.04 kPa", "co2: %s" % tile.co2)
+	assert_true(tile.passengers == "passengers 1", "passengers: %s" % tile.passengers)
 	assert_true(tile.lit, "lit")
 	assert_true(tile.level == Status.Level.NOMINAL, "nominal")
+
+func test_tile_shows_passenger_count() -> void:
+	var ship := ShipFixture.make()
+	assert_true(DashboardModel.room_tile(ship, "main").passengers == "passengers 1", "one")
+	ship.add_passenger("main")
+	assert_true(DashboardModel.room_tile(ship, "main").passengers == "passengers 2", "two")
+	assert_true(DashboardModel.room_tile(ship, "cargo").passengers == "passengers 0", "none")
 
 func test_vacuum_tile_shows_dashes() -> void:
 	var ship := ShipFixture.make()

@@ -141,6 +141,21 @@ func set_light(room_id: String, on: bool) -> bool:
 	return true
 
 
+func add_passenger(room_id: String) -> int:
+	var target := room(room_id)
+	target.passengers += 1
+	return target.passengers
+
+
+## Returns the new count, or -1 when the room has none and nothing changed.
+func remove_passenger(room_id: String) -> int:
+	var target := room(room_id)
+	if target.passengers == 0:
+		return -1
+	target.passengers -= 1
+	return target.passengers
+
+
 func restart_system(id: String) -> SystemUnit.RestartResult:
 	return systems[id].restart(_system_powered(id))
 
@@ -230,7 +245,7 @@ func _update_exposure() -> void:
 
 func _breathe() -> void:
 	for r in rooms:
-		LifeSupport.breathe(r, params.crew.o2_mol_s, params.crew.co2_mol_s, STEP_S)
+		LifeSupport.breathe(r, params.passenger.o2_mol_s, params.passenger.co2_mol_s, STEP_S)
 
 
 func _run_pressure_control() -> void:
@@ -265,7 +280,7 @@ func _log_empty_tanks() -> void:
 func _apply_heat() -> void:
 	var hvac_running: bool = systems["hvac"].is_running()
 	for r in rooms:
-		var watts: float = r.crew * params.heat.crew_w
+		var watts: float = r.passengers * params.heat.passenger_w
 		if light_lit(r.id):
 			watts += params.heat.light_w
 		var hvac_w := 0.0

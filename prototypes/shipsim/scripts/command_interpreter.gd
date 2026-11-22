@@ -46,6 +46,8 @@ static func _build_commands() -> Dictionary:
 	_add(commands, "door close", "door close <d1|d2|hatch>", "Start closing", 1, _door_close)
 	_add(commands, "light on", "light on <cockpit|main|cargo>", "Switch that room's light on", 1, _light_on)
 	_add(commands, "light off", "light off <cockpit|main|cargo>", "Switch it off", 1, _light_off)
+	_add(commands, "passenger add", "passenger add <cockpit|main|cargo>", "Add a passenger to that room", 1, _passenger_add)
+	_add(commands, "passenger remove", "passenger remove <cockpit|main|cargo>", "Remove a passenger from that room", 1, _passenger_remove)
 	_add(commands, "pressure-control restart", "pressure-control restart", "Reboot pressure control", 0, _restart.bind("pressure-control"))
 	_add(commands, "hvac restart", "hvac restart", "Reboot the HVAC", 0, _restart.bind("hvac"))
 	_add(commands, "air-recycler restart", "air-recycler restart", "Reboot the recycler", 0, _restart.bind("air-recycler"))
@@ -120,16 +122,39 @@ static func _light_off(ship: Ship, args: PackedStringArray) -> String:
 
 static func _light(ship: Ship, room_id: String, on: bool) -> String:
 	if ship.room(room_id) == null:
-		var ids := PackedStringArray()
-		for room in ship.rooms:
-			ids.append(room.id)
-		return "unknown room '%s'. Rooms: %s" % [room_id, ", ".join(ids)]
+		return _unknown_room(ship, room_id)
 	var word := "on" if on else "off"
 	if not ship.set_light(room_id, on):
 		return "%s light: already %s" % [room_id, word]
 	if on and not ship.light_lit(room_id):
 		return "%s light: on (no power; reset breaker 'light-%s')" % [room_id, room_id]
 	return "%s light: %s" % [room_id, word]
+
+
+static func _unknown_room(ship: Ship, room_id: String) -> String:
+	var ids := PackedStringArray()
+	for room in ship.rooms:
+		ids.append(room.id)
+	return "unknown room '%s'. Rooms: %s" % [room_id, ", ".join(ids)]
+
+
+static func _passenger_add(ship: Ship, args: PackedStringArray) -> String:
+	if ship.room(args[0]) == null:
+		return _unknown_room(ship, args[0])
+	return _passenger_count(args[0], ship.add_passenger(args[0]))
+
+
+static func _passenger_remove(ship: Ship, args: PackedStringArray) -> String:
+	if ship.room(args[0]) == null:
+		return _unknown_room(ship, args[0])
+	var count := ship.remove_passenger(args[0])
+	if count < 0:
+		return "%s: no passengers to remove" % args[0]
+	return _passenger_count(args[0], count)
+
+
+static func _passenger_count(room_id: String, count: int) -> String:
+	return "%s: %d passenger%s" % [room_id, count, "" if count == 1 else "s"]
 
 
 static func _restart(ship: Ship, _args: PackedStringArray, id: String) -> String:

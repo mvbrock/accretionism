@@ -23,6 +23,8 @@ Commands and IDs are case-insensitive. Every command prints one line, except `he
 | `door close <d1\|d2\|hatch>` | Start closing |
 | `light on <cockpit\|main\|cargo>` | Switch that room's light on |
 | `light off <cockpit\|main\|cargo>` | Switch it off |
+| `passenger add <cockpit\|main\|cargo>` | Add a passenger to that room |
+| `passenger remove <cockpit\|main\|cargo>` | Remove a passenger from that room |
 | `pressure-control restart` | Reboot pressure control |
 | `hvac restart` | Reboot the HVAC |
 | `air-recycler restart` | Reboot the recycler |
