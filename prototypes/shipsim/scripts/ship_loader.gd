@@ -8,6 +8,7 @@ const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "crew
 const _ROOM_KEYS := ["id", "volume_m3", "crew", "start"]
 const _START_KEYS := ["o2_kpa", "n2_kpa", "co2_kpa", "temperature_c"]
 const _TANK_KEYS := ["capacity_mol", "start_mol"]
+const _LIGHT_PREFIX := "light-"
 const _OPENING_KEYS := ["id", "between", "travel_s", "conductance_m3s"]
 
 
@@ -52,13 +53,16 @@ static func _find_problem(data: Dictionary) -> String:
 		if room_ids.has(entry.id):
 			return "duplicate room '%s'" % entry.id
 		room_ids[entry.id] = true
-		if not PowerPanel.BREAKER_IDS.has("light-%s" % entry.id):
+		if not PowerPanel.BREAKER_IDS.has(_LIGHT_PREFIX + entry.id):
 			return "room '%s' has no breaker 'light-%s' in the power panel" % [entry.id, entry.id]
 		if entry.volume_m3 <= 0:
 			return "room '%s' has volume %s m3, which must be above 0" % [entry.id, entry.volume_m3]
 		if Units.kelvin(entry.start.temperature_c) <= 0.0:
 			return "room '%s' starts at %s C, which is not above absolute zero" % [
 				entry.id, entry.start.temperature_c]
+	for breaker_id in PowerPanel.BREAKER_IDS:
+		if breaker_id.begins_with(_LIGHT_PREFIX) and not room_ids.has(breaker_id.trim_prefix(_LIGHT_PREFIX)):
+			return "breaker '%s' has no room '%s'" % [breaker_id, breaker_id.trim_prefix(_LIGHT_PREFIX)]
 	var opening_ids := {}
 	var outside_ids: Array = []
 	for entry in data.openings:
@@ -68,8 +72,8 @@ static func _find_problem(data: Dictionary) -> String:
 		if opening_ids.has(entry.id):
 			return "duplicate opening '%s'" % entry.id
 		opening_ids[entry.id] = true
-		if not PowerPanel.BREAKER_IDS.has(entry.id):
-			return "opening '%s' has no breaker in the power panel" % entry.id
+		if not _is_door_breaker(entry.id):
+			return "opening '%s' is not a door breaker in the power panel" % entry.id
 		if entry.between.size() != 2:
 			return "opening '%s' must join exactly two places" % entry.id
 		if entry.between[0] == Opening.OUTSIDE:
@@ -81,6 +85,9 @@ static func _find_problem(data: Dictionary) -> String:
 		for place in entry.between:
 			if place != Opening.OUTSIDE and not room_ids.has(place):
 				return "opening '%s' joins unknown room '%s'" % [entry.id, place]
+	for breaker_id in PowerPanel.BREAKER_IDS:
+		if _is_door_breaker(breaker_id) and not opening_ids.has(breaker_id):
+			return "breaker '%s' has no opening '%s'" % [breaker_id, breaker_id]
 	if outside_ids.size() != 1:
 		return "need exactly one opening to outside, found %d" % outside_ids.size()
 	if outside_ids[0] != Opening.HATCH_ID:
@@ -98,6 +105,10 @@ static func _find_problem(data: Dictionary) -> String:
 			return "tank '%s' starts at %s mol, which must be between 0 and its capacity %s mol" % [
 				gas, start, data.tanks[gas].capacity_mol]
 	return ""
+
+
+static func _is_door_breaker(id: String) -> bool:
+	return PowerPanel.BREAKER_IDS.has(id) and not id.begins_with(_LIGHT_PREFIX) and not Ship.SYSTEM_IDS.has(id)
 
 
 static func _make_room(entry: Dictionary, heat: Dictionary) -> Room:

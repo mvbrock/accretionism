@@ -100,7 +100,7 @@ func test_room_without_light_breaker_is_reported() -> void:
 func test_opening_without_breaker_is_reported() -> void:
 	var data := _data()
 	data.openings[0].id = "d9"
-	_assert_rejected(data, "opening 'd9' has no breaker")
+	_assert_rejected(data, "opening 'd9' is not a door breaker")
 
 func test_no_outside_opening_is_reported() -> void:
 	var data := _data()
@@ -137,3 +137,30 @@ func test_tank_start_below_zero_is_reported() -> void:
 	var data := _data()
 	data.tanks.O2.start_mol = -1
 	_assert_rejected(data, "tank 'O2' starts at -1")
+
+func test_missing_room_for_light_breaker_is_reported() -> void:
+	var data := _data()
+	data.rooms.remove_at(2)
+	data.openings.remove_at(2)
+	data.openings.remove_at(1)
+	_assert_rejected(data, "breaker 'light-cargo' has no room 'cargo'")
+
+func test_missing_opening_for_door_breaker_is_reported() -> void:
+	var data := _data()
+	data.openings.remove_at(1)
+	_assert_rejected(data, "breaker 'd2' has no opening 'd2'")
+
+func test_opening_named_after_a_system_is_reported() -> void:
+	var data := _data()
+	data.openings[0].id = "hvac"
+	_assert_rejected(data, "opening 'hvac' is not a door breaker")
+
+func test_tank_starting_empty_is_accepted() -> void:
+	var data := _data()
+	data.tanks.O2.start_mol = 0
+	assert_true(ShipLoader.from_dict(data) != null, "empty tank loads")
+
+func test_tank_starting_full_is_accepted() -> void:
+	var data := _data()
+	data.tanks.O2.start_mol = data.tanks.O2.capacity_mol
+	assert_true(ShipLoader.from_dict(data) != null, "full tank loads")
