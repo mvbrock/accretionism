@@ -1,4 +1,4 @@
-# Life Support Prototype Implementation Plan
+# Ship Sim Prototype Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,11 +8,11 @@
 
 **Tech Stack:** Godot 4.7 (`/opt/homebrew/bin/godot`), GDScript, the headless test runner from `prototypes/transit/tests`.
 
-**Spec:** `prototypes/lifesupport/docs/design.md`
+**Spec:** `prototypes/shipsim/docs/design.md`
 
 ## Global Constraints
 
-- Everything lives under `prototypes/lifesupport/`, the Godot project root. Commands below run from there.
+- Everything lives under `prototypes/shipsim/`, the Godot project root. Commands below run from there.
 - Internal units are SI: m³, mol, Pa, K, W, s. Only the dashboard model converts to kPa and °C.
 - `R = 8.314462618`. 21 °C is 294.15 K.
 - The sim steps at exactly `Ship.STEP_S = 0.1` s of sim time. Nothing advances the sim except whole steps.
@@ -22,7 +22,7 @@
 - Text is 19 px (`gui/theme/default_font_size=19`), the window is 1600×900, and the UI scales with the display's HiDPI factor the way `prototypes/transit/scripts/ui/main.gd` does.
 - Every command prints exactly one line, except `help`.
 - Tests: `godot --headless --path . --import` once (and after adding a `class_name` script), then `godot --headless --path . -s res://tests/run_tests.gd [-- <filter>]`. The runner prints `ok:` or `FAIL:` per test and ends with `N passed, M failed`. A test that logs an unexpected error fails.
-- Commits are prefixed `lifesupport: `.
+- Commits are prefixed `shipsim: `.
 
 ## Drift and side-effect sweep
 
@@ -66,7 +66,7 @@ Not applicable: this is a new, standalone Godot project. It reads and writes no 
   - `Room.partial_pressure(gas: String) -> float` (Pa), `Room.pressure() -> float`, `Room.share(gas: String) -> float` (0–1, and 0 when the pressure is 0), `Room.total_mol() -> float`, `Room.set_partial_pressure(gas: String, pa: float) -> void`
   - `static Room.mol_for(pa: float, volume: float, temperature: float) -> float`
 
-- [ ] **Step 1: Create `project.godot`** with `config/name="Life Support Prototype"`, `run/main_scene="res://scenes/main.tscn"`, features `"4.7", "Forward Plus"`, viewport 1600×900 and `theme/default_font_size=19`, matching transit's file. Create `.gitignore` containing `.godot`. Copy the three runner files.
+- [ ] **Step 1: Create `project.godot`** with `config/name="Ship Sim Prototype"`, `run/main_scene="res://scenes/main.tscn"`, features `"4.7", "Forward Plus"`, viewport 1600×900 and `theme/default_font_size=19`, matching transit's file. Create `.gitignore` containing `.godot`. Copy the three runner files.
 
 - [ ] **Step 2: Write the failing tests in `tests/test_room.gd`**
 
@@ -102,7 +102,7 @@ func test_mol_for_round_trips() -> void:
 
 - [ ] **Step 5: Run the tests.** Expected: `4 passed, 0 failed`.
 
-- [ ] **Step 6: Commit.** `git add . && git commit -m "lifesupport: project skeleton, test runner, rooms"`
+- [ ] **Step 6: Commit.** `git add . && git commit -m "shipsim: project skeleton, test runner, rooms"`
 
 ### Task 2: Openings and exposure
 
@@ -134,7 +134,7 @@ func test_mol_for_round_trips() -> void:
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: doors, hatch and exposure"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: doors, hatch and exposure"`
 
 ### Task 3: Gas flow and heat
 
@@ -164,7 +164,7 @@ func test_mol_for_round_trips() -> void:
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: gas flow, venting and heat"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: gas flow, venting and heat"`
 
 ### Task 4: Breakers and system states
 
@@ -201,7 +201,7 @@ func test_mol_for_round_trips() -> void:
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: breakers with random trips, system states"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: breakers with random trips, system states"`
 
 ### Task 5: Tanks, crew and the three controllers
 
@@ -237,7 +237,7 @@ func test_mol_for_round_trips() -> void:
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: tanks, crew, pressure control, HVAC, recycler"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: tanks, crew, pressure control, HVAC, recycler"`
 
 ### Task 6: The ship, its data file and loader
 
@@ -338,7 +338,7 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 
 - [ ] **Step 4: Run** the whole suite. Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: ship, data file and loader"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: ship, data file and loader"`
 
 ### Task 7: Auto-close, ship warnings and power draw
 
@@ -378,7 +378,7 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 
 - [ ] **Step 4: Run** the whole suite. Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: hatch auto-closes doors, warnings, power draw"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: hatch auto-closes doors, warnings, power draw"`
 
 ### Task 8: Status levels and the dashboard model
 
@@ -418,7 +418,7 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: status levels and dashboard model"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: status levels and dashboard model"`
 
 ### Task 9: Sim clock and command interpreter
 
@@ -474,7 +474,7 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 
 - [ ] **Step 4: Run.** Expected: all pass.
 
-- [ ] **Step 5: Commit.** `git commit -m "lifesupport: sim clock and command interpreter"`
+- [ ] **Step 5: Commit.** `git commit -m "shipsim: sim clock and command interpreter"`
 
 ### Task 10: Dashboard UI, console, screenshot mode and README
 
@@ -516,4 +516,4 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 
 - [ ] **Step 6: Write `README.md`** in transit's shape: what it is, Run, Commands (the table from the spec), Data, How it works, Tests.
 
-- [ ] **Step 7: Commit.** `git commit -m "lifesupport: dashboard, console and README"`
+- [ ] **Step 7: Commit.** `git commit -m "shipsim: dashboard, console and README"`

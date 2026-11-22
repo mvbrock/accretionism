@@ -1,4 +1,4 @@
-# Life Support Prototype: Design
+# Ship Sim Prototype: Design
 
 ## Intent
 
@@ -20,7 +20,7 @@ No player character, crew movement, walking or first-person view. No power gener
 
 | Topic | Decision |
 |---|---|
-| Tech | Godot 4.7, GDScript, in `prototypes/lifesupport` (same setup as `prototypes/ship` and `prototypes/transit`) |
+| Tech | Godot 4.7, GDScript, in `prototypes/shipsim` (same setup as `prototypes/ship` and `prototypes/transit`) |
 | Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim steps it at a fixed rate |
 | Rooms | `cockpit`, `main`, `cargo`, in a row |
 | Openings | `d1` (cockpit ↔ main), `d2` (main ↔ cargo), `hatch` (cargo ↔ outside) |
