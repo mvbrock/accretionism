@@ -20,7 +20,7 @@ var _pause_button: Button
 var _speed_button: Button
 var _clock_label: Label
 var _alarm_label: Label
-## room id -> {panel: PanelContainer, labels: {key: Label}}
+## room id -> {panel: PanelContainer, style: StyleBoxFlat, labels: {key: Label}}
 var _tiles := {}
 var _opening_labels := {}
 var _system_labels := {}
@@ -58,11 +58,11 @@ func show_ship(ship: Ship) -> void:
 	for id in _opening_labels:
 		_opening_labels[id].text = "%s\n%s" % [id, DashboardModel.opening_text(ship, id)]
 	for id in _system_labels:
-		_show_status(_system_labels[id], "%s  %s" % [id, DashboardModel.system_text(ship, id)], _system_level(ship, id))
+		_show_status(_system_labels[id], "%s  %s" % [id, DashboardModel.system_text(ship, id)], DashboardModel.system_level(ship, id))
 	for id in _breaker_labels:
 		var text := DashboardModel.breaker_text(ship, id)
 		_show_status(_breaker_labels[id], "%s  %s" % [id, text],
-				Status.Level.NOMINAL if ship.power.is_powered(id) else Status.Level.WARNING)
+				DashboardModel.breaker_level(ship, id))
 	for gas in TANK_GASES:
 		var percent := DashboardModel.tank_percent(ship, gas)
 		var filled := clampi(percent * BAR_CELLS / 100, 0, BAR_CELLS)
@@ -119,7 +119,12 @@ func _build_tile(room_id: String) -> Control:
 		var label := Label.new()
 		column.add_child(label)
 		labels[key] = label
-	_tiles[room_id] = {"panel": panel, "labels": labels}
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.25)
+	style.set_border_width_all(TILE_BORDER_PX)
+	style.set_content_margin_all(8)
+	panel.add_theme_stylebox_override("panel", style)
+	_tiles[room_id] = {"panel": panel, "labels": labels, "style": style}
 	return panel
 
 
@@ -173,21 +178,9 @@ func _show_tile(room_id: String, tile: Dictionary) -> void:
 	labels.n2.text = "N₂ " + tile.n2
 	labels.co2.text = "CO₂ " + tile.co2
 	labels.light.text = "light ●" if tile.lit else "light ○"
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.25)
-	style.set_border_width_all(TILE_BORDER_PX)
-	style.border_color = _color(tile.level)
-	style.set_content_margin_all(8)
-	_tiles[room_id].panel.add_theme_stylebox_override("panel", style)
+	_tiles[room_id].style.border_color = _color(tile.level)
 	labels.title.add_theme_color_override("font_color", _color(tile.level))
 
-
-## A running system is green and a faulted or unpowered one amber; a booting one is plain.
-func _system_level(ship: Ship, id: String) -> Status.Level:
-	match ship.systems[id].state:
-		SystemUnit.State.FAULT, SystemUnit.State.NO_POWER:
-			return Status.Level.WARNING
-	return Status.Level.NOMINAL
 
 
 func _show_status(label: Label, text: String, level: Status.Level) -> void:

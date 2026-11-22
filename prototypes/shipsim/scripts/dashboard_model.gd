@@ -71,6 +71,19 @@ static func tank_level(ship: Ship, gas: String) -> Status.Level:
 	return Status.classify(ship.tanks[gas].fraction() * 100.0, ship.params.status.tank_percent)
 
 
+## A faulted or unpowered system is a warning; a running or booting one is nominal.
+static func system_level(ship: Ship, id: String) -> Status.Level:
+	match ship.systems[id].state:
+		SystemUnit.State.FAULT, SystemUnit.State.NO_POWER:
+			return Status.Level.WARNING
+	return Status.Level.NOMINAL
+
+
+## A tripped breaker is a warning.
+static func breaker_level(ship: Ship, id: String) -> Status.Level:
+	return Status.Level.NOMINAL if ship.power.is_powered(id) else Status.Level.WARNING
+
+
 static func clock_text(time_s: float) -> String:
 	var whole := int(time_s)
 	return "T+%02d:%02d:%02d" % [whole / 3600, whole / 60 % 60, whole % 60]

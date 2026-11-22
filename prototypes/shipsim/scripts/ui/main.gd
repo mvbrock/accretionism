@@ -8,6 +8,8 @@ extends Control
 const SHIP_PATH := "res://data/ship.json"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
+## Height of the dashboard's clock bar, which the reboot overlay leaves uncovered.
+const CLOCK_BAR_PX := 44
 
 var ship: Ship
 var clock := SimClock.new()
@@ -31,8 +33,11 @@ func _ready() -> void:
 	refresh()
 	var args := OS.get_cmdline_user_args()
 	var i := args.find("--capture")
-	if i != -1 and i + 1 < args.size():
-		_capture = CaptureScript.new(self, args[i + 1])
+	if i != -1:
+		if i + 1 < args.size():
+			_capture = CaptureScript.new(self, args[i + 1])
+		else:
+			push_error("--capture needs a directory: godot --path . -- --capture <dir>")
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
@@ -83,16 +88,15 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Ahead of the GUI, so Space never presses whichever button has focus.
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE \
-			and not console.input.has_focus():
+	# Ahead of the GUI, so Space never presses a focused button and the command line can't eat Esc.
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if event.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		get_tree().quit()
+	elif event.keycode == KEY_SPACE and not console.input.has_focus():
 		_toggle_pause()
 		get_viewport().set_input_as_handled()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
-		get_tree().quit()
 
 
 func _build_ui() -> void:
@@ -106,9 +110,10 @@ func _build_ui() -> void:
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(dashboard)
 	overlay = _make_banner(OVERLAY_TEXT, Control.PRESET_FULL_RECT, 48)
+	overlay.offset_top = CLOCK_BAR_PX
 	overlay.add_theme_stylebox_override("normal", _scrim())
 	stage.add_child(overlay)
-	stale_label = _make_banner(STALE_TEXT, Control.PRESET_TOP_RIGHT, 19)
+	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
 	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
 	stage.add_child(stale_label)
 	console = Console.new()
@@ -123,7 +128,7 @@ func _make_banner(text: String, preset: Control.LayoutPreset, font_size: int) ->
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", font_size)
-	label.set_anchors_preset(preset)
+	label.set_anchors_and_offsets_preset(preset, Control.PRESET_MODE_MINSIZE)
 	return label
 
 

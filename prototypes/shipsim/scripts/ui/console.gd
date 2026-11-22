@@ -5,6 +5,8 @@ extends VBoxContainer
 
 signal line_submitted(line: String)
 
+const MAX_LINES := 200
+
 var input: LineEdit
 var scrollback: RichTextLabel
 
@@ -21,6 +23,7 @@ func _init() -> void:
 	scrollback.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(scrollback)
 	input = LineEdit.new()
+	input.keep_editing_on_text_submit = true
 	input.placeholder_text = "type 'help' for commands"
 	input.text_submitted.connect(_on_text_submitted)
 	input.gui_input.connect(_on_input_gui_input)
@@ -29,6 +32,8 @@ func _init() -> void:
 
 func print_line(text: String) -> void:
 	scrollback.add_text(text + "\n")
+	while scrollback.get_paragraph_count() > MAX_LINES:
+		scrollback.remove_paragraph(0)
 
 
 func _on_text_submitted(line: String) -> void:

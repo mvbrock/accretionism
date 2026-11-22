@@ -100,3 +100,22 @@ func test_top_alarm_nominal() -> void:
 	var alarm := DashboardModel.top_alarm(ShipFixture.make())
 	assert_true(alarm.text == "", "empty")
 	assert_true(alarm.level == Status.Level.NOMINAL, "nominal")
+
+func test_system_and_breaker_levels() -> void:
+	var ship := ShipFixture.make()
+	assert_true(DashboardModel.system_level(ship, "hvac") == Status.Level.NOMINAL, "running is nominal")
+	ship.restart_system("hvac")
+	assert_true(DashboardModel.system_level(ship, "hvac") == Status.Level.NOMINAL, "booting is nominal")
+	ship.fault_system("hvac")
+	assert_true(DashboardModel.system_level(ship, "hvac") == Status.Level.WARNING, "fault is a warning")
+	ship.breaker_trip("hvac")
+	ship.advance(0.1)
+	assert_true(DashboardModel.system_level(ship, "hvac") == Status.Level.WARNING, "no power is a warning")
+	assert_true(DashboardModel.breaker_level(ship, "hvac") == Status.Level.WARNING, "tripped is a warning")
+	assert_true(DashboardModel.breaker_level(ship, "d1") == Status.Level.NOMINAL, "closed is nominal")
+
+func test_clock_reads_exact_after_whole_steps() -> void:
+	var ship := ShipFixture.make()
+	for i in 1200:
+		ship.step()
+	assert_true(DashboardModel.clock_text(ship.time_s) == "T+00:02:00", "got %s" % DashboardModel.clock_text(ship.time_s))

@@ -16,12 +16,16 @@ var tanks: Dictionary = {}  # "O2" / "N2" -> Tank
 var light_switches: Dictionary = {}  # room id -> bool
 var exposed: Dictionary = {}  # room id -> bool
 var params: Dictionary = {}  # the data file's sections as loaded
-var time_s := 0.0
+## Sim seconds elapsed; derived from the step count so float error never accumulates.
+var time_s: float:
+	get:
+		return _steps * STEP_S
 var events := EventLog.new()
 var last_hvac_w: Dictionary = {}  # room id -> W
 var recycler_scrubbing := false
 
 var _pending_s := 0.0
+var _steps := 0
 var _tank_was_empty: Dictionary = {}  # gas -> bool
 var _setpoints_pa: Dictionary = {}
 var _setpoint_k := 0.0
@@ -191,7 +195,7 @@ func step() -> void:
 	_run_recycler()
 	_log_empty_tanks()
 	_apply_heat()
-	time_s += STEP_S
+	_steps += 1
 
 
 func _system_powered(id: String) -> bool:

@@ -104,6 +104,37 @@ func test_clock_bar_buttons() -> void:
 	assert_near(main.ship.time_s, 10.0, 1e-6, "_process advances the ship by sim time")
 
 
+func _type(main: Main, text: String) -> void:
+	for character in text:
+		var event := InputEventKey.new()
+		event.keycode = character.unicode_at(0) as Key
+		event.unicode = character.unicode_at(0)
+		event.pressed = true
+		main.get_viewport().push_input(event)
+
+
+func test_typing_continues_after_enter() -> void:
+	var main := _main()
+	main.console.input.grab_focus()
+	_type(main, "help")
+	main.get_viewport().push_input(_key(KEY_ENTER))
+	_type(main, "xy")
+	assert_true(main.console.input.text == "xy", "typing after Enter reaches the input, got '%s'" % main.console.input.text)
+
+
+func test_banners_are_inside_the_stage() -> void:
+	var main := _main()
+	main.size = Vector2(1600, 900) # the headless window is only 64x64
+	await tree.process_frame
+	var stage := main.stale_label.get_parent() as Control
+	main.stale_label.visible = true
+	await tree.process_frame
+	assert_true(stage.get_global_rect().encloses(main.stale_label.get_global_rect()),
+			"STALE %s sits inside the stage %s" % [main.stale_label.get_global_rect(), stage.get_global_rect()])
+	assert_true(main.overlay.get_global_rect().position.y > stage.get_global_rect().position.y,
+			"the overlay leaves the clock bar uncovered")
+
+
 func test_scaled_window_size_doubles_on_retina() -> void:
 	var size := Main.scaled_window_size(Vector2i(1600, 900), 2.0, Vector2i(4000, 3000))
 	assert_true(size == Vector2i(3200, 1800), "2x scale doubles the window (got %s)" % size)
