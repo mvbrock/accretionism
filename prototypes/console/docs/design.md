@@ -200,7 +200,7 @@ A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's sta
 
 ## Command line
 
-One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't.
+One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't, except `ships list`, which prints one line per ship.
 
 ### Connecting
 

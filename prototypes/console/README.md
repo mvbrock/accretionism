@@ -19,7 +19,7 @@ Space pauses every ship unless the command line has focus, connected or not; the
 
 ## Commands
 
-Commands and IDs are case-insensitive. Every command prints one line, except `help`.
+Commands and IDs are case-insensitive. Every command prints one line, except `help` and `ships list` (one line per ship).
 
 The console starts disconnected. Connect to a ship to see its dashboard and command it:
 
