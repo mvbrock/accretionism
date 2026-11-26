@@ -13,9 +13,10 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 
 | Key | Action |
 |---|---|
-| W / S | Walk around the ring |
-| A / D | Walk across the ring |
-| G | Toggle gravity: off, the capsule lies horizontal and floats mid-corridor |
+| Mouse | Face the cursor |
+| W / S | Move forward / back along the facing |
+| A / D | Strafe left / right |
+| G | Toggle gravity: off, the capsule lies horizontal and floats mid-corridor. A W/A/S/D press then sets a drift that carries on after release, until it bumps into something or another key changes it |
 | Esc | Quit |
 
 ## Tuning knobs (Inspector, or the `@export` vars)
@@ -23,7 +24,7 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 | Node | Property | Default | Effect |
 |---|---|---|---|
 | Player | `walk_speed` | 3.0 m/s | Walking pace (a real walk is about 1.4 m/s) |
-| Player | `turn_speed` | 12 | How quickly the capsule turns to face its movement |
+| Player | `turn_speed` | 12 | How quickly the capsule turns to face the cursor |
 | CameraRig | `ortho_size` | 24 m | How much of the ship fits on screen |
 | CameraRig | `follow_sharpness` | 10 | How tightly the camera tracks the player |
 | OcclusionFader | `faded_alpha` | 0.15 | How see-through blocking walls and ceilings get |

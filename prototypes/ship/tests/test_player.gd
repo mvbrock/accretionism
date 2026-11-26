@@ -94,15 +94,55 @@ func test_ensure_input_actions() -> void:
 		assert_true(InputMap.has_action(action), "%s registered" % action)
 
 
-func test_nose_turns_around_when_reversing() -> void:
+func test_turns_to_face_aim() -> void:
 	var player := await _spawn()
-	player.move_input = Vector2(0, 1)
-	await physics_frames(40)
-	player.move_input = Vector2(0, -1)
+	player.aim_heading = Vector2(0, -1)
 	await physics_frames(60)
 	var around := RingGeometry.up_at(player.global_position).cross(Vector3.RIGHT)
 	var nose := -player.global_basis.z
-	assert_true(nose.dot(around) < -0.9, "nose faces backward after reversing (dot %.3f)" % nose.dot(around))
+	assert_true(nose.dot(around) < -0.9, "nose turns to face backward (dot %.3f)" % nose.dot(around))
+
+
+func test_aim_at_faces_point() -> void:
+	var player := await _spawn()
+	player.aim_at(player.global_position + Vector3(3, 0, 0))
+	assert_true(player.aim_heading.distance_to(Vector2(1, 0)) < 0.01, "aims across the ring (%s)" % player.aim_heading)
+
+
+func test_aim_through_faces_the_spot_under_the_cursor() -> void:
+	var player := await _spawn()
+	var rig := CameraRig.new()
+	var camera := Camera3D.new()
+	camera.name = "Camera"
+	rig.add_child(camera)
+	rig.target = player
+	own(rig)
+	await physics_frames(1)
+	rig.snap()
+	var cursor := camera.unproject_position(player.global_position + Vector3(3, 0, 0))
+	player.aim_through(camera, cursor)
+	assert_true(player.aim_heading.distance_to(Vector2(1, 0)) < 0.01, "aims at the cursor (%s)" % player.aim_heading)
+
+
+func test_w_walks_the_way_it_faces() -> void:
+	var player := await _spawn()
+	player.aim_heading = Vector2(1, 0)
+	await physics_frames(40)
+	var start := player.global_position
+	player.move_input = Vector2(0, 1)
+	await physics_frames(20)
+	var moved := player.global_position - start
+	assert_true(moved.x > 0.5, "W walks across the ring when facing across (x moved %.2f)" % moved.x)
+	assert_true(absf(RingGeometry.angle_of(player.global_position)) < 0.01, "no movement around the ring")
+
+
+func test_d_strafes_right_of_facing() -> void:
+	var player := await _spawn()
+	player.aim_heading = Vector2(1, 0)
+	await physics_frames(40)
+	player.move_input = Vector2(1, 0)
+	await physics_frames(20)
+	assert_true(RingGeometry.angle_of(player.global_position) < -0.01, "D strafes to the right of facing")
 
 
 func _height_above_floor(player: Player) -> float:
@@ -143,3 +183,46 @@ func test_gravity_returns_player_upright_to_floor() -> void:
 	var pivot: Node3D = player.get_node("Pivot")
 	var up := RingGeometry.up_at(player.global_position)
 	assert_true(pivot.global_basis.y.dot(up) > 0.99, "upright again")
+
+
+func _float(player: Player) -> void:
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+
+
+func test_zero_g_keeps_drifting_after_release() -> void:
+	var player := await _spawn()
+	await _float(player)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(10)
+	player.move_input = Vector2.ZERO
+	var start := RingGeometry.angle_of(player.global_position)
+	await physics_frames(60)
+	var moved := (RingGeometry.angle_of(player.global_position) - start) * RingGeometry.floor_apothem()
+	assert_near(moved, player.walk_speed, 0.3, "drifts on at walking speed for a second after release")
+
+
+func test_zero_g_drift_stops_at_wall() -> void:
+	var player := await _spawn()
+	await _float(player)
+	player.aim_heading = Vector2(1, 0)
+	await physics_frames(40)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(5)
+	player.move_input = Vector2.ZERO
+	await physics_frames(240)
+	assert_true(player.global_position.x > 3.5, "drifted to the wall (x %.2f)" % player.global_position.x)
+	assert_true(player.velocity.x < 0.01, "stopped at the wall (vx %.3f)" % player.velocity.x)
+
+
+func test_zero_g_new_direction_replaces_drift() -> void:
+	var player := await _spawn()
+	await _float(player)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(10)
+	player.move_input = Vector2(0, -1)
+	await physics_frames(10)
+	player.move_input = Vector2.ZERO
+	var start := RingGeometry.angle_of(player.global_position)
+	await physics_frames(30)
+	assert_true(RingGeometry.angle_of(player.global_position) < start - 0.01, "now drifting backward")
