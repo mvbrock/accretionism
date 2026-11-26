@@ -1,6 +1,6 @@
 # Ship Sim Prototype
 
-A three-room ship (cockpit, main room, cargo hold) with an atmosphere, three life-support systems,
+A fleet of ships, each with rooms (such as a cockpit, main room and cargo hold), an atmosphere, three life-support systems,
 doors, a hatch and a power panel. A dashboard on the right shows every room and system at a glance,
 and a command line down the left side is the only way to act on the ship. Open the hatch and the
 cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
@@ -10,7 +10,7 @@ cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 - Editor: `godot -e --path .` (from this folder), then press F5.
 - Directly: `godot --path .`
 
-Space pauses unless the command line has focus; the clock bar also has Pause/Play and Speed (1×, 10×,
+Space pauses every ship unless the command line has focus, connected or not; the clock bar also has Pause/Play and Speed (1×, 10×,
 100×) buttons. Up and down recall earlier commands. Esc quits.
 
 | Control | Effect |
@@ -20,6 +20,16 @@ Space pauses unless the command line has focus; the clock bar also has Pause/Pla
 ## Commands
 
 Commands and IDs are case-insensitive. Every command prints one line, except `help`.
+
+The console starts disconnected. Connect to a ship to see its dashboard and command it:
+
+| Command | Effect |
+|---|---|
+| `ships list` | List the ships (only while disconnected) |
+| `ships connect <ship name>` | Connect to that ship (only while disconnected) |
+| `disconnect` | Disconnect from the ship; works even while its computer is down |
+
+Connected, these act on that ship:
 
 | Command | Effect |
 |---|---|
@@ -43,7 +53,8 @@ dashboard freezes and shows "STALE" until `computer restart`.
 
 ## Data
 
-`data/ship.json` holds every tunable number: room volumes and starting air, the openings, setpoints
+Each file in `data/ships/` is one ship, named by its file: `kestrel.json` is `kestrel`. Add a file to add a
+ship. Every ship runs on the one clock, connected or not. A ship file holds every tunable number: room volumes and starting air, the openings, setpoints
 and status bands, system rates, tank sizes, breaker draws, boot times and the random seed. The same
 seed gives the same random breaker trips. Add a room or a door there and it gets its own breaker.
 
@@ -66,5 +77,5 @@ godot --headless --path . -s res://tests/run_tests.gd -- main_scene   # filter b
 A test fails if it logs an engine or script error. A test that deliberately triggers one declares
 it with `expect_error("part of the message")`.
 
-Screenshots: `godot --path . -- --capture <dir>` runs at 100×, opens the hatch, selects cargo, saves `venting.png`
+Screenshots: `godot --path . -- --capture <dir>` runs at 100×, connects to the first ship, opens the hatch, selects cargo, saves `venting.png`
 at 20 s of sim time, closes the hatch, saves `refilled.png` at 120 s, then quits.

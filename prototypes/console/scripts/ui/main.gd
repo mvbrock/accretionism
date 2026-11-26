@@ -1,11 +1,14 @@
 class_name Main
 extends Control
-## Wires the ship, the clock, the dashboard and the console. Space pauses unless
-## the command line has focus; Esc quits.
-## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, opens the
-## hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
+## Wires the fleet, the clock, the dashboard and the console. The console starts
+## disconnected; the dashboard shows the ship it connects to. Every ship runs on
+## the one clock. Space pauses unless the command line has focus; Esc quits.
+## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, connects to
+## the first ship, opens the hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
-const SHIP_PATH := "res://data/ship.json"
+const SHIPS_DIR := "res://data/ships"
+const GREETING := "Not connected. Type 'ships list' to see the ships, 'ships connect <ship name>' to connect."
+const NO_SHIP_TEXT := "NO SHIP CONNECTED"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
 const ERROR_MARGIN_PX := 24
@@ -16,13 +19,20 @@ const DASHBOARD_SHARE := 60.0
 const CONSOLE_PANEL_COLOR := Color("26282c")
 const CONSOLE_PADDING_PX := 8
 
-## Overridable so a test can load a different file.
-var data_path := SHIP_PATH
-var ship: Ship
+## Overridable so a test can load a different folder.
+var ships_dir := SHIPS_DIR
+var fleet: Fleet
+var link: ShipLink
+## The connected ship, or null.
+var ship: Ship:
+	get:
+		return link.ship() if link != null else null
 var clock := SimClock.new()
 var dashboard: DashboardView
 var console: Console
 var console_panel: PanelContainer
+var stage: Control
+var no_ship_label: Label
 var overlay: Label
 var stale_label: Label
 var error_label: Label
@@ -32,16 +42,14 @@ var _capture: CaptureScript
 
 func _ready() -> void:
 	_match_display_scale()
-	ship = ShipLoader.load_file(data_path)
-	if ship == null:
+	fleet = Fleet.load_dir(ships_dir)
+	if fleet == null:
 		_show_load_error()
 		return
+	link = ShipLink.new(fleet)
 	_build_ui()
-	dashboard.pause_pressed.connect(_toggle_pause)
-	dashboard.speed_pressed.connect(_next_speed)
-	dashboard.room_clicked.connect(_on_room_clicked)
-	dashboard.room_selected.connect(refresh)
-	console.line_submitted.connect(_on_line_submitted)
+	console.line_submitted.connect(run_line)
+	console.print_line(GREETING)
 	console.input.grab_focus()
 	refresh()
 	var args := OS.get_cmdline_user_args()
@@ -56,7 +64,7 @@ func _ready() -> void:
 ## No sim runs without a ship; Esc still quits.
 func _show_load_error() -> void:
 	set_process(false)
-	error_label = _make_banner("Could not load %s: %s" % [data_path.trim_prefix("res://"), ShipLoader.last_problem],
+	error_label = _make_banner("Could not load " + Fleet.last_problem,
 			Control.PRESET_FULL_RECT, 24)
 	error_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, ERROR_MARGIN_PX)
 	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -86,7 +94,13 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 
 ## The one place that reads the computer's state. Running: redraw. Booting: the
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
+## Disconnected: no dashboard, only NO SHIP CONNECTED.
 func refresh() -> void:
+	no_ship_label.visible = ship == null
+	if ship == null:
+		overlay.visible = false
+		stale_label.visible = false
+		return
 	dashboard.show_clock(clock)
 	match (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state:
 		SystemUnit.State.BOOTING:
@@ -105,7 +119,7 @@ func _process(delta: float) -> void:
 	var sim_seconds := clock.tick(delta)
 	if _capture != null:
 		sim_seconds = _capture.limit(sim_seconds)
-	ship.advance(sim_seconds)
+	fleet.advance(sim_seconds)
 	refresh()
 	if _capture != null:
 		_capture.step()
@@ -118,7 +132,7 @@ func _input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
-	elif event.keycode == KEY_SPACE and ship != null and not console.input.has_focus():
+	elif event.keycode == KEY_SPACE and fleet != null and not console.input.has_focus():
 		_toggle_pause()
 		get_viewport().set_input_as_handled()
 
@@ -138,25 +152,46 @@ func _build_ui() -> void:
 	split.add_child(console_panel)
 	console = Console.new()
 	console_panel.add_child(console)
-	var stage := Control.new()
+	stage = Control.new()
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage.size_flags_stretch_ratio = DASHBOARD_SHARE
 	split.add_child(stage)
-	dashboard = DashboardView.new()
-	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(dashboard)
+	no_ship_label = _make_banner(NO_SHIP_TEXT, Control.PRESET_FULL_RECT, 32)
+	no_ship_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.4))
+	stage.add_child(no_ship_label)
 	overlay = _make_banner(OVERLAY_TEXT, Control.PRESET_FULL_RECT, 48)
 	overlay.add_theme_stylebox_override("normal", _scrim())
 	stage.add_child(overlay)
-	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)
 	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
 	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
 	stage.add_child(stale_label)
 
 
+## A dashboard is built for one ship's rooms and doors, so each connection gets a
+## fresh one, below the banners. It draws the ship once on connect, so a computer
+## that is already down leaves a snapshot under the banner rather than an empty dashboard.
+func _show_dashboard() -> void:
+	if dashboard != null:
+		stage.remove_child(dashboard)
+		dashboard.queue_free()
+		dashboard = null
+	if ship == null:
+		return
+	dashboard = DashboardView.new()
+	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(dashboard)
+	stage.move_child(dashboard, 0)
+	dashboard.pause_pressed.connect(_toggle_pause)
+	dashboard.speed_pressed.connect(_next_speed)
+	dashboard.room_clicked.connect(_on_room_clicked)
+	dashboard.room_selected.connect(refresh)
+	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)
+	dashboard.show_clock(clock)
+	dashboard.show_ship(ship)
+
+
 ## The reboot overlay starts where the clock bar ends, wherever the layout puts it.
 func _leave_clock_bar_uncovered() -> void:
-	var stage := overlay.get_parent() as Control
 	overlay.offset_top = dashboard.clock_bar.get_global_rect().end.y - stage.get_global_rect().position.y
 
 
@@ -177,11 +212,15 @@ func _scrim() -> StyleBoxFlat:
 	return style
 
 
-func _on_line_submitted(line: String) -> void:
+## Echoes the line, runs it through the link and prints the response.
+func run_line(line: String) -> void:
 	console.print_line("> " + line)
-	var response := CommandInterpreter.run(ship, line)
+	var connected_before := link.ship_name
+	var response := link.run(line)
 	if response != "":
 		console.print_line(response)
+	if link.ship_name != connected_before:
+		_show_dashboard()
 	refresh()
 
 
@@ -229,6 +268,7 @@ class CaptureScript:
 		DirAccess.make_dir_recursive_absolute(dir)
 		main.clock.speed_index = SPEED_INDEX
 		main.clock.paused = false
+		main.run_line("ships connect " + main.fleet.names()[0])
 		CommandInterpreter.run(main.ship, "door open hatch")
 		main.dashboard.select_room("cargo")
 

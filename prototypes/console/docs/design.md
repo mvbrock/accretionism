@@ -37,6 +37,7 @@ No player character, passenger movement, walking or first-person view. No power 
 | IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
 | Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
 | Clock | Pause, 1×, 10× and 100× sim speed |
+| Fleet | Several ships, one JSON file each in `data/ships/`, named by the file (`kestrel.json` is `kestrel`). The console starts disconnected and connects to one ship at a time. Every ship runs on the one clock whether or not the console is connected to it |
 
 ## Ship layout
 
@@ -201,6 +202,20 @@ A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's sta
 
 One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't.
 
+### Connecting
+
+The console starts disconnected. Disconnected, only these work; any other command says the console isn't connected:
+
+| Command | Effect |
+|---|---|
+| `ships list` | List the ships |
+| `ships connect <ship name>` | Connect to that ship. Its dashboard replaces "NO SHIP CONNECTED" |
+| `help` | List these two |
+
+Connected, every command below goes to that ship, `help` also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
+
+### Ship commands
+
 | Command | Effect |
 |---|---|
 | `door open <door id>` | Start opening |
@@ -262,7 +277,9 @@ unknown command 'door shut'. Type 'help' for commands
 
 The sketch isn't to scale: the console takes the left 40% of the window, on a darker panel, and the dashboard the right 60%.
 
-- **Bad data file:** if `data/ship.json` can't be loaded, the window shows "Could not load data/ship.json: <problem>" in place of the dashboard, the sim doesn't run, and Esc still quits.
+- **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
+- **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
+- **Bad data file:** if any ship file in `data/ships/` can't be loaded, the window shows "Could not load data/ships/<file>: <problem>" in place of the dashboard (or "Could not load data/ships: <problem>" when the folder is missing or has no ship files), the sim doesn't run, and Esc still quits.
 - **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room order:** rooms draw left to right in the data file's order, each door between the rooms it joins (after the earlier of the two), so list the rooms in the order they connect.
@@ -270,7 +287,7 @@ The sketch isn't to scale: the console takes the left 40% of the window, on a da
 - **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". While the computer reboots or is in FAULT the dashboard is frozen and room clicks do nothing.
 - **Systems, breakers and tanks** panels, as above. Breakers list in one column so the four panels fit one row with four rooms.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
-- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is the ship's hardware terminal, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
+- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
 
@@ -288,7 +305,7 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
 
 ## Data file
 
-`data/ship.json` holds:
+Each file in `data/ships/` is one ship, and the file name, which must be lowercase with no whitespace, is the ship's name. The shipped ones are `kestrel`, the three-room ship above, and `wren`, which adds a `treehouse` joined to the cockpit by `d0`. Each file holds:
 - each room's volume, its passenger count, and its starting gas and temperature
 - the openings, with which rooms each joins, its conductance and its travel time
 - the setpoints and status thresholds
@@ -301,6 +318,7 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
 
 - **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, passengers and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
 - **Command interpreter:** a pure function from a command string and the ship to the ship's changes and a response line. It holds no nodes and is tested headless.
+- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships` and `disconnect` itself, and passes every other line to the interpreter.
 - **UI:** a thin layer of scenes for the clock bar, the schematic, the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
 - **Tests:** headless, with the same runner as `prototypes/transit/tests`. They cover:
   - pressure from moles and temperature, against hand-worked cases

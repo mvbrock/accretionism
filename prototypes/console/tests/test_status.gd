@@ -1,6 +1,6 @@
 extends TestCase
 
-var _bands: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/ship.json")).status
+var _bands: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ShipFixture.KESTREL_PATH)).status
 
 func _level(row: String, value: float) -> Status.Level:
 	return Status.classify(value, _bands[row])
