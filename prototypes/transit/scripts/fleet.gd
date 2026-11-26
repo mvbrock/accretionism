@@ -8,6 +8,8 @@ const _BODIES := [Orbits.Body.EARTH, Orbits.Body.MOON, Orbits.Body.MARS]
 var cyclers: Array[Cycler] = []
 var transports: Array[Transport] = []
 var day := 0.0
+## Place name -> turns taken there, by launches from it and trips to it alike.
+var _turns := {}
 
 
 ## Cyclers then transports, each in fleet order: the order of the table's rows
@@ -70,7 +72,9 @@ func depart(t: Transport, target: Variant) -> bool:
 		t.flown_before_km += _leg_point(t, t.is_local_leg).distance_to(t.depart_point)
 	else:
 		t.origin_name = t.host.name if t.state == Transport.State.DOCKED else Orbits.body_name(t.body)
+		t.origin_turn = _take_turn(t.origin_name)
 		t.flown_before_km = 0.0
+	t.target_turn = _take_turn(target_name(target))
 	t.state = Transport.State.IN_TRANSIT
 	t.target = target
 	t.is_local_leg = is_local
@@ -95,6 +99,12 @@ func advance_to(new_day: float) -> void:
 	for t in transports:
 		if t.state == Transport.State.IN_TRANSIT and t.t_arrive <= new_day:
 			_arrive(t)
+
+
+func _take_turn(place_name: String) -> int:
+	var turn: int = _turns.get(place_name, 0)
+	_turns[place_name] = turn + 1
+	return turn
 
 
 func _arrive(t: Transport) -> void:
