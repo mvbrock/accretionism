@@ -4,8 +4,6 @@ extends Control
 ## shape selects that ship; clicking empty space clears the selection.
 
 const PICK_RADIUS := 14.4
-const SQUARE_SIZE := 14.4
-const TRIANGLE_SIZE := 12.0
 const LANE_WIDTH := 2.0
 const TRIP_WIDTH := 1.5
 const DASH := 4.0
@@ -15,6 +13,7 @@ const BODY_COLORS := {
 	Orbits.Body.MOON: Color(0.95, 0.95, 0.95),
 	Orbits.Body.MARS: Color(0.9, 0.3, 0.2),
 }
+## Cycler lanes; each ship's own icon color comes from ShipIcons.
 const AMBER := Color(1.0, 0.72, 0.2)
 const LIGHT_GRAY := Color(0.8, 0.82, 0.85)
 const HIGHLIGHT := Color(1.0, 1.0, 1.0)
@@ -118,21 +117,21 @@ func _draw() -> void:
 			selected_trip = entry
 		else:
 			_draw_split_curve(entry.points, entry.split, entry.tri_pos, LIGHT_GRAY, TRIP_WIDTH)
-			_draw_triangle(entry.tri_pos, entry.tri_angle, false)
+			_draw_triangle(entry.transport, entry.tri_pos, entry.tri_angle, false)
 	for entry in layout.parked:
-		_draw_triangle(entry.pos, _parked_angle(entry), entry.transport == selected)
+		_draw_triangle(entry.transport, entry.pos, _parked_angle(entry), entry.transport == selected)
 	for entry in layout.cyclers:
 		if entry.cycler != selected:
-			_draw_square(entry.pos, false)
+			_draw_square(entry.cycler, entry.pos, false)
 
 	# The selected ship goes on top of everything else.
 	if not selected_lane.is_empty():
 		var pos := _cycler_pos(selected_lane.cycler)
 		_draw_split_curve(selected_lane.points, selected_lane.split, pos, AMBER, LANE_WIDTH + 1.0)
-		_draw_square(pos, true)
+		_draw_square(selected_lane.cycler, pos, true)
 	if not selected_trip.is_empty():
 		_draw_split_curve(selected_trip.points, selected_trip.split, selected_trip.tri_pos, HIGHLIGHT, TRIP_WIDTH + 0.5)
-		_draw_triangle(selected_trip.tri_pos, selected_trip.tri_angle, true)
+		_draw_triangle(selected_trip.transport, selected_trip.tri_pos, selected_trip.tri_angle, true)
 
 	for entry in layout.bodies:
 		_draw_body_label(entry)
@@ -154,28 +153,20 @@ func _draw_split_curve(points: PackedVector2Array, split: int, joint: Vector2, c
 		from = points[i]
 
 
-func _draw_square(pos: Vector2, highlighted: bool) -> void:
-	var rect := Rect2(pos - Vector2.ONE * SQUARE_SIZE / 2.0, Vector2.ONE * SQUARE_SIZE)
-	draw_rect(rect, AMBER)
+func _draw_square(cycler: Cycler, pos: Vector2, highlighted: bool) -> void:
+	var rect := ShipIcons.square_rect(pos)
+	draw_rect(rect, ShipIcons.color_of(main.fleet, cycler))
 	if highlighted:
 		draw_rect(rect.grow(2.0), HIGHLIGHT, false, 2.0)
 
 
-func _draw_triangle(pos: Vector2, angle: float, highlighted: bool) -> void:
-	var points := _triangle_points(pos, angle)
-	draw_colored_polygon(points, LIGHT_GRAY)
+func _draw_triangle(transport: Transport, pos: Vector2, angle: float, highlighted: bool) -> void:
+	var points := ShipIcons.triangle_points(pos, angle)
+	draw_colored_polygon(points, ShipIcons.color_of(main.fleet, transport))
 	if highlighted:
-		var outline := _triangle_points(pos, angle, TRIANGLE_SIZE + 5.0)
+		var outline := ShipIcons.triangle_points(pos, angle, ShipIcons.TRIANGLE_SIZE + 5.0)
 		outline.append(outline[0])
 		draw_polyline(outline, HIGHLIGHT, 2.0, true)
-
-
-## A triangle `length` px long, centered on `pos`, its tip pointing along `angle`.
-func _triangle_points(pos: Vector2, angle: float, length := TRIANGLE_SIZE) -> PackedVector2Array:
-	var ahead := Vector2.from_angle(angle)
-	var side := ahead.orthogonal()
-	var back := pos - ahead * length * 0.4
-	return PackedVector2Array([pos + ahead * length * 0.6, back + side * length * 0.45, back - side * length * 0.45])
 
 
 ## Parked triangles point out from their body; docked ones point up.
@@ -189,10 +180,10 @@ func _parked_angle(entry: Dictionary) -> float:
 func _draw_hover_outline(ship: Variant) -> void:
 	if ship is Cycler:
 		var pos := _cycler_pos(ship)
-		draw_rect(Rect2(pos - Vector2.ONE * (SQUARE_SIZE / 2.0 + 2.0), Vector2.ONE * (SQUARE_SIZE + 4.0)), HIGHLIGHT, false, 1.0)
+		draw_rect(ShipIcons.square_rect(pos, ShipIcons.SQUARE_SIZE + 4.0), HIGHLIGHT, false, 1.0)
 		return
 	var marker := _transport_marker(ship)
-	var outline := _triangle_points(marker.pos, marker.angle, TRIANGLE_SIZE + 5.0)
+	var outline := ShipIcons.triangle_points(marker.pos, marker.angle, ShipIcons.TRIANGLE_SIZE + 5.0)
 	outline.append(outline[0])
 	draw_polyline(outline, HIGHLIGHT, 1.0, true)
 

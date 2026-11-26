@@ -198,13 +198,17 @@ Body-to-body trips never cross a cycler lane. Lanes are crossed only under rule 
 
 Cycler squares are 14.4 px wide and transport triangles 12 px long. A click within 14.4 px of a ship selects it.
 
+Every ship has a color no other ship shares, spread round the hue wheel in fleet order. The dispatch panel shows the selected ship's icon beside its name, and each cycler in the destination list beside its name.
+
 | Thing | Shape | Color |
 |---|---|---|
 | Earth | circle | blue |
 | Moon | small circle | white |
 | Mars | circle | red |
-| Cycler | square | amber |
-| Transport | triangle | light gray |
+| Cycler | square | its own color |
+| Transport | triangle | its own color |
+| Cycler lane | line | amber |
+| Transport trip | line | light gray |
 | Selected ship | its usual shape | highlighted outline, and its line drawn on top |
 
 ## Controls

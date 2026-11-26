@@ -1,14 +1,18 @@
 class_name DispatchPanel
 extends VBoxContainer
-## Side panel: the selected ship's name and, for a transport, its valid
-## targets, the travel-time estimate and the Depart button.
+## Side panel: the selected ship's icon and name and, for a transport, its
+## valid targets (each cycler with its icon), the travel-time estimate and the
+## Depart button.
 
 signal depart_requested(transport: Transport, target: Variant)
 
 const NOTHING_SELECTED := "Select a ship"
 const CYCLER_NOTE := "Cyclers keep to their timetable."
 const NO_DESTINATION_CHOSEN := "Pick a destination"
+## Logical px; ShipIcons textures are larger, for HiDPI.
+const TARGET_ICON_WIDTH := 14
 
+@onready var ship_icon: TextureRect = %ShipIcon
 @onready var ship_label: Label = %ShipName
 @onready var note_label: Label = %Note
 @onready var targets: OptionButton = %Targets
@@ -24,6 +28,9 @@ var _target_list: Array = []
 func _ready() -> void:
 	targets.item_selected.connect(func(_index: int) -> void: refresh())
 	depart_button.pressed.connect(_on_depart_pressed)
+	# The list's popup is its own window, so it needs its own override.
+	for control in [targets, targets.get_popup()]:
+		control.add_theme_constant_override("icon_max_width", TARGET_ICON_WIDTH)
 	show_ship(null, null)
 
 
@@ -33,6 +40,8 @@ func show_ship(fleet: Fleet, ship: Variant) -> void:
 	_target_list = []
 	targets.clear()
 	ship_label.text = NOTHING_SELECTED if ship == null else ship.name
+	ship_icon.visible = ship != null
+	ship_icon.texture = null if ship == null else ShipIcons.texture(fleet, ship)
 	note_label.text = CYCLER_NOTE if ship is Cycler else ""
 	note_label.visible = ship is Cycler
 	for control in [targets, estimate_label, depart_button]:
@@ -83,7 +92,10 @@ func _set_targets(valid: Array) -> void:
 	_target_list = valid
 	targets.clear()
 	for target in valid:
-		targets.add_item(Fleet.target_name(target))
+		if target is Cycler:
+			targets.add_icon_item(ShipIcons.texture(_fleet, target), target.name)
+		else:
+			targets.add_item(Fleet.target_name(target))
 	targets.select(valid.find(previous))
 
 
