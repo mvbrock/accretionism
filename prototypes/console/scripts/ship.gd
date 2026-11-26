@@ -201,39 +201,41 @@ func fault_system(id: String) -> bool:
 	return systems[id].fault()
 
 
-## Runs as many whole steps as `sim_seconds` holds, carrying the rest to the next call.
-## Returns the steps run.
-func advance(sim_seconds: float) -> int:
+## Runs as many whole steps of `step_s` as `sim_seconds` holds, carrying the rest to the next
+## call, even if that call uses a different step size. `step_s` must be a whole multiple of
+## STEP_S. Returns the steps run.
+func advance(sim_seconds: float, step_s := STEP_S) -> int:
 	_pending_s += maxf(sim_seconds, 0.0)
-	var steps := int(floor(_pending_s / STEP_S + _STEP_EPSILON))
-	_pending_s -= steps * STEP_S
+	var steps := int(floor(_pending_s / step_s + _STEP_EPSILON))
+	_pending_s -= steps * step_s
 	for i in steps:
-		step()
+		step(step_s)
 	return steps
 
 
-func step() -> void:
-	for id in power.roll_random_trips(STEP_S):
+## Runs one step of `dt` sim seconds, a whole multiple of STEP_S.
+func step(dt := STEP_S) -> void:
+	for id in power.roll_random_trips(dt):
 		events.add(time_s, "%s: breaker tripped" % id, EventLog.Level.WARNING)
 	for id in SYSTEM_IDS:
-		if systems[id].step(STEP_S, _system_powered(id)):
+		if systems[id].step(dt, _system_powered(id)):
 			events.add(time_s, "%s: %s" % [id, _state_text(systems[id].state)],
 					EventLog.Level.WARNING if systems[id].state != SystemUnit.State.RUNNING else EventLog.Level.INFO)
 	for opening_ in openings:
-		opening_.step(STEP_S, power.is_powered(opening_.id))
+		opening_.step(dt, power.is_powered(opening_.id))
 	_update_exposure()
 	for opening_ in openings:
 		if not opening_.is_hatch():
-			Atmosphere.flow_through_door(room(opening_.room_a), room(opening_.room_b), opening_, STEP_S)
+			Atmosphere.flow_through_door(room(opening_.room_a), room(opening_.room_b), opening_, dt)
 	for opening_ in openings:
 		if opening_.is_hatch():
-			Atmosphere.vent_through_hatch(room(opening_.room_a), opening_, STEP_S)
-	_breathe()
-	_run_pressure_control()
-	_run_recycler()
+			Atmosphere.vent_through_hatch(room(opening_.room_a), opening_, dt)
+	_breathe(dt)
+	_run_pressure_control(dt)
+	_run_recycler(dt)
 	_log_empty_tanks()
-	_apply_heat()
-	_steps += 1
+	_apply_heat(dt)
+	_steps += roundi(dt / STEP_S)
 
 
 func _system_powered(id: String) -> bool:
@@ -272,20 +274,20 @@ func _update_exposure() -> void:
 	exposed = now
 
 
-func _breathe() -> void:
+func _breathe(dt: float) -> void:
 	for r in rooms:
-		LifeSupport.breathe(r, params.passenger.o2_mol_s, params.passenger.co2_mol_s, STEP_S)
+		LifeSupport.breathe(r, params.passenger.o2_mol_s, params.passenger.co2_mol_s, dt)
 
 
-func _run_pressure_control() -> void:
+func _run_pressure_control(dt: float) -> void:
 	if not systems["pressure-control"].is_running():
 		return
 	for r in rooms:
 		LifeSupport.pressure_control(r, exposed[r.id], tanks, _setpoints_pa,
-				params.pressure_control.max_mol_s, STEP_S)
+				params.pressure_control.max_mol_s, dt)
 
 
-func _run_recycler() -> void:
+func _run_recycler(dt: float) -> void:
 	recycler_scrubbing = false
 	if not systems["air-recycler"].is_running():
 		return
@@ -293,7 +295,7 @@ func _run_recycler() -> void:
 	for r in rooms:
 		var removed := LifeSupport.recycle(r, exposed[r.id], tanks["O2"],
 				params.setpoints.co2_max_kpa * 1000.0, section.min_pressure_kpa * 1000.0,
-				section.max_mol_s, STEP_S)
+				section.max_mol_s, dt)
 		if removed > 0.0:
 			recycler_scrubbing = true
 
@@ -306,7 +308,7 @@ func _log_empty_tanks() -> void:
 		_tank_was_empty[gas] = is_empty
 
 
-func _apply_heat() -> void:
+func _apply_heat(dt: float) -> void:
 	var hvac_running: bool = systems["hvac"].is_running()
 	for r in rooms:
 		var watts: float = r.passengers * params.heat.passenger_w
@@ -316,5 +318,5 @@ func _apply_heat() -> void:
 		if hvac_running:
 			hvac_w = LifeSupport.hvac_heat_w(r, _setpoint_k, params.hvac.gain_w_per_k, params.hvac.max_w)
 		last_hvac_w[r.id] = hvac_w
-		Atmosphere.add_heat(r, (watts + hvac_w) * STEP_S)
-		Atmosphere.hull_loss(r, _hull_k, STEP_S)
+		Atmosphere.add_heat(r, (watts + hvac_w) * dt)
+		Atmosphere.hull_loss(r, _hull_k, dt)

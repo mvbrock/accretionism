@@ -3,7 +3,7 @@ extends Control
 ## Wires the fleet, the clock, the dashboard and the console. The console starts
 ## disconnected; the dashboard shows the ship it connects to. Every ship runs on
 ## the one clock. Space pauses unless the command line has focus; Esc quits.
-## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, connects to
+## Screenshot mode: godot --path . -- --capture <dir>   (runs at 1 min/s, connects to
 ## the first ship, opens the hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
 const SHIPS_DIR := "res://data/ships"
@@ -119,7 +119,7 @@ func _process(delta: float) -> void:
 	var sim_seconds := clock.tick(delta)
 	if _capture != null:
 		sim_seconds = _capture.limit(sim_seconds)
-	fleet.advance(sim_seconds)
+	fleet.advance(sim_seconds, clock.step_s())
 	refresh()
 	if _capture != null:
 		_capture.step()
@@ -249,7 +249,7 @@ func _next_speed() -> void:
 ## rate: the clock is cut short at each stop, paused a few frames for the shot,
 ## then resumed.
 class CaptureScript:
-	const SPEED_INDEX := 2
+	const SPEED_INDEX := 1
 	const VENT_STOP_S := 20.0
 	const REFILL_STOP_S := 120.0
 	## Frames to let the redraw reach the screen before saving.

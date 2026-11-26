@@ -10,8 +10,8 @@ cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 - Editor: `godot -e --path .` (from this folder), then press F5.
 - Directly: `godot --path .`
 
-Space pauses every ship unless the command line has focus, connected or not; the clock bar also has Pause/Play and Speed (1×, 10×,
-100×) buttons. Up and down recall earlier commands. Esc quits.
+Space pauses every ship unless the command line has focus, connected or not; the clock bar also has Pause/Play and Speed (real time, 1 min/s,
+1 hour/s) buttons. Up and down recall earlier commands. Esc quits.
 
 | Control | Effect |
 |---|---|
@@ -60,8 +60,8 @@ seed gives the same random breaker trips. Add a room or a door there and it gets
 
 ## How it works
 
-- The simulation core (`scripts/*.gd`) has no nodes. `Ship` advances in whole 0.1 s steps of sim
-  time, so nothing depends on frame rate.
+- The simulation core (`scripts/*.gd`) has no nodes. `Ship` advances in whole steps of sim time, 0.1 s, or 1 s at
+  1 hour/s, so nothing depends on frame rate.
 - `scripts/dashboard_model.gd` turns a `Ship` into the strings and levels the screen shows.
 - `scripts/ui/` is a thin layer built in code: `Main` runs the clock and the command line,
   `DashboardView` draws the model, `Console` is the input and scrollback (the left column).
@@ -77,5 +77,5 @@ godot --headless --path . -s res://tests/run_tests.gd -- main_scene   # filter b
 A test fails if it logs an engine or script error. A test that deliberately triggers one declares
 it with `expect_error("part of the message")`.
 
-Screenshots: `godot --path . -- --capture <dir>` runs at 100×, connects to the first ship, opens the hatch, selects cargo, saves `venting.png`
+Screenshots: `godot --path . -- --capture <dir>` runs at 1 min/s, connects to the first ship, opens the hatch, selects cargo, saves `venting.png`
 at 20 s of sim time, closes the hatch, saves `refilled.png` at 120 s, then quits.

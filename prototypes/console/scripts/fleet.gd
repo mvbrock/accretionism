@@ -42,6 +42,6 @@ func names() -> PackedStringArray:
 	return PackedStringArray(ships.keys())
 
 
-func advance(sim_seconds: float) -> void:
+func advance(sim_seconds: float, step_s := Ship.STEP_S) -> void:
 	for ship in ships.values():
-		(ship as Ship).advance(sim_seconds)
+		(ship as Ship).advance(sim_seconds, step_s)

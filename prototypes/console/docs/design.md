@@ -36,7 +36,7 @@ No player character, passenger movement, walking or first-person view. No power 
 | Door auto-close | When the hatch starts opening, every door except the hatch closes by itself. A door without power stays where it is |
 | IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
 | Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
-| Clock | Pause, 1×, 10× and 100× sim speed |
+| Clock | Pause, and sim speeds of real time, 1 min/s and 1 hour/s |
 | Fleet | Several ships, one JSON file each in `data/ships/`, named by the file (`kestrel.json` is `kestrel`). The console starts disconnected and connects to one ship at a time. Every ship runs on the one clock whether or not the console is connected to it |
 
 ## Ship layout
@@ -69,7 +69,7 @@ Room
 - **Composition** shows as each gas's share of the pressure. CO₂ shows as a partial pressure, since that is what passenger safety depends on.
 - **Temperature belongs to the room**, not only its air: the structure's heat capacity is far larger than the air's. So a room has a temperature even in vacuum, and gas flowing in or out doesn't change it.
 
-The sim steps every 0.1 s of sim time. At 100× it runs 1,000 steps per real second. Every rate below is in the data file and can be tuned.
+The sim steps every 0.1 s of sim time, or every 1 s at 1 hour/s so it keeps up with the clock. At 1 min/s it runs 600 steps per real second. Every rate below is in the data file and can be tuned.
 
 ### Setpoints
 
@@ -108,7 +108,7 @@ Heat sources: each passenger gives 100 W, each powered light that is on gives 40
 
 ### Passengers
 
-The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 2 minutes at 100×. The larger main room takes about 12 h.
+The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 4 minutes at 1 min/s. The larger main room takes about 12 h.
 
 `passenger add` and `passenger remove` change the count in a room, one at a time, and a room can go down to none. A room with no passengers uses no O₂, makes no CO₂ and gives off no body heat.
 
@@ -193,7 +193,7 @@ A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's sta
 
 ### Random trips
 
-- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 1.6 minutes at 100×.
+- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 2.7 minutes at 1 min/s.
 - A trip is checked on every step with probability `dt / mean_time_between_trips`. That rate is in the data file, and setting it to 0 turns random trips off.
 - A trip is logged and raises a warning on the dashboard.
 - The random source is seeded from the data file and draws once per breaker per step, so a run is repeatable.
@@ -253,7 +253,7 @@ unknown command 'door shut'. Type 'help' for commands
 ## Screen
 
 ```
-┌ console ───────────────┬ clock: ▶ 10×   T+00:42:17 ────────────────────────── ⚠ CARGO EXPOSED ┐
+┌ console ───────────────┬ clock: ▶ 1 min/s   T+00:42:17 ────────────────────── ⚠ CARGO EXPOSED ┐
 │                        │                                                                      │
 │                        │  ┌ COCKPIT ─────┐ d1 ┌ MAIN ────────┐ d2 ╔═CARGO════════╗ hatch      │
 │                        │  │              │ ▌▐ │              │ ▐▌ ║              ║ ◁▷ OPEN    │
@@ -280,7 +280,7 @@ The sketch isn't to scale: the console takes the left 40% of the window, on a da
 - **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
 - **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
 - **Bad data file:** if any ship file in `data/ships/` can't be loaded, the window shows "Could not load data/ships/<file>: <problem>" in place of the dashboard (or "Could not load data/ships: <problem>" when the folder is missing or has no ship files), the sim doesn't run, and Esc still quits.
-- **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
+- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room order:** rooms draw left to right in the data file's order, each door between the rooms it joins (after the earlier of the two), so list the rooms in the order they connect.
 - **Room tiles:** each shows only the room's name. The border and name take the room's worst status color. A left click selects a room; the first room in the data file is selected at start, and its tile has a thicker border (drawn double in the sketch).

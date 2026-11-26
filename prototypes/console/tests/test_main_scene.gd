@@ -362,13 +362,13 @@ func test_clock_bar_buttons() -> void:
 	main.dashboard.pause_pressed.emit()
 	assert_true(main.clock.paused, "Pause pauses")
 	main.dashboard.speed_pressed.emit()
-	assert_true(main.clock.speed_index == 1, "Speed steps to 10x")
+	assert_true(main.clock.speed_index == 1, "Speed steps to 1 min/s")
 	main.set_process(true)
 	main.clock.paused = false
 	main.clock.speed_index = 1
 	main._process(1.0)
 	main.set_process(false)
-	assert_near(main.ship.time_s, 10.0, 1e-6, "_process advances the ship by sim time")
+	assert_near(main.ship.time_s, 60.0, 1e-6, "_process advances the ship by sim time")
 
 
 func _type(main: Main, text: String) -> void:
@@ -419,7 +419,7 @@ func test_clock_bar_button_text() -> void:
 	main.clock.paused = false
 	main.refresh()
 	assert_true(main.dashboard.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.pause_button.text)
-	assert_true(main.dashboard.speed_button.text == "Speed: 100×", "speed shows 100×, got '%s'" % main.dashboard.speed_button.text)
+	assert_true(main.dashboard.speed_button.text == "Speed: 1 hour/s", "speed shows 1 hour/s, got '%s'" % main.dashboard.speed_button.text)
 	main.clock.paused = true
 	main.refresh()
 	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)
