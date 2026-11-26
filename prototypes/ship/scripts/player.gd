@@ -139,8 +139,6 @@ func _around() -> Vector3:
 	return RingGeometry.up_at(global_position).cross(Vector3.RIGHT)
 
 
-
-
 func _turn_toward_aim(delta: float) -> void:
 	if aim_heading == Vector2.ZERO:
 		return
