@@ -34,7 +34,7 @@ func test_in_flight_row() -> void:
 	fleet.depart(transport, Orbits.Body.MARS)
 	fleet.advance_to(transport.t0 + 0.379 * (transport.t_arrive - transport.t0))
 	var row := TableModel.rows(fleet)[4]
-	assert_true(row == PackedStringArray(["Heron", "Earth", "37%", "Mars"]), "got %s" % [row])
+	assert_true(row == PackedStringArray(["Heron", "Earth", "37.90%", "Mars"]), "got %s" % [row])
 
 
 func test_in_flight_row_names_a_cycler_destination() -> void:
@@ -49,7 +49,7 @@ func test_cycler_row() -> void:
 	var fleet := _fleet()
 	fleet.advance_to(73.0)
 	var row := TableModel.rows(fleet)[0]
-	assert_true(row == PackedStringArray(["Aldrin I", "Earth", "50%", "-"]), "got %s" % [row])
+	assert_true(row == PackedStringArray(["Aldrin I", "Earth", "50.00%", "-"]), "got %s" % [row])
 
 
 func test_cycler_on_its_long_leg_names_the_last_planet() -> void:
@@ -66,3 +66,8 @@ func test_redirected_row_keeps_origin() -> void:
 	fleet.depart(transport, Orbits.Body.MOON)
 	var row := TableModel.rows(fleet)[2]
 	assert_true(row[1] == "Earth" and row[3] == "Moon", "got %s" % [row])
+
+
+func test_progress_rounds_down_so_100_shows_only_on_arrival() -> void:
+	assert_true(TableModel.percent(0.99999) == "99.99%", "got %s" % TableModel.percent(0.99999))
+	assert_true(TableModel.percent(1.0) == "100.00%", "got %s" % TableModel.percent(1.0))

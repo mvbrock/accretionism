@@ -12,7 +12,7 @@ static func rows(fleet: Fleet) -> Array[PackedStringArray]:
 		result.append(PackedStringArray([
 			cycler.name,
 			Orbits.body_name(cycler.last_flyby(fleet.day)),
-			_percent(cycler.progress(fleet.day)),
+			percent(cycler.progress(fleet.day)),
 			NOT_APPLICABLE,
 		]))
 	for transport in fleet.transports:
@@ -30,11 +30,11 @@ static func _transport_row(fleet: Fleet, transport: Transport) -> PackedStringAr
 			return PackedStringArray([
 				transport.name,
 				transport.origin_name,
-				_percent(fleet.progress(transport)),
+				percent(fleet.progress(transport)),
 				Fleet.target_name(transport.target),
 			])
 
 
-## Rounded down, so 100% shows only on arrival.
-static func _percent(fraction: float) -> String:
-	return "%d%%" % floori(fraction * 100.0)
+## To two decimals, rounded down, so 100.00% shows only on arrival.
+static func percent(fraction: float) -> String:
+	return "%.2f%%" % (floorf(fraction * 10000.0) / 100.0)

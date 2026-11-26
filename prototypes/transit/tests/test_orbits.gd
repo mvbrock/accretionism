@@ -60,10 +60,11 @@ func test_body_names() -> void:
 
 
 func test_format_distance() -> void:
-	assert_true(Units.format_distance(384400.0) == "384,400 km", "got %s" % Units.format_distance(384400.0))
-	assert_true(Units.format_distance(78400000.0) == "78.4 M km", "got %s" % Units.format_distance(78400000.0))
+	assert_true(Units.format_distance(384400.0) == "384,400.00 km", "got %s" % Units.format_distance(384400.0))
+	assert_true(Units.format_distance(0.999) == "1.00 km", "rounds up into the next km, got %s" % Units.format_distance(0.999))
+	assert_true(Units.format_distance(78400000.0) == "78.40 M km", "got %s" % Units.format_distance(78400000.0))
 
 
 func test_format_duration() -> void:
-	assert_true(Units.format_duration(31.1667) == "31 d 4 h", "got %s" % Units.format_duration(31.1667))
-	assert_true(Units.format_duration(0.0875) == "2 h", "got %s" % Units.format_duration(0.0875))
+	assert_true(Units.format_duration(31.1667) == "31.17 d", "got %s" % Units.format_duration(31.1667))
+	assert_true(Units.format_duration(0.0875) == "0.09 d", "got %s" % Units.format_duration(0.0875))

@@ -25,10 +25,10 @@ func test_labels() -> void:
 	var clock := SimClock.new()
 	clock.day = 412.5
 	clock.speed_index = 1
-	assert_true(clock.label() == "Day 412.5 · 1 d/s", "got %s" % clock.label())
+	assert_true(clock.label() == "Day 412.50 · 1.00 d/s", "got %s" % clock.label())
 	clock.speed_index = 0
-	assert_true(clock.label() == "Day 412.5 · 1 h/s", "got %s" % clock.label())
+	assert_true(clock.label() == "Day 412.50 · 1.00 h/s", "got %s" % clock.label())
 	clock.speed_index = 2
-	assert_true(clock.label() == "Day 412.5 · 10 d/s", "got %s" % clock.label())
+	assert_true(clock.label() == "Day 412.50 · 10.00 d/s", "got %s" % clock.label())
 	clock.paused = true
-	assert_true(clock.label() == "Day 412.5 · Paused", "the date stays while paused, got %s" % clock.label())
+	assert_true(clock.label() == "Day 412.50 · Paused", "the date stays while paused, got %s" % clock.label())

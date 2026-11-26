@@ -137,7 +137,7 @@ The clock bar and dispatch panel stay on screen in both tabs. Switching tabs kee
 | Transport in flight | where the trip started | % of the trip done | target's name |
 | Cycler | planet it last flew past | % of the current leg done | - |
 
-**Progress** is `distance flown ÷ trip length`, rounded down to a whole percent, so 100% shows only on arrival. For a redirected trip, the distance flown before the redirect counts toward both numbers:
+**Progress** is `distance flown ÷ trip length`, rounded down to two decimal places, so 100.00% shows only on arrival. Every number on screen has two decimal places. For a redirected trip, the distance flown before the redirect counts toward both numbers:
 
 ```
 progress = (flown before redirect + flown on new leg) ÷ (flown before redirect + new leg length)
@@ -214,7 +214,7 @@ Every ship has a color no other ship shares, spread round the hue wheel in fleet
 ## Controls
 
 - **Clock:** pause/play, speed steps of 1 h, 1 d and 10 d per real second, and the current sim date.
-- **Dispatch:** select a transport (in either view), pick a destination from the valid targets, and see *"Est. travel time: 31 d 4 h"* before pressing **Depart**. Selecting a cycler row shows no dispatch controls.
+- **Dispatch:** select a transport (in either view), pick a destination from the valid targets, and see *"Est. travel time: 31.17 d"* before pressing **Depart**. Selecting a cycler row shows no dispatch controls.
 
 ## Starting fleet
 

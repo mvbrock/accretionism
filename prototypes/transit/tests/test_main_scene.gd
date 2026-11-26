@@ -95,7 +95,7 @@ func test_unreachable_disables_depart() -> void:
 	assert_true(main.dispatch.estimate_label.text == "Est. travel time: unreachable", "says so")
 	assert_true(main.dispatch.depart_button.disabled, "Depart is disabled")
 	main.dispatch.show_estimate(31.1667)
-	assert_true(main.dispatch.estimate_label.text == "Est. travel time: 31 d 4 h", "got %s" % main.dispatch.estimate_label.text)
+	assert_true(main.dispatch.estimate_label.text == "Est. travel time: 31.17 d", "got %s" % main.dispatch.estimate_label.text)
 	assert_true(not main.dispatch.depart_button.disabled, "Depart is enabled again")
 
 
