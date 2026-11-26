@@ -1,0 +1,194 @@
+{
+	"seed": 7,
+	"setpoints": {
+		"o2_kpa": 21.2,
+		"n2_kpa": 80.1,
+		"co2_max_kpa": 0.3,
+		"temperature_c": 21.0
+	},
+	"rooms": [
+		{
+			"id": "treehouse",
+			"volume_m3": 12,
+			"passengers": 1,
+			"start": {
+				"o2_kpa": 21.2,
+				"n2_kpa": 80.1,
+				"co2_kpa": 0.04,
+				"temperature_c": 21.0
+			}
+		},
+		{
+			"id": "cockpit",
+			"volume_m3": 12,
+			"passengers": 1,
+			"start": {
+				"o2_kpa": 21.2,
+				"n2_kpa": 80.1,
+				"co2_kpa": 0.04,
+				"temperature_c": 21.0
+			}
+		},
+		{
+			"id": "main",
+			"volume_m3": 40,
+			"passengers": 1,
+			"start": {
+				"o2_kpa": 21.2,
+				"n2_kpa": 80.1,
+				"co2_kpa": 0.04,
+				"temperature_c": 21.0
+			}
+		},
+		{
+			"id": "cargo",
+			"volume_m3": 30,
+			"passengers": 0,
+			"start": {
+				"o2_kpa": 21.2,
+				"n2_kpa": 80.1,
+				"co2_kpa": 0.04,
+				"temperature_c": 21.0
+			}
+		}
+	],
+	"openings": [
+		{
+			"id": "d0",
+			"between": [
+				"treehouse",
+				"cockpit"
+			],
+			"travel_s": 2,
+			"conductance_m3s": 10,
+			"mixing_m3s": 0.5,
+			"heat_w_per_k": 100
+		},
+		{
+			"id": "d1",
+			"between": [
+				"cockpit",
+				"main"
+			],
+			"travel_s": 2,
+			"conductance_m3s": 10,
+			"mixing_m3s": 0.5,
+			"heat_w_per_k": 100
+		},
+		{
+			"id": "d2",
+			"between": [
+				"main",
+				"cargo"
+			],
+			"travel_s": 2,
+			"conductance_m3s": 10,
+			"mixing_m3s": 0.5,
+			"heat_w_per_k": 100
+		},
+		{
+			"id": "hatch",
+			"between": [
+				"cargo",
+				"outside"
+			],
+			"travel_s": 6,
+			"conductance_m3s": 5
+		}
+	],
+	"heat": {
+		"capacity_j_per_k_m3": 5000,
+		"hull_w_per_k_m3": 0.5,
+		"hull_temperature_c": -20,
+		"passenger_w": 100,
+		"light_w": 40
+	},
+	"passenger": {
+		"o2_mol_s": 0.0003,
+		"co2_mol_s": 0.00026
+	},
+	"pressure_control": {
+		"max_mol_s": 20,
+		"boot_s": 10
+	},
+	"hvac": {
+		"gain_w_per_k": 5000,
+		"max_w": 1500,
+		"boot_s": 8
+	},
+	"air_recycler": {
+		"max_mol_s": 0.01,
+		"min_pressure_kpa": 10,
+		"boot_s": 15
+	},
+	"computer": {
+		"boot_s": 20
+	},
+	"tanks": {
+		"O2": {
+			"capacity_mol": 3000,
+			"start_mol": 3000
+		},
+		"N2": {
+			"capacity_mol": 8000,
+			"start_mol": 8000
+		}
+	},
+	"breakers": {
+		"mean_time_between_trips_h": 24,
+		"draw_w": {
+			"light": 40,
+			"door_idle": 5,
+			"door_moving": 200,
+			"hatch_idle": 5,
+			"hatch_moving": 500,
+			"pressure_control": 300,
+			"hvac_base": 200,
+			"air_recycler_scrubbing": 800,
+			"air_recycler_idle": 50,
+			"computer": 150
+		}
+	},
+	"status": {
+		"pressure_kpa": {
+			"nominal": [
+				95,
+				105
+			],
+			"danger_below": 70,
+			"danger_above": null
+		},
+		"o2_kpa": {
+			"nominal": [
+				19,
+				23.5
+			],
+			"danger_below": 16,
+			"danger_above": 30
+		},
+		"co2_kpa": {
+			"nominal": [
+				0,
+				0.5
+			],
+			"danger_below": null,
+			"danger_above": 1.0
+		},
+		"temperature_c": {
+			"nominal": [
+				18,
+				26
+			],
+			"danger_below": 10,
+			"danger_above": 32
+		},
+		"tank_percent": {
+			"nominal": [
+				25,
+				100
+			],
+			"danger_below": 5,
+			"danger_above": null
+		}
+	}
+}

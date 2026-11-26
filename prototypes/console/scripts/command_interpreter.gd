@@ -18,11 +18,26 @@ static func is_typeable(id: String) -> bool:
 	return not id.is_empty() and id == id.to_lower() and _WHITESPACE.search(id) == null
 
 
+## The line lowercased and split on whitespace.
+static func words(line: String) -> PackedStringArray:
+	return _WHITESPACE.sub(line.to_lower(), " ", true).split(" ", false)
+
+
 static func run(ship: Ship, line: String) -> String:
-	var words := _WHITESPACE.sub(line.to_lower(), " ", true).split(" ", false)
-	if words.is_empty():
+	var line_words := words(line)
+	if line_words.is_empty():
 		return ""
-	return _respond(ship, words)
+	return _respond(ship, line_words)
+
+
+## Why the computer won't take the command `key` right now; empty when it will.
+static func computer_refusal(ship: Ship, key: String) -> String:
+	var computer := ship.systems[Ship.COMPUTER_ID] as SystemUnit
+	if computer.state == SystemUnit.State.BOOTING:
+		return "computer: rebooting; try again in %d s" % Units.whole_seconds_left(computer.boot_left_s)
+	if computer.state == SystemUnit.State.FAULT and key != "computer restart":
+		return "computer: fault; only 'computer restart' works"
+	return ""
 
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
@@ -31,11 +46,9 @@ static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	if not commands.has(key) and commands.has(words[0]):
 		key = words[0]
 	var arg_count := words.size() - key.count(" ") - 1
-	var computer := ship.systems[Ship.COMPUTER_ID] as SystemUnit
-	if computer.state == SystemUnit.State.BOOTING:
-		return "computer: rebooting; try again in %d s" % Units.whole_seconds_left(computer.boot_left_s)
-	if computer.state == SystemUnit.State.FAULT and key != "computer restart":
-		return "computer: fault; only 'computer restart' works"
+	var refusal := computer_refusal(ship, key)
+	if refusal != "":
+		return refusal
 	if not commands.has(key):
 		return "unknown command '%s'. Type 'help' for commands" % " ".join(words.slice(0, 2))
 	var command: Dictionary = commands[key]

@@ -1,10 +1,10 @@
 extends TestCase
 
 func _data() -> Dictionary:
-	return JSON.parse_string(FileAccess.get_file_as_string("res://data/ship.json"))
+	return JSON.parse_string(FileAccess.get_file_as_string(ShipFixture.KESTREL_PATH))
 
 func test_loads_three_rooms_at_setpoint() -> void:
-	var ship := ShipLoader.load_file("res://data/ship.json")
+	var ship := ShipLoader.load_file(ShipFixture.KESTREL_PATH)
 	assert_true(ship.rooms.size() == 3, "three rooms")
 	for room in ship.rooms:
 		assert_near(room.pressure(), 101340.0, 10.0, "%s pressure" % room.id)

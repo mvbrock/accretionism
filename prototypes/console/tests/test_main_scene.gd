@@ -1,12 +1,90 @@
 extends TestCase
 
 
-## The main scene, with its own frame loop stopped so each test steps it by hand.
-func _main() -> Main:
+## The main scene connected to `ship_name`, with its own frame loop stopped so each test steps it by hand.
+func _main(ship_name := "kestrel") -> Main:
+	var main := _disconnected_main()
+	main.console.line_submitted.emit("ships connect " + ship_name)
+	return main
+
+
+func _disconnected_main() -> Main:
 	var main: Main = load("res://scenes/main.tscn").instantiate()
 	own(main)
 	main.set_process(false)
 	return main
+
+
+## Writes `data` as the only ship file in a fresh user:// folder and returns the folder.
+func _ships_dir_with(file_name: String, data: Dictionary) -> String:
+	var dir := "user://test_ships"
+	_remove_dir(dir)
+	DirAccess.make_dir_recursive_absolute(dir)
+	var file := FileAccess.open(dir.path_join(file_name), FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+	return dir
+
+
+func _remove_dir(dir: String) -> void:
+	if not DirAccess.dir_exists_absolute(dir):
+		return
+	for file in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(file))
+	DirAccess.remove_absolute(dir)
+
+
+func test_starts_disconnected() -> void:
+	var main := _disconnected_main()
+	assert_true(main.ship == null, "no ship is connected")
+	assert_true(main.dashboard == null, "no dashboard is built")
+	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+	var text := main.console.scrollback.get_parsed_text()
+	assert_true(text.contains(Main.GREETING), "the console says how to connect, got '%s'" % text)
+
+
+func test_connect_shows_that_ships_dashboard() -> void:
+	var main := _disconnected_main()
+	main.console.line_submitted.emit("ships connect wren")
+	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
+	assert_true(not main.no_ship_label.visible, "the placeholder hides")
+	assert_true(main.dashboard != null and main.dashboard.tile("treehouse") != null, "the dashboard shows wren's rooms")
+	assert_true(main.console.scrollback.get_parsed_text().contains("connected to wren"), "the response prints")
+
+
+func test_disconnect_takes_the_dashboard_away() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("disconnect")
+	assert_true(main.ship == null, "no ship is connected")
+	assert_true(main.dashboard == null, "the dashboard is gone")
+	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+
+
+func test_disconnect_clears_the_reboot_overlay() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("computer restart")
+	assert_true(main.overlay.visible, "the overlay is up while booting")
+	main.console.line_submitted.emit("disconnect")
+	assert_true(not main.overlay.visible and not main.stale_label.visible, "no banner covers the placeholder")
+
+
+func test_reconnecting_to_another_ship_rebuilds_the_dashboard() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("disconnect")
+	main.console.line_submitted.emit("ships connect wren")
+	main.refresh()
+	assert_true(main.dashboard.selected_room == "treehouse", "the ROOM panel starts on wren's first room, got '%s'" % main.dashboard.selected_room)
+	assert_true(main.dashboard.get_index() == 0, "the dashboard sits under the banners")
+
+
+func test_every_ship_runs_while_disconnected() -> void:
+	var main := _disconnected_main()
+	main.set_process(true)
+	main.clock.paused = false
+	main._process(1.0)
+	main.set_process(false)
+	for ship_name in main.fleet.ships:
+		assert_near(main.fleet.ships[ship_name].time_s, 1.0, 1e-6, "%s advances with no connection" % ship_name)
 
 
 func _key(keycode: Key) -> InputEventKey:
@@ -175,16 +253,7 @@ func test_three_rooms_fit_the_dashboard() -> void:
 
 
 func test_four_rooms_fit_the_dashboard() -> void:
-	var path := "user://four_room_ship.json"
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	file.store_string(JSON.stringify(ShipFixture.four_room_data()))
-	file.close()
-	var main: Main = load("res://scenes/main.tscn").instantiate()
-	main.data_path = path
-	own(main)
-	main.set_process(false)
-	DirAccess.remove_absolute(path)
-	await _fits(main)
+	await _fits(_main("wren"))
 
 
 func test_reboot_overlay() -> void:
@@ -338,17 +407,14 @@ func test_clock_bar_button_text() -> void:
 
 
 func _main_with_broken_data() -> Main:
-	var path := "user://broken_ship.json"
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Main.SHIP_PATH))
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ShipFixture.KESTREL_PATH))
 	data.rooms[0].volume_m3 = 0
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	file.store_string(JSON.stringify(data))
-	file.close()
+	var dir := _ships_dir_with("broken.json", data)
 	expect_error("Bad ship data: room 'cockpit' has volume")
 	var main: Main = load("res://scenes/main.tscn").instantiate()
-	main.data_path = path
+	main.ships_dir = dir
 	own(main)
-	DirAccess.remove_absolute(path)
+	_remove_dir(dir)
 	return main
 
 
@@ -359,21 +425,20 @@ func test_bad_data_file_shows_its_problem() -> void:
 	if main.error_label == null:
 		return
 	assert_true(main.error_label.visible, "the message is up")
-	assert_true(main.error_label.text.begins_with("Could not load user://broken_ship.json: "),
+	assert_true(main.error_label.text.begins_with("Could not load user://test_ships/broken.json: "),
 			"names the file, got '%s'" % main.error_label.text)
-	assert_true(main.error_label.text == "Could not load user://broken_ship.json: room 'cockpit' has volume 0.0 m3, which must be above 0",
+	assert_true(main.error_label.text == "Could not load user://test_ships/broken.json: room 'cockpit' has volume 0.0 m3, which must be above 0",
 			"names the file and the bare problem, got '%s'" % main.error_label.text)
 
 
-func test_missing_data_file_names_its_path_once() -> void:
-	expect_error("Ship file 'user://missing_ship.json' is missing or empty")
+func test_missing_ships_folder_names_its_path() -> void:
 	var main: Main = load("res://scenes/main.tscn").instantiate()
-	main.data_path = "user://missing_ship.json"
+	main.ships_dir = "user://missing_ships"
 	own(main)
 	assert_true(main.error_label != null, "the message label exists")
 	if main.error_label == null:
 		return
-	assert_true(main.error_label.text == "Could not load user://missing_ship.json: file is missing or empty",
+	assert_true(main.error_label.text == "Could not load user://missing_ships: folder is missing",
 			"got '%s'" % main.error_label.text)
 
 
