@@ -67,7 +67,10 @@ func _respond_connected(words: PackedStringArray, line: String) -> String:
 		return "disconnected from " + left
 	if words[0] == "ships":
 		return "connected to %s; type 'disconnect' first" % ship_name
+	var refusal := CommandInterpreter.computer_refusal(ship(), " ".join(words.slice(0, 2)))
+	if refusal != "":
+		return refusal + "; 'disconnect' also works"
 	var response := CommandInterpreter.run(ship(), line)
-	if words.size() == 1 and words[0] == "help" and CommandInterpreter.computer_refusal(ship(), "help") == "":
+	if words.size() == 1 and words[0] == "help":
 		response += "\ndisconnect — Disconnect from %s" % ship_name
 	return response

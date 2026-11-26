@@ -10,7 +10,7 @@ cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 - Editor: `godot -e --path .` (from this folder), then press F5.
 - Directly: `godot --path .`
 
-Space pauses unless the command line has focus; the clock bar also has Pause/Play and Speed (1×, 10×,
+Space pauses every ship unless the command line has focus, connected or not; the clock bar also has Pause/Play and Speed (1×, 10×,
 100×) buttons. Up and down recall earlier commands. Esc quits.
 
 | Control | Effect |

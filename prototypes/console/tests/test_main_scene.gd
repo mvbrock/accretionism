@@ -72,17 +72,36 @@ func test_reconnecting_to_another_ship_rebuilds_the_dashboard() -> void:
 	var main := _main()
 	main.console.line_submitted.emit("disconnect")
 	main.console.line_submitted.emit("ships connect wren")
-	main.refresh()
 	assert_true(main.dashboard.selected_room == "treehouse", "the ROOM panel starts on wren's first room, got '%s'" % main.dashboard.selected_room)
 	assert_true(main.dashboard.get_index() == 0, "the dashboard sits under the banners")
 
 
+func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
+	var main := _main()
+	main.console.line_submitted.emit("debug fault computer")
+	main.console.line_submitted.emit("disconnect")
+	main.console.line_submitted.emit("ships connect kestrel")
+	assert_true(main.stale_label.visible, "STALE shows")
+	assert_true(main.dashboard.tile("cargo") != null, "the tiles are drawn")
+	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the ROOM panel has a room, got '%s'" % main.dashboard.room_heading.text)
+	assert_true(main.dashboard._clock_label.text != "", "the clock shows")
+
+
+func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
+	var main := _main()
+	var old := main.dashboard
+	main.console.line_submitted.emit("disconnect")
+	main.console.line_submitted.emit("ships connect wren")
+	await tree.process_frame
+	assert_true(not is_instance_valid(old), "the old dashboard is freed")
+	_click(main.dashboard.tile("cargo"))
+	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
+
+
 func test_every_ship_runs_while_disconnected() -> void:
 	var main := _disconnected_main()
-	main.set_process(true)
 	main.clock.paused = false
 	main._process(1.0)
-	main.set_process(false)
 	for ship_name in main.fleet.ships:
 		assert_near(main.fleet.ships[ship_name].time_s, 1.0, 1e-6, "%s advances with no connection" % ship_name)
 

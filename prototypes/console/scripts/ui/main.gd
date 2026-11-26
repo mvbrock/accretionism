@@ -168,7 +168,8 @@ func _build_ui() -> void:
 
 
 ## A dashboard is built for one ship's rooms and doors, so each connection gets a
-## fresh one, below the banners.
+## fresh one, below the banners. It draws the ship once on connect, so a computer
+## that is already down leaves a snapshot under the banner rather than an empty dashboard.
 func _show_dashboard() -> void:
 	if dashboard != null:
 		stage.remove_child(dashboard)
@@ -185,6 +186,8 @@ func _show_dashboard() -> void:
 	dashboard.room_clicked.connect(_on_room_clicked)
 	dashboard.room_selected.connect(refresh)
 	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)
+	dashboard.show_clock(clock)
+	dashboard.show_ship(ship)
 
 
 ## The reboot overlay starts where the clock bar ends, wherever the layout puts it.

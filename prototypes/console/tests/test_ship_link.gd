@@ -6,7 +6,8 @@ func _link() -> ShipLink:
 
 
 func test_ships_list() -> void:
-	assert_true(_link().run("ships list") == "ships: kestrel, wren", "got '%s'" % _link().run("ships list"))
+	var response := _link().run("ships list")
+	assert_true(response == "ships: kestrel, wren", "got '%s'" % response)
 
 
 func test_connect_is_case_insensitive() -> void:
@@ -84,5 +85,16 @@ func test_connected_help_adds_disconnect() -> void:
 	assert_true(response.ends_with("\ndisconnect — Disconnect from kestrel"), "disconnect comes last")
 	link.run("computer restart")
 	response = link.run("help")
-	assert_true(response.begins_with("computer: rebooting"), "a booting computer refuses help, got '%s'" % response)
-	assert_true(not response.contains("disconnect"), "and lists nothing")
+	assert_true(response.begins_with("computer: rebooting") and response.ends_with("; 'disconnect' also works"),
+			"a booting computer refuses help and says disconnect still works, got '%s'" % response)
+
+
+func test_fault_refusal_mentions_disconnect() -> void:
+	var link := _link()
+	link.run("ships connect kestrel")
+	link.run("debug fault computer")
+	var response := link.run("door open hatch")
+	assert_true(response == "computer: fault; only 'computer restart' works; 'disconnect' also works", "got '%s'" % response)
+	response = link.run("computer restart")
+	assert_true(response.begins_with("computer: rebooting (") and not response.contains("disconnect"),
+			"the restart is accepted, with no hint, got '%s'" % response)

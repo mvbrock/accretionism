@@ -35,8 +35,18 @@ func _dir_with(files: Dictionary) -> String:
 	return dir
 
 
+func teardown() -> void:
+	super()
+	var dir := "user://fleet_test"
+	if not DirAccess.dir_exists_absolute(dir):
+		return
+	for file in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(file))
+	DirAccess.remove_absolute(dir)
+
+
 func test_folder_without_ship_files() -> void:
-	var dir := _dir_with({"notes.txt": "hello"})
+	var dir := _dir_with({"notes.txt": "hello", "._kestrel.json": "junk"})
 	assert_true(Fleet.load_dir(dir) == null, "no fleet")
 	assert_true(Fleet.last_problem == "user://fleet_test: no ship files", "got '%s'" % Fleet.last_problem)
 
