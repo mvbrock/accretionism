@@ -12,7 +12,15 @@ func _disconnected_main() -> Main:
 	var main: Main = load("res://scenes/main.tscn").instantiate()
 	own(main)
 	main.set_process(false)
+	for ship in main.fleet.ships.values():
+		(ship as Ship).transmission_s = 0.0
 	return main
+
+
+## Submits `line` and steps the main scene by no time, which is enough to land a command and its reply when transmission takes none.
+func _send(main: Main, line: String) -> void:
+	main.console.line_submitted.emit(line)
+	main._process(0.0)
 
 
 ## Writes `data` as the only ship file in a fresh user:// folder and returns the folder.
@@ -62,7 +70,7 @@ func test_disconnect_takes_the_dashboard_away() -> void:
 
 func test_disconnect_clears_the_reboot_overlay() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	assert_true(main.overlay.visible, "the overlay is up while booting")
 	main.console.line_submitted.emit("disconnect")
 	assert_true(not main.overlay.visible and not main.stale_label.visible, "no banner covers the placeholder")
@@ -78,7 +86,7 @@ func test_reconnecting_to_another_ship_rebuilds_the_dashboard() -> void:
 
 func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("debug fault computer")
+	_send(main, "debug fault computer")
 	main.console.line_submitted.emit("disconnect")
 	main.console.line_submitted.emit("ships connect kestrel")
 	assert_true(main.stale_label.visible, "STALE shows")
@@ -120,16 +128,39 @@ func _vent(room: Room) -> void:
 
 func test_command_runs_from_console() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("door open hatch")
+	_send(main, "door open hatch")
 	var text := main.console.scrollback.get_parsed_text()
 	assert_true(text.contains("> door open hatch"), "the line is echoed, got '%s'" % text)
 	assert_true(text.contains("hatch: opening (6 s)"), "the response prints, got '%s'" % text)
 	assert_true(main.ship.opening("hatch").state == Opening.State.OPENING, "the hatch is opening")
 
 
+func test_reply_prints_after_the_transmission_time() -> void:
+	var main := _main()
+	main.ship.transmission_s = 10.0
+	main.console.line_submitted.emit("door open hatch")
+	var text := main.console.scrollback.get_parsed_text()
+	assert_true(text.contains("sent to kestrel; reply in 0:20"), "the console says when to expect the reply, got '%s'" % text)
+	main.clock.paused = false
+	main._process(19.0)
+	assert_true(not main.console.scrollback.get_parsed_text().contains("hatch: opening"), "no reply yet")
+	assert_true(main.ship.opening("hatch").state != Opening.State.CLOSED, "the hatch has moved by then")
+	main._process(1.0)
+	assert_true(main.console.scrollback.get_parsed_text().contains("hatch: opening (6 s)"), "the reply prints when it lands")
+
+
+func test_main_advances_with_the_clock_step() -> void:
+	var main := _disconnected_main()
+	main.clock.paused = false
+	main.clock.speed_index = 2
+	main._process(0.5 / 3600.0)
+	assert_near(main.fleet.ships.kestrel.time_s, 0.0, 1e-9,
+			"half a sim second is less than the 1 s step at 1 hour/s")
+
+
 func test_dashboard_log_has_no_command_line() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("door open hatch")
+	_send(main, "door open hatch")
 	main.refresh()
 	var text := main.dashboard._log.get_parsed_text()
 	assert_true(not text.contains("> "), "the log shows no command, got '%s'" % text)
@@ -228,18 +259,18 @@ func test_panel_shows_passengers_after_command() -> void:
 	main.dashboard.select_room("cargo")
 	main.refresh()
 	assert_true(_panel_text(main, "passengers") == "passengers 0", "got '%s'" % _panel_text(main, "passengers"))
-	main.console.line_submitted.emit("passenger add cargo")
+	_send(main, "passenger add cargo")
 	main.refresh()
 	assert_true(_panel_text(main, "passengers") == "passengers 1", "got '%s'" % _panel_text(main, "passengers"))
 
 
 func test_clicking_while_the_computer_is_down_does_nothing() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("debug fault computer")
+	_send(main, "debug fault computer")
 	main.refresh()
 	_click(main.dashboard.tile("main"))
 	assert_true(main.dashboard.selected_room == "cockpit", "FAULT: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	main.refresh()
 	_click(main.dashboard.tile("main"))
 	assert_true(main.dashboard.selected_room == "cockpit", "BOOTING: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
@@ -278,7 +309,7 @@ func test_four_rooms_fit_the_dashboard() -> void:
 func test_reboot_overlay() -> void:
 	var main := _main()
 	assert_true(not main.overlay.visible, "no overlay while running")
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	main.refresh()
 	assert_true(main.overlay.visible, "the overlay shows while booting")
 	assert_true(main.overlay.text == "COMPUTER REBOOTING", "got '%s'" % main.overlay.text)
@@ -292,7 +323,7 @@ func test_overlay_and_stale_cover_only_the_dashboard() -> void:
 	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
 	main.size = Vector2(1600, 900) # the headless window is only 64x64
 	await tree.process_frame
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	main.refresh()
 	await tree.process_frame
 	assert_true(main.overlay.visible, "the overlay is up")
@@ -300,9 +331,9 @@ func test_overlay_and_stale_cover_only_the_dashboard() -> void:
 			"overlay %s stays inside the dashboard %s" % [main.overlay.get_global_rect(), main.dashboard.get_global_rect()])
 	assert_true(not main.overlay.get_global_rect().intersects(main.console.get_global_rect()),
 			"overlay %s overlaps console %s" % [main.overlay.get_global_rect(), main.console.get_global_rect()])
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	main.ship.advance(21.0)
-	main.console.line_submitted.emit("debug fault computer")
+	_send(main, "debug fault computer")
 	main.refresh()
 	await tree.process_frame
 	assert_true(main.stale_label.visible, "STALE is up")
@@ -330,7 +361,7 @@ func test_console_is_a_full_height_column_left_of_the_dashboard() -> void:
 
 func test_stale_freeze() -> void:
 	var main := _main()
-	main.console.line_submitted.emit("debug fault computer")
+	_send(main, "debug fault computer")
 	main.refresh()
 	assert_true(main.stale_label.visible, "STALE shows in FAULT")
 	assert_true(main.stale_label.text == "STALE", "got '%s'" % main.stale_label.text)
@@ -339,7 +370,7 @@ func test_stale_freeze() -> void:
 	_vent(main.ship.room("cockpit"))
 	main.refresh()
 	assert_true(label.text == before, "the panels stay as they were, got '%s'" % label.text)
-	main.console.line_submitted.emit("computer restart")
+	_send(main, "computer restart")
 	main.ship.advance(21.0)
 	_vent(main.ship.room("cockpit"))
 	main.refresh()

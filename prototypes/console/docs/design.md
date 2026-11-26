@@ -212,9 +212,11 @@ The console starts disconnected. Disconnected, only these work; any other comman
 | `ships connect <ship name>` | Connect to that ship. Its dashboard replaces "NO SHIP CONNECTED" |
 | `help` | List these two |
 
-Connected, every command below goes to that ship, `help` also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
+Connected, every command below except `help` goes to that ship, `help` is answered by the console and also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
 
 ### Ship commands
+
+A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, set in the ship file, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to kestrel; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints, unchanged, when it lands. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` says `waiting on '<line>'; disconnect when the reply is in`. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
 
 | Command | Effect |
 |---|---|
@@ -318,7 +320,7 @@ Each file in `data/ships/` is one ship, and the file name, which must be lowerca
 
 - **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, passengers and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
 - **Command interpreter:** a pure function from a command string and the ship to the ship's changes and a response line. It holds no nodes and is tested headless.
-- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships` and `disconnect` itself, and passes every other line to the interpreter.
+- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships`, `disconnect` and `help` itself, and sends every other line to the ship's interpreter with the transmission delay. Main advances the whole fleet through `ShipLink.advance`.
 - **UI:** a thin layer of scenes for the clock bar, the schematic, the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
 - **Tests:** headless, with the same runner as `prototypes/transit/tests`. They cover:
   - pressure from moles and temperature, against hand-worked cases

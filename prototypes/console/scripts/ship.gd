@@ -4,6 +4,8 @@ extends RefCounted
 ## fixed rate. Build one with ShipLoader.
 
 const STEP_S := 0.1
+## One-way link time when the ship file has no `transmission_s`: 8 minutes.
+const DEFAULT_TRANSMISSION_S := 480.0
 const COMPUTER_ID := "computer"
 ## The systems that have a breaker. The computer has none.
 const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recycler"]
@@ -27,6 +29,8 @@ var params: Dictionary = {}  # the data file's sections as loaded
 var time_s: float:
 	get:
 		return _steps * STEP_S
+## Sim seconds a command or reply takes to cross the link to this ship, one way.
+var transmission_s := DEFAULT_TRANSMISSION_S
 var events := EventLog.new()
 var last_hvac_w: Dictionary = {}  # room id -> W
 var recycler_scrubbing := false
@@ -41,6 +45,7 @@ var _hull_k := 0.0
 
 func _init(data: Dictionary, ship_rooms: Array[Room], ship_openings: Array[Opening]) -> void:
 	params = data
+	transmission_s = float(data.get("transmission_s", DEFAULT_TRANSMISSION_S))
 	rooms = ship_rooms
 	openings = ship_openings
 	power = PowerPanel.new(int(data.seed), float(data.breakers.mean_time_between_trips_h) * 3600.0,

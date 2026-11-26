@@ -119,7 +119,8 @@ func _process(delta: float) -> void:
 	var sim_seconds := clock.tick(delta)
 	if _capture != null:
 		sim_seconds = _capture.limit(sim_seconds)
-	fleet.advance(sim_seconds, clock.step_s())
+	for reply in link.advance(sim_seconds, clock.step_s()):
+		console.print_line(reply)
 	refresh()
 	if _capture != null:
 		_capture.step()

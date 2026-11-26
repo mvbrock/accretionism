@@ -29,7 +29,10 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 | `ships connect <ship name>` | Connect to that ship (only while disconnected) |
 | `disconnect` | Disconnect from the ship; works even while its computer is down |
 
-Connected, these act on that ship:
+Connected, these go to that ship. A command takes the ship's `transmission_s` (8 minutes unless its file says
+otherwise) to arrive and runs then; its reply takes as long to come back. The console prints
+`sent to <ship>; reply in <round trip>` when it sends, and the reply when it lands. One command is in flight
+at a time, and `disconnect` waits for the reply. `ships`, `disconnect` and `help` answer at once:
 
 | Command | Effect |
 |---|---|
@@ -44,7 +47,7 @@ Connected, these act on that ship:
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands |
+| `help` | List the commands (answered at once, even while the computer reboots) |
 | `debug trip <breaker ID>` | Trip a breaker, for testing and demos |
 | `debug fault <system>` | Put a system in FAULT, for testing and demos |
 
@@ -56,7 +59,8 @@ dashboard freezes and shows "STALE" until `computer restart`.
 Each file in `data/ships/` is one ship, named by its file: `kestrel.json` is `kestrel`. Add a file to add a
 ship. Every ship runs on the one clock, connected or not. A ship file holds every tunable number: room volumes and starting air, the openings, setpoints
 and status bands, system rates, tank sizes, breaker draws, boot times and the random seed. The same
-seed gives the same random breaker trips. Add a room or a door there and it gets its own breaker.
+seed gives the same random breaker trips. An optional `transmission_s` (default 480, never negative) is the one-way
+time for a command or reply to cross the link to that ship. Add a room or a door there and it gets its own breaker.
 
 ## How it works
 

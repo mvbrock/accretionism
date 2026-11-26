@@ -84,6 +84,11 @@ static func _add(commands: Dictionary, key: String, usage: String, effect: Strin
 
 
 static func _help(ship: Ship, _args: PackedStringArray) -> String:
+	return help_text(ship)
+
+
+## One line per command. Unlike `run`, it never waits on the ship's computer.
+static func help_text(ship: Ship) -> String:
 	var lines := PackedStringArray()
 	var commands := _build_commands(ship)
 	for key in commands:

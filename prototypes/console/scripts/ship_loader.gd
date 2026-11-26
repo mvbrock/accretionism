@@ -49,6 +49,9 @@ static func _find_problem(data: Dictionary) -> String:
 	for key in _REQUIRED_KEYS:
 		if not data.has(key):
 			return "missing '%s'" % key
+	var transmission: Variant = data.get("transmission_s", Ship.DEFAULT_TRANSMISSION_S)
+	if not (transmission is int or transmission is float) or transmission < 0:
+		return "transmission_s is %s; it must be a number of seconds, 0 or more" % transmission
 	var room_ids := {}
 	for entry in data.rooms:
 		for key in _ROOM_KEYS:
