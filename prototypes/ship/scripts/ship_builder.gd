@@ -26,6 +26,14 @@ func _ready() -> void:
 
 # --- sections ---------------------------------------------------------------
 
+## The meshes that hide a player standing in section k from a camera looking along `view`:
+## its ceiling and the wall on the camera's side.
+func room_fade_meshes(k: int, view: Vector3) -> Array[MeshInstance3D]:
+	var section := get_node("Section%d" % k)
+	var wall := "WallLeft" if view.x > 0.0 else "WallRight"
+	return [section.get_node("Ceiling/Mesh"), section.get_node(wall + "/Mesh")]
+
+
 func _build_section(k: int) -> Node3D:
 	var section := Node3D.new()
 	section.name = "Section%d" % k

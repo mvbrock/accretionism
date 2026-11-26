@@ -1,6 +1,7 @@
 class_name OcclusionFader
 extends Node
 ## Fades walls and ceilings that block the camera's view of the target, and restores them after.
+## The ceiling and camera-side wall of the target's own section always fade, wherever it stands.
 ## Occluder bodies sit on collision layer 2 and carry a "fade_mesh" meta pointing at their mesh.
 
 const OCCLUDER_MASK := 2
@@ -9,6 +10,7 @@ const RAY_LENGTH := 80.0
 
 @export var camera: Camera3D
 @export var target: Node3D
+@export var ship: ShipBuilder
 @export var faded_alpha := 0.15
 @export var fade_speed := 8.0
 
@@ -40,25 +42,33 @@ func step(delta: float) -> void:
 		material.albedo_color = color
 
 
-## Meshes of occluder panels between the camera and points on the target.
+## Points on the target's body (feet, middle, head, and either side) that the camera should see.
+## They follow the target's "Pivot" child when it has one, so they stay on a body tipped horizontal.
+func sight_points() -> Array[Vector3]:
+	var body: Node3D = target.get_node_or_null("Pivot")
+	var center := body.global_position if body != null else target.global_position + target.global_basis.y * 0.9
+	var axis := (body if body != null else target).global_basis.y
+	var right := camera.global_basis.x
+	return [
+		center - axis * 0.7,
+		center,
+		center + axis * 0.8,
+		center + right * 0.4,
+		center - right * 0.4,
+	]
+
+
+## Meshes of the target's room plus occluder panels between the camera and points on the target.
 ## The camera is orthographic, so sight lines run parallel to its view direction.
 func find_occluders() -> Array[MeshInstance3D]:
 	var found: Array[MeshInstance3D] = []
 	if camera == null or target == null:
 		return found
-	var space := camera.get_world_3d().direct_space_state
 	var forward := -camera.global_basis.z
-	var right := camera.global_basis.x
-	var up := target.global_basis.y
-	var base := target.global_position
-	var points := [
-		base + up * 0.2,
-		base + up * 0.9,
-		base + up * 1.7,
-		base + up * 0.9 + right * 0.4,
-		base + up * 0.9 - right * 0.4,
-	]
-	for point: Vector3 in points:
+	if ship != null:
+		found.append_array(ship.room_fade_meshes(RingGeometry.section_of(target.global_position), forward))
+	var space := camera.get_world_3d().direct_space_state
+	for point in sight_points():
 		var exclude: Array[RID] = []
 		for i in MAX_HITS_PER_RAY:
 			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, OCCLUDER_MASK, exclude)
