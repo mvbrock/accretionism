@@ -15,11 +15,9 @@ const BODY_COLORS := {
 	Orbits.Body.MOON: Color(0.95, 0.95, 0.95),
 	Orbits.Body.MARS: Color(0.9, 0.3, 0.2),
 }
-## Lines only; each ship's icon has its own color, from ShipIcons.
-## Cycler lanes:
-const AMBER := Color(1.0, 0.72, 0.2)
-## Transport trips:
-const LIGHT_GRAY := Color(0.8, 0.82, 0.85)
+## Each ship's icon has its own color, from ShipIcons; these are for the lines.
+const LANE_COLOR := Color(1.0, 0.72, 0.2)
+const TRIP_COLOR := Color(0.8, 0.82, 0.85)
 const HIGHLIGHT := Color(1.0, 1.0, 1.0)
 const LABEL_COLOR := Color(0.85, 0.88, 0.92)
 ## Keeps a ship name readable where lanes and trips run behind it.
@@ -114,13 +112,13 @@ func _draw() -> void:
 		if entry.cycler == selected:
 			selected_lane = entry
 		else:
-			_draw_split_curve(entry.points, entry.split, _cycler_pos(entry.cycler), AMBER, LANE_WIDTH)
+			_draw_split_curve(entry.points, entry.split, _cycler_pos(entry.cycler), LANE_COLOR, LANE_WIDTH)
 	var selected_trip := {}
 	for entry in layout.trips:
 		if entry.transport == selected:
 			selected_trip = entry
 		else:
-			_draw_split_curve(entry.points, entry.split, entry.tri_pos, LIGHT_GRAY, TRIP_WIDTH)
+			_draw_split_curve(entry.points, entry.split, entry.tri_pos, TRIP_COLOR, TRIP_WIDTH)
 			_draw_triangle(entry.transport, entry.tri_pos, entry.tri_angle, false)
 	for entry in layout.parked:
 		_draw_triangle(entry.transport, entry.pos, _parked_angle(entry), entry.transport == selected)
@@ -131,7 +129,7 @@ func _draw() -> void:
 	# The selected ship goes on top of everything else.
 	if not selected_lane.is_empty():
 		var pos := _cycler_pos(selected_lane.cycler)
-		_draw_split_curve(selected_lane.points, selected_lane.split, pos, AMBER, LANE_WIDTH + 1.0)
+		_draw_split_curve(selected_lane.points, selected_lane.split, pos, LANE_COLOR, LANE_WIDTH + 1.0)
 		_draw_square(selected_lane.cycler, pos, true)
 	if not selected_trip.is_empty():
 		_draw_split_curve(selected_trip.points, selected_trip.split, selected_trip.tri_pos, HIGHLIGHT, TRIP_WIDTH + 0.5)
