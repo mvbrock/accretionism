@@ -22,6 +22,11 @@ const BODY_CENTERS := {
 }
 const BODY_RADII := {Orbits.Body.EARTH: 40.0, Orbits.Body.MOON: 16.0, Orbits.Body.MARS: 36.0}
 
+## A trip to or from a cycler bows to the left of its direction of travel (so
+## toward Mars it arcs above, like the body routes), its control point this
+## fraction of the trip's length off the straight line. Its midpoint then sits
+## a tenth of its length off, more than the most bent lane's 0.07.
+const CYCLER_TRIP_BOW := 0.2
 ## Lane control points step down the band by this much, in phase order.
 const LANE_SPACING := 64.0
 ## Lane ends are spaced this far apart along each planet's edge, in phase order,
@@ -152,10 +157,10 @@ static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, outw
 		var start: Vector2 = square_at[origin] if origin is Cycler else BODY_CENTERS[origin]
 		var end: Vector2 = square_at[destination] if destination is Cycler else BODY_CENTERS[destination]
 		if not origin is Cycler:
-			start = _edge_facing(origin, end)
+			start = _edge_facing(origin, _bow_control(BODY_CENTERS[origin], end))
 		if not destination is Cycler:
-			end = _edge_facing(destination, start)
-		return _line(start, end)
+			end = _edge_facing(destination, _bow_control(start, BODY_CENTERS[destination]))
+		return _bowed(start, end)
 	return _route_points(origin, destination, outward)
 
 
@@ -402,11 +407,13 @@ static func _loop(center: Vector2, root: float, direction: float, reach: float) 
 		come_back + Vector2.from_angle(direction + LOOP_FLARE) * reach, come_back)
 
 
-static func _line(start: Vector2, end: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in CURVE_POINTS:
-		points.append(start.lerp(end, float(i) / (CURVE_POINTS - 1)))
-	return points
+## A curve from `start` to `end` bowed CYCLER_TRIP_BOW to the left of travel.
+static func _bowed(start: Vector2, end: Vector2) -> PackedVector2Array:
+	return _bezier(start, _bow_control(start, end), end)
+
+
+static func _bow_control(start: Vector2, end: Vector2) -> Vector2:
+	return (start + end) / 2.0 + (end - start).orthogonal() * CYCLER_TRIP_BOW
 
 
 static func _points_to_screen(points: PackedVector2Array, to_screen: Callable) -> PackedVector2Array:

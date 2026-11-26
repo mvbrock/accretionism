@@ -6,7 +6,9 @@ extends Control
 const PICK_RADIUS := 14.4
 const LANE_WIDTH := 2.0
 const TRIP_WIDTH := 1.5
-const DASH := 4.0
+## Screen px, the same on every line whatever its length or how finely it is sampled.
+const DASH_LENGTH := 8.0
+const DASH_GAP := 6.0
 
 const BODY_COLORS := {
 	Orbits.Body.EARTH: Color(0.25, 0.5, 1.0),
@@ -149,10 +151,50 @@ func _draw_split_curve(points: PackedVector2Array, split: int, joint: Vector2, c
 	var solid := points.slice(0, split)
 	solid.append(joint)
 	draw_polyline(solid, color, width, true)
-	var from := joint
-	for i in range(split, points.size()):
-		draw_dashed_line(from, points[i], color, width, DASH)
-		from = points[i]
+	var dotted := PackedVector2Array([joint])
+	dotted.append_array(points.slice(split))
+	var pieces := PackedVector2Array()
+	for dash in dashes(dotted):
+		for i in range(1, dash.size()):
+			pieces.append_array([dash[i - 1], dash[i]])
+	if not pieces.is_empty():
+		draw_multiline(pieces, color, width, true)
+
+
+## `polyline` cut into DASH_LENGTH dashes DASH_GAP apart, in order from its
+## start. The pattern is laid from the end, so the dashes ahead of a moving
+## ship stay put and only the one nearest the start is cut short.
+static func dashes(polyline: PackedVector2Array) -> Array[PackedVector2Array]:
+	var result: Array[PackedVector2Array] = []
+	var dash := PackedVector2Array()
+	var in_dash := true
+	var left := DASH_LENGTH # of the current dash or gap
+	var from := polyline[polyline.size() - 1]
+	dash.append(from)
+	for i in range(polyline.size() - 2, -1, -1):
+		var to := polyline[i]
+		var segment_left := from.distance_to(to)
+		while segment_left > left:
+			from = from.move_toward(to, left)
+			segment_left -= left
+			if in_dash:
+				dash.append(from)
+				result.append(dash)
+				dash = PackedVector2Array()
+			else:
+				dash = PackedVector2Array([from])
+			in_dash = not in_dash
+			left = DASH_LENGTH if in_dash else DASH_GAP
+		left -= segment_left
+		from = to
+		if in_dash:
+			dash.append(from)
+	if in_dash and dash.size() > 1:
+		result.append(dash)
+	result.reverse()
+	for d in result:
+		d.reverse()
+	return result
 
 
 func _draw_square(cycler: Cycler, pos: Vector2, highlighted: bool) -> void:

@@ -183,15 +183,26 @@ func test_earth_moon_trips_bow_to_opposite_sides() -> void:
 	assert_true(side.call(out) * side.call(back) < 0.0, "toward the Moon and back to Earth bow to opposite sides")
 
 
-func test_cycler_trips_are_straight() -> void:
+## How far the curve's midpoint sits off the straight line between its ends, per unit of that line's length.
+func _sag_ratio(points: PackedVector2Array) -> float:
+	var chord := points[points.size() - 1] - points[0]
+	return absf(chord.normalized().cross(points[MIDPOINT] - points[0])) / chord.length()
+
+
+func test_cycler_trips_curve_more_than_the_lanes() -> void:
 	var fleet := _fleet()
 	fleet.advance_to(50.0)
 	var transport := _parked(fleet, "Kestrel", EARTH)
 	fleet.depart(transport, fleet.cyclers[0])
-	var points: PackedVector2Array = DiagramLayout.build(fleet, SIZE).trips[0].points
-	var direction := (points[32] - points[0]).normalized()
-	for p in points:
-		assert_near(direction.cross(p - points[0]), 0.0, 0.01, "every point lies on the straight line")
+	var layout := DiagramLayout.build(fleet, SIZE)
+	var trip: PackedVector2Array = layout.trips[0].points
+	var most_bent_lane := 0.0
+	for lane in layout.lanes:
+		most_bent_lane = maxf(most_bent_lane, _sag_ratio(lane.points))
+	assert_true(_sag_ratio(trip) > most_bent_lane * 1.2,
+		"the trip bends more than any lane (trip %.3f, lane %.3f)" % [_sag_ratio(trip), most_bent_lane])
+	var chord := trip[trip.size() - 1] - trip[0]
+	assert_true(chord.x > 0.0 and chord.cross(trip[MIDPOINT] - trip[0]) < 0.0, "heading toward Mars, it bows up, as body routes to Mars do")
 
 
 func test_triangle_at_progress() -> void:

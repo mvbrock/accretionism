@@ -28,7 +28,7 @@ No to-scale map of orbits (the diagram is a schematic, not a map). No fuel, delt
 | Table | Ship, Origin, Progress (% of the trip done), Destination |
 | Parked or docked | Progress and Destination show "-" |
 | Views | A table and a diagram, on separate tabs |
-| Diagram | Earth (blue circle) and the Moon (white circle) on the left, Mars (red circle) on the right. Cyclers are squares, transports are triangles. Lines are solid for the part of the trip done and dotted for the part still to go. Overlapping lines are kept to a minimum |
+| Diagram | Earth (blue circle) and the Moon (white circle) on the left, Mars (red circle) on the right. Cyclers are squares, transports are triangles. Lines are solid for the part of the trip done and dashed for the part still to go, in 8 px dashes 6 px apart on every line, whatever its length. Overlapping lines are kept to a minimum |
 | Cyclers | No destination; they shuttle Earth ↔ Mars forever |
 | Transports | Travel to Earth, Moon, Mars or a cycler |
 | Docking | A transport can dock only with a cycler, never with another transport |
@@ -189,7 +189,7 @@ The layout follows fixed rules, worked out every frame by a pure function, so ea
 1. **Body-to-body trips stay out of the cycler band.** Trips toward Mars arc above the band, and trips toward Earth or the Moon arc below it. Traffic in each direction keeps to its own side. Mars to Moon goes around Earth's left side: it runs under the band, passes below Earth, and then curves up the left of it to reach the Moon.
 2. **Trips on the same route nest.** When several transports share an origin, a destination and a direction, each one gets its own arc, a step further from the band than the one before. Order is by departure time, so an arc moves only when a trip inside it ends. Nesting is compressed to keep every route on the canvas: once a route is too busy to fit, its step shrinks, so its arcs also shift when a trip joins or leaves.
 3. **Earth-Moon trips are short arcs on the left.** Trips toward the Moon bow to one side and trips back to Earth bow to the other.
-4. **Trips to and from cyclers are straight lines** between the body and the square. They cross only the lanes between that body and the cycler's own lane. Every square is on a lane, so this can't be avoided entirely.
+4. **Trips to and from cyclers bow gently** between the body or square at each end, to the left of the direction of travel, so a trip toward Mars arcs above the straight line and one toward Earth arcs below it, as the body routes do. Each one's midpoint sits a tenth of its length off the straight line, more than the most bent lane, so a trip never reads as a lane. They still cross lanes between that body and the cycler's own lane; every square is on a lane, so this can't be avoided entirely.
 5. **Lines end at different points around a node.** When several lines meet one circle, they start or end at points spread around its edge, ordered by the direction each line leaves in. They don't all converge on the center.
 
 Body-to-body trips never cross a cycler lane. Lanes are crossed only under rule 4. Trips on different routes may cross each other, and so may trips headed in opposite directions to a cycler.

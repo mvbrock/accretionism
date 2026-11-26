@@ -138,3 +138,43 @@ func test_a_turned_back_cycler_square_is_still_pickable() -> void:
 	assert_true(main.fleet.depart(t, host), "%s turns back to %s" % [t.name, host.name])
 	view.rebuild()
 	assert_true(view.ship_at(_cycler_pos(view, host)) == host, "the square still picks the cycler, not the looping transport")
+
+
+func _length(polyline: PackedVector2Array) -> float:
+	var total := 0.0
+	for i in range(1, polyline.size()):
+		total += polyline[i - 1].distance_to(polyline[i])
+	return total
+
+
+## A 200 px line, along x, sampled at `count` points.
+func _line(count: int) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in count:
+		points.append(Vector2(200.0 * i / (count - 1), 0.0))
+	return points
+
+
+func test_dashes_are_the_same_length_however_finely_the_line_is_sampled() -> void:
+	for count in [2, 3, 33, 400]:
+		var dashes := DiagramView.dashes(_line(count))
+		assert_true(dashes.size() == 15, "%d points: 200 px holds 15 dashes (got %d)" % [count, dashes.size()])
+		# Only the dash nearest the start may be cut short; the pattern runs from the end.
+		for i in range(1, dashes.size()):
+			assert_near(_length(dashes[i]), DiagramView.DASH_LENGTH, 0.01, "%d points: dash %d is full length" % [count, i])
+		assert_near(dashes[dashes.size() - 1][-1].x, 200.0, 0.01, "%d points: the last dash ends on the line's end" % count)
+
+
+func test_dashes_follow_a_bend() -> void:
+	var corner := PackedVector2Array([Vector2(0, 0), Vector2(100, 0), Vector2(100, 100)])
+	var dashes := DiagramView.dashes(corner)
+	for i in range(1, dashes.size()):
+		assert_near(_length(dashes[i]), DiagramView.DASH_LENGTH, 0.01, "dash %d keeps its length, the one across the corner too" % i)
+	for dash in dashes:
+		for p in dash:
+			assert_true(is_equal_approx(p.y, 0.0) or is_equal_approx(p.x, 100.0), "dashes stay on the path (got %s)" % p)
+
+
+func test_a_line_shorter_than_a_dash_is_one_dash() -> void:
+	var dashes := DiagramView.dashes(PackedVector2Array([Vector2.ZERO, Vector2(3, 0)]))
+	assert_true(dashes.size() == 1 and is_equal_approx(_length(dashes[0]), 3.0), "one 3 px dash")
