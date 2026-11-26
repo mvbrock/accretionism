@@ -9,8 +9,8 @@ signal depart_requested(transport: Transport, target: Variant)
 const NOTHING_SELECTED := "Select a ship"
 const CYCLER_NOTE := "Cyclers keep to their timetable."
 const NO_DESTINATION_CHOSEN := "Pick a destination"
-## Logical px; ShipIcons textures are larger, for HiDPI.
-const TARGET_ICON_WIDTH := 14
+## Logical px. ShipIcons textures have TEXTURE_SCALE times as many pixels, for HiDPI.
+const TARGET_ICON_WIDTH := roundi(ShipIcons.SQUARE_SIZE)
 
 @onready var ship_icon: TextureRect = %ShipIcon
 @onready var ship_label: Label = %ShipName
@@ -19,6 +19,8 @@ const TARGET_ICON_WIDTH := 14
 @onready var estimate_label: Label = %Estimate
 @onready var depart_button: Button = %Depart
 
+## Set by Main.
+var icons: ShipIcons
 var _fleet: Fleet
 var _ship: Variant = null
 ## The targets behind `targets`' items, in the same order.
@@ -41,7 +43,7 @@ func show_ship(fleet: Fleet, ship: Variant) -> void:
 	targets.clear()
 	ship_label.text = NOTHING_SELECTED if ship == null else ship.name
 	ship_icon.visible = ship != null
-	ship_icon.texture = null if ship == null else ShipIcons.texture(fleet, ship)
+	ship_icon.texture = null if ship == null else icons.texture(ship)
 	note_label.text = CYCLER_NOTE if ship is Cycler else ""
 	note_label.visible = ship is Cycler
 	for control in [targets, estimate_label, depart_button]:
@@ -93,7 +95,7 @@ func _set_targets(valid: Array) -> void:
 	targets.clear()
 	for target in valid:
 		if target is Cycler:
-			targets.add_icon_item(ShipIcons.texture(_fleet, target), target.name)
+			targets.add_icon_item(icons.texture(target), Fleet.target_name(target))
 		else:
 			targets.add_item(Fleet.target_name(target))
 	targets.select(valid.find(previous))

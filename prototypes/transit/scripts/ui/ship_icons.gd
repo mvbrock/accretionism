@@ -2,7 +2,7 @@ class_name ShipIcons
 extends RefCounted
 ## Each ship's icon: a square for a cycler, a triangle for a transport, in a
 ## color no other ship shares. The diagram draws the shapes; the side panel
-## shows them as textures.
+## shows them as textures. Main builds one for the fleet it loads.
 
 const SQUARE_SIZE := 14.4
 const TRIANGLE_SIZE := 12.0
@@ -21,11 +21,28 @@ const TEXTURE_SCALE := 4
 const SUPERSAMPLE := 4
 
 
-## `ship`'s color, from its place among the fleet's cyclers then transports.
-static func color_of(fleet: Fleet, ship: Variant) -> Color:
-	var index := (fleet.cyclers + fleet.transports).find(ship)
-	var hue := fposmod(index * HUE_STEP, 1.0)
-	return Color.from_ok_hsl(hue, SATURATION, LIGHTNESSES[index % LIGHTNESSES.size()])
+## Ship -> Color, from each ship's place in Fleet.ships().
+var _colors := {}
+## Ship -> ImageTexture, drawn the first time it is asked for.
+var _textures := {}
+
+
+func _init(fleet: Fleet) -> void:
+	var ships := fleet.ships()
+	for index in ships.size():
+		var hue := fposmod(index * HUE_STEP, 1.0)
+		_colors[ships[index]] = Color.from_ok_hsl(hue, SATURATION, LIGHTNESSES[index % LIGHTNESSES.size()])
+
+
+func color_of(ship: Variant) -> Color:
+	return _colors[ship]
+
+
+## `ship`'s icon as a texture about SQUARE_SIZE logical px across; a transport's points up.
+func texture(ship: Variant) -> ImageTexture:
+	if not _textures.has(ship):
+		_textures[ship] = _draw_texture(ship is Cycler, color_of(ship))
+	return _textures[ship]
 
 
 ## The square a cycler's icon fills, centered on `pos`.
@@ -41,12 +58,10 @@ static func triangle_points(pos: Vector2, angle: float, length := TRIANGLE_SIZE)
 	return PackedVector2Array([pos + ahead * length * 0.6, back + side * length * 0.45, back - side * length * 0.45])
 
 
-## `ship`'s icon as a texture SQUARE_SIZE logical px across; a transport's points up.
-static func texture(fleet: Fleet, ship: Variant) -> ImageTexture:
+static func _draw_texture(is_square: bool, color: Color) -> ImageTexture:
 	var side := ceili(SQUARE_SIZE * TEXTURE_SCALE)
-	var color := color_of(fleet, ship)
 	var image := Image.create_empty(side, side, false, Image.FORMAT_RGBA8)
-	if ship is Cycler:
+	if is_square:
 		image.fill(color)
 		return ImageTexture.create_from_image(image)
 	var length := TRIANGLE_SIZE * TEXTURE_SCALE

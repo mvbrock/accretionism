@@ -10,6 +10,12 @@ var transports: Array[Transport] = []
 var day := 0.0
 
 
+## Cyclers then transports, each in fleet order: the order of the table's rows
+## and of the ships' icon colors.
+func ships() -> Array:
+	return cyclers + transports
+
+
 ## Name of a target, which is either an Orbits.Body or a Cycler.
 static func target_name(target: Variant) -> String:
 	if target is Cycler:

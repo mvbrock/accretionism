@@ -180,7 +180,7 @@ func test_panel_title_shows_the_selected_ship_icon() -> void:
 		var image: Image = main.dispatch.ship_icon.texture.get_image()
 		var middle := image.get_pixelv(Vector2i(image.get_width() / 2, image.get_height() * 6 / 10))
 		assert_true(main.dispatch.ship_icon.visible, "%s's icon shows" % ship_name)
-		assert_color_near(middle, ShipIcons.color_of(main.fleet, ship), "%s's icon is in its color" % ship_name)
+		assert_color_near(middle, main.icons.color_of(ship), "%s's icon is in its color" % ship_name)
 	main.select(null)
 	assert_true(not main.dispatch.ship_icon.visible, "the icon hides again")
 
@@ -189,15 +189,10 @@ func test_cycler_targets_show_their_icons() -> void:
 	var main := _main()
 	var kestrel: Transport = _ship(main, "Kestrel")
 	main.select(kestrel)
-	var cycler_targets := main.fleet.valid_targets(kestrel).filter(func(target: Variant) -> bool: return target is Cycler)
-	var cycler_icons := 0
-	for i in main.dispatch.targets.item_count:
-		var text := main.dispatch.targets.get_item_text(i)
+	var valid := main.fleet.valid_targets(kestrel)
+	assert_true(main.dispatch.targets.item_count == valid.size(), "the list shows every valid target")
+	for i in valid.size():
 		var has_icon := main.dispatch.targets.get_item_icon(i) != null
-		var is_body := text in ["Earth", "Moon", "Mars"]
-		assert_true(has_icon != is_body, "%s %s an icon" % [text, "has" if has_icon else "lacks"])
-		if has_icon:
-			cycler_icons += 1
+		assert_true(has_icon == valid[i] is Cycler, "%s %s an icon" % [Fleet.target_name(valid[i]), "has" if has_icon else "lacks"])
 	assert_true(main.dispatch.targets.get_theme_constant("icon_max_width") == DispatchPanel.TARGET_ICON_WIDTH, "the button shows icons at logical size")
 	assert_true(main.dispatch.targets.get_popup().get_theme_constant("icon_max_width") == DispatchPanel.TARGET_ICON_WIDTH, "so does its list")
-	assert_true(cycler_icons == cycler_targets.size(), "every cycler target has an icon (got %d of %d)" % [cycler_icons, cycler_targets.size()])

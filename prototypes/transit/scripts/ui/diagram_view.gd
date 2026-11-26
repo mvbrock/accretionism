@@ -13,8 +13,10 @@ const BODY_COLORS := {
 	Orbits.Body.MOON: Color(0.95, 0.95, 0.95),
 	Orbits.Body.MARS: Color(0.9, 0.3, 0.2),
 }
-## Cycler lanes; each ship's own icon color comes from ShipIcons.
+## Lines only; each ship's icon has its own color, from ShipIcons.
+## Cycler lanes:
 const AMBER := Color(1.0, 0.72, 0.2)
+## Transport trips:
 const LIGHT_GRAY := Color(0.8, 0.82, 0.85)
 const HIGHLIGHT := Color(1.0, 1.0, 1.0)
 const LABEL_COLOR := Color(0.85, 0.88, 0.92)
@@ -155,14 +157,14 @@ func _draw_split_curve(points: PackedVector2Array, split: int, joint: Vector2, c
 
 func _draw_square(cycler: Cycler, pos: Vector2, highlighted: bool) -> void:
 	var rect := ShipIcons.square_rect(pos)
-	draw_rect(rect, ShipIcons.color_of(main.fleet, cycler))
+	draw_rect(rect, main.icons.color_of(cycler))
 	if highlighted:
 		draw_rect(rect.grow(2.0), HIGHLIGHT, false, 2.0)
 
 
 func _draw_triangle(transport: Transport, pos: Vector2, angle: float, highlighted: bool) -> void:
 	var points := ShipIcons.triangle_points(pos, angle)
-	draw_colored_polygon(points, ShipIcons.color_of(main.fleet, transport))
+	draw_colored_polygon(points, main.icons.color_of(transport))
 	if highlighted:
 		var outline := ShipIcons.triangle_points(pos, angle, ShipIcons.TRIANGLE_SIZE + 5.0)
 		outline.append(outline[0])
