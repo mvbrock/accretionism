@@ -92,3 +92,12 @@ func test_room_follows_player() -> void:
 	assert_true(_mesh("Section3/Ceiling") in found, "new room's ceiling fades")
 	assert_true(_mesh("Section3/WallRight") in found, "new room's wall fades")
 	assert_true(_mesh("Section0/WallRight") not in found, "old room's wall no longer fades")
+
+
+func test_sight_points_follow_floating_body() -> void:
+	await _setup()
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+	for point in fader.sight_points():
+		var height := RingGeometry.floor_apothem() - point.dot(RingGeometry.section_down(0))
+		assert_true(height > 2.0 and height < 3.0, "sight point on the floating body (%.2f m up)" % height)

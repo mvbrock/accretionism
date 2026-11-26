@@ -42,6 +42,22 @@ func step(delta: float) -> void:
 		material.albedo_color = color
 
 
+## Points on the target's body (feet, middle, head, and either side) that the camera should see.
+## They follow the target's "Pivot" child when it has one, so they stay on a body tipped horizontal.
+func sight_points() -> Array[Vector3]:
+	var body: Node3D = target.get_node_or_null("Pivot")
+	var center := body.global_position if body != null else target.global_position + target.global_basis.y * 0.9
+	var axis := (body if body != null else target).global_basis.y
+	var right := camera.global_basis.x
+	return [
+		center - axis * 0.7,
+		center,
+		center + axis * 0.8,
+		center + right * 0.4,
+		center - right * 0.4,
+	]
+
+
 ## Meshes of the target's room plus occluder panels between the camera and points on the target.
 ## The camera is orthographic, so sight lines run parallel to its view direction.
 func find_occluders() -> Array[MeshInstance3D]:
@@ -52,17 +68,7 @@ func find_occluders() -> Array[MeshInstance3D]:
 	if ship != null:
 		found.append_array(ship.room_fade_meshes(RingGeometry.section_of(target.global_position), forward))
 	var space := camera.get_world_3d().direct_space_state
-	var right := camera.global_basis.x
-	var up := target.global_basis.y
-	var base := target.global_position
-	var points := [
-		base + up * 0.2,
-		base + up * 0.9,
-		base + up * 1.7,
-		base + up * 0.9 + right * 0.4,
-		base + up * 0.9 - right * 0.4,
-	]
-	for point: Vector3 in points:
+	for point in sight_points():
 		var exclude: Array[RID] = []
 		for i in MAX_HITS_PER_RAY:
 			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, OCCLUDER_MASK, exclude)
