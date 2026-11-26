@@ -2,6 +2,14 @@ class_name Player
 extends CharacterBody3D
 ## Capsule walker on the inside of the spinning ring. "Up" always points toward the spin axis.
 ## Controls are ship-relative: W/S walk around the ring, A/D walk across it.
+## G toggles gravity. Without it the body lies horizontal and hovers at FLOAT_HEIGHT.
+
+## Height of the body's origin above the floor while floating, which puts its middle mid-corridor.
+const FLOAT_HEIGHT := 1.6
+## How quickly the body settles to FLOAT_HEIGHT (1/s).
+const FLOAT_SHARPNESS := 3.0
+## How quickly the body tips between upright and horizontal.
+const TIP_SHARPNESS := 6.0
 
 @export var walk_speed := 3.0
 @export var gravity := 9.8
@@ -12,7 +20,14 @@ var move_input := Vector2.ZERO
 ## When true, `move_input` is set by code (tests, auto-walk) instead of the keyboard.
 var drive_by_code := false
 
+var gravity_enabled := true
+
 var _facing := Vector3.FORWARD
+
+## Holds the visible body; tipped horizontal in zero-g.
+@onready var _pivot: Node3D = $Pivot
+## Must stay a direct child of the body for Godot to collide with it, so it copies the pivot's tip.
+@onready var _shape: CollisionShape3D = $CollisionShape3D
 
 
 static func ensure_input_actions() -> void:
@@ -21,6 +36,7 @@ static func ensure_input_actions() -> void:
 		"move_back": KEY_S,
 		"move_left": KEY_A,
 		"move_right": KEY_D,
+		"toggle_gravity": KEY_G,
 	}
 	for action: String in bindings:
 		if InputMap.has_action(action):
@@ -41,6 +57,17 @@ func _ready() -> void:
 	_orient(up)
 
 
+## Floating mode has no floor, so Godot doesn't snap the body back down to it.
+func set_gravity_enabled(enabled: bool) -> void:
+	gravity_enabled = enabled
+	motion_mode = MOTION_MODE_GROUNDED if enabled else MOTION_MODE_FLOATING
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_gravity"):
+		set_gravity_enabled(not gravity_enabled)
+
+
 func _physics_process(delta: float) -> void:
 	if not drive_by_code:
 		move_input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
@@ -55,11 +82,16 @@ func _physics_process(delta: float) -> void:
 		desired = desired.slide(get_floor_normal()).normalized() * desired.length()
 
 	var vertical := velocity.dot(up)
-	vertical = 0.0 if is_on_floor() else vertical - gravity * delta
+	if not gravity_enabled:
+		vertical = (FLOAT_HEIGHT - _height_above_floor()) * FLOAT_SHARPNESS
+	elif is_on_floor():
+		vertical = 0.0
+	else:
+		vertical -= gravity * delta
 	velocity = desired + up * vertical
 	var was_on_floor := is_on_floor()
 	move_and_slide()
-	if was_on_floor and not is_on_floor():
+	if gravity_enabled and was_on_floor and not is_on_floor():
 		# Walking uphill out of a seam points velocity "up", which disables Godot's own snap.
 		apply_floor_snap()
 
@@ -71,6 +103,15 @@ func _physics_process(delta: float) -> void:
 			turn = PI - 0.01  # exactly opposite: pick a side so the turn is visible
 		_facing = _facing.rotated(up, turn * weight)
 	_orient(RingGeometry.up_at(global_position))
+	var tip := 0.0 if gravity_enabled else -PI / 2.0
+	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, tip, 1.0 - exp(-TIP_SHARPNESS * delta))
+	_shape.transform = _pivot.transform
+
+
+## Height of the body's origin above the flat floor panel beneath it.
+func _height_above_floor() -> float:
+	var down := RingGeometry.section_down(RingGeometry.section_of(global_position))
+	return RingGeometry.floor_apothem() - global_position.dot(down)
 
 
 ## Stands the body upright along `up` and faces it along `_facing` (projected onto the floor plane).

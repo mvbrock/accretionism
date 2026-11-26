@@ -21,6 +21,7 @@ func _setup(x: float = 0.0) -> void:
 	fader = OcclusionFader.new()
 	fader.camera = camera
 	fader.target = player
+	fader.ship = ship
 	own(fader)
 	fader.set_process(false)  # the tests step it by hand
 	await physics_frames(3)
@@ -72,3 +73,22 @@ func test_fades_and_restores() -> void:
 	assert_true(material.albedo_color.a > 0.98, "ceiling restored (alpha %.2f)" % material.albedo_color.a)
 	assert_true(material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "opaque again")
 	assert_true(_mesh("Section6/Ceiling").material_override.albedo_color.a < 0.2, "new ceiling faded")
+
+
+func test_room_ceiling_and_camera_side_wall_fade_anywhere_in_room() -> void:
+	await _setup(-4.3)  # hugging the far wall, where no sight line crosses the camera-side wall
+	var found := fader.find_occluders()
+	assert_true(_mesh("Section0/Ceiling") in found, "room ceiling fades")
+	assert_true(_mesh("Section0/WallRight") in found, "room's camera-side wall fades")
+	assert_true(_mesh("Section0/WallLeft") not in found, "far wall stays opaque")
+
+
+func test_room_follows_player() -> void:
+	await _setup()
+	player.global_position = RingGeometry.section_down(3) * (RingGeometry.floor_apothem() - 0.05)
+	await physics_frames(2)
+	rig.snap()
+	var found := fader.find_occluders()
+	assert_true(_mesh("Section3/Ceiling") in found, "new room's ceiling fades")
+	assert_true(_mesh("Section3/WallRight") in found, "new room's wall fades")
+	assert_true(_mesh("Section0/WallRight") not in found, "old room's wall no longer fades")

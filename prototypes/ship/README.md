@@ -15,6 +15,7 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 |---|---|
 | W / S | Walk around the ring |
 | A / D | Walk across the ring |
+| G | Toggle gravity: off, the capsule lies horizontal and floats mid-corridor |
 | Esc | Quit |
 
 ## Tuning knobs (Inspector, or the `@export` vars)
@@ -37,8 +38,11 @@ Ring dimensions are constants in `scripts/ring_geometry.gd`.
   slightly "uphill" of its seams (up to 15°).
 - `CameraRig` sits on the axis and rotates to the player's angle; its isometric camera is a
   child, which makes the ship appear to turn under a fixed view.
-- `OcclusionFader` casts rays along the camera's view toward the player and fades any wall or
-  ceiling they hit.
+- `OcclusionFader` always fades the ceiling and camera-side wall of the player's own section, and
+  casts rays along the camera's view toward the player to fade any other wall or ceiling they hit.
+- With gravity off, the player switches to Godot's floating motion mode, eases to `FLOAT_HEIGHT`
+  above the floor, and its `Pivot` (the visible body, mirrored by the collision capsule) tips 90°
+  so the head leads.
 
 ## Tests
 
@@ -54,4 +58,4 @@ fails if that error never arrives.
 Errors from work that outlives a test (a timer, a signal) are caught too: the runner keeps watching for a few
 frames after the last test, and an error that lands in a later test names the earlier test it likely came from.
 
-Screenshots of an automated walk: `godot --path . -- --capture <dir>`.
+Screenshots of an automated walk (gravity turns off partway): `godot --path . -- --capture <dir>`.

@@ -1,6 +1,7 @@
 class_name OcclusionFader
 extends Node
 ## Fades walls and ceilings that block the camera's view of the target, and restores them after.
+## The ceiling and camera-side wall of the target's own section always fade, wherever it stands.
 ## Occluder bodies sit on collision layer 2 and carry a "fade_mesh" meta pointing at their mesh.
 
 const OCCLUDER_MASK := 2
@@ -9,6 +10,7 @@ const RAY_LENGTH := 80.0
 
 @export var camera: Camera3D
 @export var target: Node3D
+@export var ship: ShipBuilder
 @export var faded_alpha := 0.15
 @export var fade_speed := 8.0
 
@@ -40,14 +42,16 @@ func step(delta: float) -> void:
 		material.albedo_color = color
 
 
-## Meshes of occluder panels between the camera and points on the target.
+## Meshes of the target's room plus occluder panels between the camera and points on the target.
 ## The camera is orthographic, so sight lines run parallel to its view direction.
 func find_occluders() -> Array[MeshInstance3D]:
 	var found: Array[MeshInstance3D] = []
 	if camera == null or target == null:
 		return found
-	var space := camera.get_world_3d().direct_space_state
 	var forward := -camera.global_basis.z
+	if ship != null:
+		found.append_array(ship.room_fade_meshes(RingGeometry.section_of(target.global_position), forward))
+	var space := camera.get_world_3d().direct_space_state
 	var right := camera.global_basis.x
 	var up := target.global_basis.y
 	var base := target.global_position

@@ -21,7 +21,8 @@ target = NodePath("../Player")
 [node name="Camera" type="Camera3D" parent="CameraRig"]
 current = true
 
-[node name="OcclusionFader" type="Node" parent="." node_paths=PackedStringArray("camera", "target")]
+[node name="OcclusionFader" type="Node" parent="." node_paths=PackedStringArray("camera", "target", "ship")]
 script = ExtResource("5_fader")
 camera = NodePath("../CameraRig/Camera")
+ship = NodePath("../Ship")
 target = NodePath("../Player")

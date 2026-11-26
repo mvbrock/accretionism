@@ -1,6 +1,6 @@
 extends Node3D
 ## Wires up the prototype. Esc quits.
-## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks and saves shots, then quits)
+## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks, turns gravity off, saves shots, then quits)
 
 const CAPTURE_FRAMES := [90, 400, 900, 1500]
 
@@ -56,6 +56,8 @@ func _process(_delta: float) -> void:
 	_frame += 1
 	if _frame == 700:
 		player.move_input = Vector2(-0.6, 1.0)
+	if _frame == 1100:
+		player.set_gravity_enabled(false)
 	if _frame in CAPTURE_FRAMES:
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("%s/shot_%04d.png" % [_capture_dir, _frame])

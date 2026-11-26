@@ -90,7 +90,7 @@ func test_wall_stops_player_at_seam() -> void:
 
 func test_ensure_input_actions() -> void:
 	Player.ensure_input_actions()
-	for action in ["move_forward", "move_back", "move_left", "move_right"]:
+	for action in ["move_forward", "move_back", "move_left", "move_right", "toggle_gravity"]:
 		assert_true(InputMap.has_action(action), "%s registered" % action)
 
 
@@ -103,3 +103,43 @@ func test_nose_turns_around_when_reversing() -> void:
 	var around := RingGeometry.up_at(player.global_position).cross(Vector3.RIGHT)
 	var nose := -player.global_basis.z
 	assert_true(nose.dot(around) < -0.9, "nose faces backward after reversing (dot %.3f)" % nose.dot(around))
+
+
+func _height_above_floor(player: Player) -> float:
+	var k := RingGeometry.section_of(player.global_position)
+	return RingGeometry.floor_apothem() - player.global_position.dot(RingGeometry.section_down(k))
+
+
+func test_zero_g_floats_horizontal() -> void:
+	var player := await _spawn()
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+	assert_true(not player.is_on_floor(), "off the floor")
+	assert_near(_height_above_floor(player), Player.FLOAT_HEIGHT, 0.1, "hovers at float height")
+	var pivot: Node3D = player.get_node("Pivot")
+	var head := pivot.global_basis.y
+	var up := RingGeometry.up_at(player.global_position)
+	assert_true(absf(head.dot(up)) < 0.05, "body lies horizontal (head·up %.3f)" % head.dot(up))
+	assert_true(head.dot(-player.global_basis.z) > 0.95, "head points the way it faces")
+
+
+func test_zero_g_moves_without_sinking() -> void:
+	var player := await _spawn()
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(60)
+	assert_true(RingGeometry.angle_of(player.global_position) > 0.01, "W still moves in zero-g")
+	assert_near(_height_above_floor(player), Player.FLOAT_HEIGHT, 0.2, "stays afloat while moving")
+
+
+func test_gravity_returns_player_upright_to_floor() -> void:
+	var player := await _spawn()
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+	player.set_gravity_enabled(true)
+	await physics_frames(120)
+	assert_true(player.is_on_floor(), "back on the floor")
+	var pivot: Node3D = player.get_node("Pivot")
+	var up := RingGeometry.up_at(player.global_position)
+	assert_true(pivot.global_basis.y.dot(up) > 0.99, "upright again")
