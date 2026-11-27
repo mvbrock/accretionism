@@ -13,6 +13,8 @@ const PITCH := HEIGHT + SLAB
 const PIPE_CENTER := Vector2(3.5, 3.5)
 const PIPE_INNER := 0.7
 const PIPE_WALL := 0.15
+## The pipe's outer half-width.
+const PIPE_OUTER := PIPE_INNER + PIPE_WALL
 const DOOR_HEIGHT := 2.6
 const RUNG_SPACING := 0.35
 const RUNG_COLOR := Color(0.55, 0.55, 0.58)
@@ -38,9 +40,6 @@ func room_at(p: Vector3) -> String:
 	return "Deck%d" % clampi(floori(p.y / PITCH), 0, deck_count - 1)
 
 
-## The pipe's outer half-width.
-func _pipe_outer() -> float:
-	return PIPE_INNER + PIPE_WALL
 
 
 func _build_deck(i: int) -> Node3D:
@@ -84,7 +83,7 @@ func _build_deck(i: int) -> Node3D:
 ## Four panels `prefix`a to d from y = `y0` up `SLAB`, around a hole the size of the pipe's outer footprint.
 func _add_slab(parent: Node3D, prefix: String, y0: float, color: Color, layers: int) -> Array[StaticBody3D]:
 	var reach := HALF + SLAB
-	var o := _pipe_outer()
+	var o := PIPE_OUTER
 	var x0 := PIPE_CENTER.x - o
 	var x1 := PIPE_CENTER.x + o
 	var z0 := PIPE_CENTER.y - o
@@ -108,7 +107,7 @@ func _add_slab(parent: Node3D, prefix: String, y0: float, color: Color, layers: 
 func _build_pipe() -> Node3D:
 	var pipe := Node3D.new()
 	pipe.name = "Pipe"
-	var o := _pipe_outer()
+	var o := PIPE_OUTER
 	var cx := PIPE_CENTER.x
 	var cz := PIPE_CENTER.y
 	for i in deck_count:
@@ -129,15 +128,15 @@ func _build_pipe() -> Node3D:
 			add_room_bound("Pipe", panel, piece[3])
 		pipe.add_child(_build_hatch(i, y0, door_top))
 	var rungs := int(floor(_ladder_length() / RUNG_SPACING)) + 1
+	var rung_material := StandardMaterial3D.new()
+	rung_material.albedo_color = RUNG_COLOR
 	for k in rungs:
 		var rung := MeshInstance3D.new()
 		rung.name = "Rung%d" % k
 		var box := BoxMesh.new()
 		box.size = Vector3(2.0 * PIPE_INNER - 0.2, 0.04, 0.04)
 		rung.mesh = box
-		var material := StandardMaterial3D.new()
-		material.albedo_color = RUNG_COLOR
-		rung.material_override = material
+		rung.material_override = rung_material
 		rung.position = Vector3(cx, 0.05 + k * RUNG_SPACING, cz + PIPE_INNER - 0.06)
 		pipe.add_child(rung)
 	return pipe

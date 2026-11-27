@@ -421,7 +421,7 @@ func test_pose_at_spawn() -> void:
 	var skiff: Ship = own(SkiffShip.new())
 	var pose := PlayerPose.at_spawn(skiff)
 	assert_true(pose.position == skiff.spawn_point(), "at the spawn point")
-	assert_true(pose.heading == Vector2(0, 1), "facing across")
+	assert_true(pose.heading == Vector2(0, 1), "facing heading (0, 1), perpendicular to up and world X")
 	assert_true(not pose.gravity, "no gravity on the skiff")
 
 

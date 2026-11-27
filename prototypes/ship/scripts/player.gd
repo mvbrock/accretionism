@@ -126,12 +126,11 @@ func board(new_ship: Ship, at: PlayerPose) -> void:
 	aim_heading = Vector2.ZERO
 	velocity = Vector3.ZERO
 	set_gravity_enabled(at.gravity and new_ship.has_gravity())
-	_pivot.rotation.x = _wanted_tip()
-	_shape.transform = _pivot.transform
-	_orient(ship.up_at(global_position))
-	reset_physics_interpolation()
+	_set_tip(_wanted_tip())
 	if at.ladder != null:
 		_hold_ladder(at.ladder, at.climb_s)
+	_orient(ship.up_at(global_position))
+	reset_physics_interpolation()
 
 
 ## E: grab the ladder with a landing within REACH, or let go at a landing within LANDING_SNAP.
@@ -207,6 +206,7 @@ func _let_go_at_landing() -> void:
 	heading = _heading_toward(-landing.facing)
 	aim_heading = Vector2.ZERO
 	_stop()
+	_orient(ship.up_at(global_position))
 	reset_physics_interpolation()
 
 
@@ -214,7 +214,6 @@ func _let_go_at_landing() -> void:
 func _stop() -> void:
 	velocity = Vector3.ZERO
 	_drift = Vector2.ZERO
-	_orient(ship.up_at(global_position))
 
 
 ## The ship-relative 2D heading that faces the 3D direction `direction`.
@@ -227,8 +226,7 @@ func _climb(delta: float) -> void:
 	climb_s = clampf(climb_s + move_input.y * CLIMB_SPEED * delta, 0.0, climbing.length)
 	global_position = climbing.point_at(climb_s)
 	_orient(ship.up_at(global_position))
-	_pivot.rotation.x = _wanted_tip()
-	_shape.transform = _pivot.transform
+	_set_tip(_wanted_tip())
 
 
 func _physics_process(delta: float) -> void:
@@ -271,7 +269,12 @@ func _physics_process(delta: float) -> void:
 		apply_floor_snap()
 
 	_orient(ship.up_at(global_position))
-	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, _wanted_tip(), 1.0 - exp(-TIP_SHARPNESS * delta))
+	_set_tip(lerp_angle(_pivot.rotation.x, _wanted_tip(), 1.0 - exp(-TIP_SHARPNESS * delta)))
+
+
+## Tips the pivot to `angle` about X and copies the tip to the collision shape.
+func _set_tip(angle: float) -> void:
+	_pivot.rotation.x = angle
 	_shape.transform = _pivot.transform
 
 

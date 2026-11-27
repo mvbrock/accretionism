@@ -17,6 +17,6 @@ func _init(at := Vector3.ZERO, facing := Vector2(0, 1), with_gravity := true) ->
 	gravity = with_gravity
 
 
-## Standing at the ship's spawn point, facing across, with the ship's own gravity.
+## Standing at the ship's spawn point, facing heading (0, 1), perpendicular to up and world X, with the ship's own gravity.
 static func at_spawn(ship: Ship) -> PlayerPose:
 	return PlayerPose.new(ship.spawn_point(), Vector2(0, 1), ship.has_gravity())
