@@ -1,22 +1,24 @@
 class_name WheelShip
 extends Ship
-## Three rings (Ring0..Ring2) side by side along X, each with a square zero-g hub room (Hub0..Hub2) on the spin axis.
-## Neighbouring rooms share a bulkhead with a full-height doorway; the two outer ends are solid.
-## Each ring has two ladder spokes (Spoke<ring>_<section>), straight down and straight up, that run from the ring's floor
-## to the room's floor or ceiling and end flush with it. The hub rooms have no gravity; the rings have.
+## Three rings (Ring0..Ring2) side by side along X, each with a small square zero-g hub room (Hub0..Hub2) on the spin axis.
+## Neighbouring rooms share a bulkhead with a doorway at floor level, off the centre line; the two outer ends are solid.
+## Each ring has one ladder pipe (Spoke<ring>) from the ring's bottom floor, up through the hub room's floor and ceiling,
+## to the ring's top floor. The hub rooms do not rotate: up is +Y there, and only the floor is a floor. In the top
+## half of the pipe up points at the axis, so a climber hangs upside down and the camera turns over to match the top
+## ring. The hub rooms have no gravity; the rings have.
 
 const RING_CENTERS := [-24.0, 0.0, 24.0]
-## The ring sections that spokes leave from: straight down to the room's floor, straight up to its ceiling.
-const SPOKE_SECTIONS := [0, 6]
-## Spoke axis offset across, from each ring's center.
-const SPOKE_X := 2.5
+## Each ring's ladder offset across, from the ring's center; it sits at z = 0.
+const LADDER_X := 2.5
 ## Each hub room is this long along X, the ring spacing, so neighbours share a bulkhead.
 const ROOM_LENGTH := 24.0
 ## Hub rooms span y and z from -HUB_HALF_SIZE to +HUB_HALF_SIZE.
-const HUB_HALF_SIZE := 6.0
-## Bulkhead doorways span z from -DOOR_HALF_WIDTH to +DOOR_HALF_WIDTH, full height.
-const DOOR_HALF_WIDTH := 1.2
-const DOOR_HEIGHT := 2.6
+const HUB_HALF_SIZE := 4.0
+## Doorways between hub rooms span z across DOOR_Z, from the floor up DOOR_HEIGHT.
+const DOOR_Z := Vector2(1.4, 3.6)
+const DOOR_HEIGHT := 3.2
+## The pipe's doorways, each filled by a hatch blocker.
+const PIPE_DOOR_HEIGHT := 2.6
 const CRATES_PER_SECTION := 2
 const SLAB := RingGeometry.SLAB_THICKNESS
 ## Hue shift between neighboring rings.
@@ -27,14 +29,13 @@ const HUB_LIGHT_RANGE := 16.0
 ## How far the ladder starts above the floor, and how far its exits stand off the pipe's wall.
 const FOOT_LIFT := 0.05
 const EXIT_GAP := 0.7
-## A hub room's floor, ceiling and side walls: with "up" toward the axis, any of them can be the floor a floating player holds its height over.
-const HUB_PANEL_LAYERS := WORLD_LAYER | FLOOR_LAYER | OCCLUDER_LAYER
-## Bulkheads and end walls.
+## The ring sections the ladder runs between: the bottom floor and the top floor.
+const BOTTOM_SECTION := 0
+const TOP_SECTION := 6
+## Hub ceilings and side walls, bulkheads and end walls.
 const WALL_LAYERS := WORLD_LAYER | OCCLUDER_LAYER
 
 var _rings: Array[RingHull] = []
-## [room name, transform from the world into the spoke's frame], per spoke.
-var _spoke_shafts := []
 
 
 func _ready() -> void:
@@ -45,20 +46,29 @@ func _ready() -> void:
 	for i in range(1, RING_CENTERS.size()):
 		_build_bulkhead(i)
 	for ring in RING_CENTERS.size():
-		for k: int in SPOKE_SECTIONS:
-			_build_spoke(ring, k)
+		_build_spoke(ring)
 
 
-## The ladder of the spoke on ring `ring` at section `k`, one of SPOKE_SECTIONS.
-func spoke_ladder(ring: int, k: int) -> Ladder:
-	return ladders[ring * SPOKE_SECTIONS.size() + SPOKE_SECTIONS.find(k)]
+## The ladder of ring `ring`, from its bottom floor to its top floor.
+func ring_ladder(ring: int) -> Ladder:
+	return ladders[ring]
 
 
+## +Y in a hub room's box, pipe included; toward the spin axis everywhere else.
 func up_at(p: Vector3) -> Vector3:
+	if _hub_index_at(p) != -1:
+		return Vector3.UP
 	return RingGeometry.up_at(p)
 
 
+## 0 in the hub box and the bottom half of a ladder pipe; PI * t in the top half, where t runs from 0 at the hub
+## ceiling's outer face to 1 at the top ring's floor; the player's angle around the axis in the rings.
 func camera_roll_at(p: Vector3) -> float:
+	if _hub_index_at(p) != -1:
+		return 0.0
+	if _spoke_at(p) != -1:
+		var hub_top := HUB_HALF_SIZE + SLAB
+		return PI * clampf((p.y - hub_top) / (RingGeometry.floor_apothem() - hub_top), 0.0, 1.0)
 	return RingGeometry.angle_of(p)
 
 
@@ -69,15 +79,14 @@ func has_gravity_at(p: Vector3) -> bool:
 
 ## The middle ring's section 0 floor.
 func spawn_point() -> Vector3:
-	return RingGeometry.section_down(0) * (RingGeometry.floor_apothem() - 0.05)
+	return RingGeometry.section_down(BOTTOM_SECTION) * (RingGeometry.floor_apothem() - 0.05)
 
 
-## A spoke's room inside its shaft, "Hub<i>" inside a hub room, else the ring room, or "".
+## "Spoke<ring>" inside a ladder pipe, "Hub<i>" inside a hub room, else the ring room, or "".
 func room_at(p: Vector3) -> String:
-	for shaft in _spoke_shafts:
-		var local: Vector3 = shaft[1] * p
-		if absf(local.x) < PIPE_INNER and absf(local.z) < PIPE_INNER and local.y >= 0.0 and local.y <= spoke_length():
-			return shaft[0]
+	var spoke := _spoke_at(p)
+	if spoke != -1:
+		return _spoke_name(spoke)
 	var hub := _hub_index_at(p)
 	if hub != -1:
 		return _hub_name(hub)
@@ -88,8 +97,9 @@ func room_at(p: Vector3) -> String:
 	return ""
 
 
-## Every ring, with its spokes, every hub room, and every bulkhead and the aft end wall wholly on the camera's side (+X) of `p`:
-## they would cover the view of the player. A player in a hub room keeps that room's own +X bulkhead, which fades as the room's bound.
+## Every ring, with its ladder pipe, every hub room, and every bulkhead and the aft end wall wholly on the camera's
+## side (+X) of `p`: they would cover the view of the player. A player in a hub room keeps that room's own +X bulkhead,
+## which fades as the room's bound.
 func cutaway_nodes(p: Vector3) -> Array[Node3D]:
 	var nodes: Array[Node3D] = []
 	var hub := _hub_index_at(p)
@@ -102,39 +112,57 @@ func cutaway_nodes(p: Vector3) -> Array[Node3D]:
 	for ring in RING_CENTERS.size():
 		if RING_CENTERS[ring] - RingGeometry.HALF_WIDTH - SLAB > p.x:
 			nodes.append(get_node("Ring%d" % ring))
-			for k: int in SPOKE_SECTIONS:
-				nodes.append(get_node("Spoke%d_%d" % [ring, k]))
+			nodes.append(get_node(_spoke_name(ring)))
 		if RING_CENTERS[ring] - ROOM_LENGTH / 2.0 > p.x:
 			nodes.append(get_node(_hub_name(ring)))
 	return nodes
 
 
-## How far a spoke runs from a ring's floor to the hub room's floor or ceiling.
-static func spoke_length() -> float:
-	return RingGeometry.floor_apothem() - HUB_HALF_SIZE
+## The frame of ring `ring`'s ladder pipe from the bottom: origin on the ring's floor, +Y up the pipe, the doorway toward −Z.
+static func ladder_frame(ring: int) -> Transform3D:
+	return Transform3D(Basis.IDENTITY, Vector3(RING_CENTERS[ring] + LADDER_X, -RingGeometry.floor_apothem(), 0))
 
 
-## The frame of the spoke on ring `ring` at section `k`: origin on the ring's floor, +Y toward the axis, the doorway toward −Z.
-static func spoke_frame(ring: int, k: int) -> Transform3D:
-	var down := RingGeometry.section_down(k)
-	var origin := Vector3(RING_CENTERS[ring] + SPOKE_X, 0, 0) + down * RingGeometry.floor_apothem()
-	return Transform3D(Basis(Vector3.RIGHT, -down, Vector3.RIGHT.cross(-down)), origin)
+## The frame of the pipe's top end: origin on the top ring's floor, +Y down the pipe, the doorway toward −Z.
+static func top_frame(ring: int) -> Transform3D:
+	var basis := Basis(Vector3(-1, 0, 0), Vector3(0, -1, 0), Vector3(0, 0, 1))
+	return Transform3D(basis, Vector3(RING_CENTERS[ring] + LADDER_X, RingGeometry.floor_apothem(), 0))
+
+
+## How far a ladder runs: from 5 cm above the bottom floor to where an inverted climber's feet reach 5 cm off the top
+## floor, which puts its head BODY_HEIGHT short of that.
+static func ladder_length() -> float:
+	return 2.0 * RingGeometry.floor_apothem() - 2.0 * FOOT_LIFT - Player.BODY_HEIGHT
 
 
 static func _hub_name(i: int) -> String:
 	return "Hub%d" % i
 
 
+static func _spoke_name(ring: int) -> String:
+	return "Spoke%d" % ring
+
+
 static func _room_max_x(i: int) -> float:
 	return RING_CENTERS[i] + ROOM_LENGTH / 2.0
 
 
-## The index of the hub room containing `p`, or -1.
+## The index of the hub room box containing `p` (the room and its slabs), or -1.
 func _hub_index_at(p: Vector3) -> int:
 	if absf(p.y) > HUB_HALF_SIZE + SLAB or absf(p.z) > HUB_HALF_SIZE + SLAB:
 		return -1
 	for i in RING_CENTERS.size():
 		if absf(p.x - RING_CENTERS[i]) <= ROOM_LENGTH / 2.0:
+			return i
+	return -1
+
+
+## The ring whose ladder pipe's inside contains `p`, from ring floor to ring floor, or -1.
+func _spoke_at(p: Vector3) -> int:
+	if absf(p.z) >= PIPE_INNER or absf(p.y) > RingGeometry.floor_apothem():
+		return -1
+	for i in RING_CENTERS.size():
+		if absf(p.x - RING_CENTERS[i] - LADDER_X) < PIPE_INNER:
 			return i
 	return -1
 
@@ -146,8 +174,8 @@ func _build_rings() -> void:
 		hull.room_prefix = "Ring%d/" % i
 		hull.crates_per_section = CRATES_PER_SECTION
 		hull.hue_offset = i * RING_HUE_STEP
-		for k: int in SPOKE_SECTIONS:
-			hull.add_ceiling_hole(k, RING_CENTERS[i] + SPOKE_X, PIPE_OUTER)
+		for k in [BOTTOM_SECTION, TOP_SECTION]:
+			hull.add_ceiling_hole(k, RING_CENTERS[i] + LADDER_X, PIPE_OUTER)
 		var node := Node3D.new()
 		node.name = "Ring%d" % i
 		add_child(node)
@@ -155,8 +183,9 @@ func _build_rings() -> void:
 		_rings.append(hull)
 
 
-## Hub room `i`: a floor and a ceiling, each with a hole where its ring's spoke arrives, two side walls and a light.
-## The panels bound the room "Hub<i>". The two ends are the bulkheads, or the end walls.
+## Hub room `i`: a holed floor and ceiling where its ring's ladder passes, two side walls and a light.
+## The ceiling and the walls bound the room "Hub<i>"; the floor does not, as it is what a floating player holds its height
+## over. The two ends are the bulkheads, or the end walls.
 func _build_hub_room(i: int) -> void:
 	var room := Node3D.new()
 	room.name = _hub_name(i)
@@ -164,23 +193,20 @@ func _build_hub_room(i: int) -> void:
 	var x0: float = RING_CENTERS[i] - ROOM_LENGTH / 2.0
 	var x1: float = RING_CENTERS[i] + ROOM_LENGTH / 2.0
 	var h := HUB_HALF_SIZE
-	var spoke_hole := Vector2(RING_CENTERS[i] + SPOKE_X, 0)
+	var hole := Vector2(RING_CENTERS[i] + LADDER_X, 0)
 	var fill := room_color(i, RING_CENTERS.size())
 	var trim := trim_color(i, RING_CENTERS.size())
-	# [panel name, lo, hi, outward, color]
-	var slabs := [
-		["Floor", Vector3(x0, -h - SLAB, -h - SLAB), Vector3(x1, -h, h + SLAB), Vector3.DOWN, fill],
-		["Ceiling", Vector3(x0, h, -h - SLAB), Vector3(x1, h + SLAB, h + SLAB), Vector3.UP, trim],
-	]
-	for slab in slabs:
-		for panel in add_holed_slab(room, slab[0], slab[1], slab[2], spoke_hole, PIPE_OUTER, slab[4], HUB_PANEL_LAYERS):
-			add_room_bound(room.name, panel, slab[3])
+	add_holed_slab(room, "Floor", Vector3(x0, -h - SLAB, -h - SLAB), Vector3(x1, -h, h + SLAB), hole, PIPE_OUTER, fill,
+			WORLD_LAYER | FLOOR_LAYER)
+	for panel in add_holed_slab(room, "Ceiling", Vector3(x0, h, -h - SLAB), Vector3(x1, h + SLAB, h + SLAB), hole, PIPE_OUTER,
+			trim, WALL_LAYERS):
+		add_room_bound(room.name, panel, Vector3.UP)
 	var walls := [
 		["WallLeft", Vector3(x0, -h, -h - SLAB), Vector3(x1, h, -h), Vector3.FORWARD],
 		["WallRight", Vector3(x0, -h, h), Vector3(x1, h, h + SLAB), Vector3.BACK],
 	]
 	for wall in walls:
-		var panel := make_panel(wall[0], box_points(wall[1], wall[2]), trim, HUB_PANEL_LAYERS)
+		var panel := make_panel(wall[0], box_points(wall[1], wall[2]), trim, WALL_LAYERS)
 		room.add_child(panel)
 		add_room_bound(room.name, panel, wall[3])
 	room.add_child(make_light(Vector3(RING_CENTERS[i], 0, 0), HUB_LIGHT_RANGE))
@@ -202,52 +228,67 @@ func _build_hub_ends() -> void:
 		add_room_bound(end[3], panel, end[4])
 
 
-## The bulkhead between hub rooms `i - 1` and `i`: a left and a right piece around a full-height doorway, each bounding both rooms.
+## The bulkhead between hub rooms `i - 1` and `i`: a left and a right piece around a doorway at floor level, and a lintel
+## over it, each bounding both rooms.
 func _build_bulkhead(i: int) -> void:
 	var bulkhead := Node3D.new()
 	bulkhead.name = "Bulkhead%d" % i
 	add_child(bulkhead)
 	var x: float = (RING_CENTERS[i - 1] + RING_CENTERS[i]) / 2.0
 	var h := HUB_HALF_SIZE
-	var d := DOOR_HALF_WIDTH
 	var half := SLAB / 2.0
-	# [panel name, z0, z1]
-	var pieces := [["Left", -h, -d], ["Right", d, h]]
+	var door_top := -h + DOOR_HEIGHT
+	# [panel name, lo (y, z), hi (y, z)]
+	var pieces := [
+		["Left", Vector2(-h, -h), Vector2(h, DOOR_Z.x)],
+		["Right", Vector2(-h, DOOR_Z.y), Vector2(h, h)],
+		["Lintel", Vector2(door_top, DOOR_Z.x), Vector2(h, DOOR_Z.y)],
+	]
 	for piece in pieces:
-		var panel := make_panel(piece[0], box_points(Vector3(x - half, -h, piece[1]), Vector3(x + half, h, piece[2])),
-				BULKHEAD_COLOR, WALL_LAYERS)
+		var lo := Vector3(x - half, piece[1].x, piece[1].y)
+		var hi := Vector3(x + half, piece[2].x, piece[2].y)
+		var panel := make_panel(piece[0], box_points(lo, hi), BULKHEAD_COLOR, WALL_LAYERS)
 		bulkhead.add_child(panel)
 		add_room_bound(_hub_name(i - 1), panel, Vector3.RIGHT)
 		add_room_bound(_hub_name(i), panel, Vector3.LEFT)
 
 
-## A spoke: a ring segment with a doorway, then a shaft up to the hub room's floor or ceiling.
-func _build_spoke(ring: int, k: int) -> void:
+## Ring `ring`'s ladder pipe, in five segments: the bottom ring's (doorway at the floor, through the ceiling slab), the
+## shaft up to the hub floor, the hub's (doorway at the hub floor, through the hub's ceiling slab), the shaft on to the top
+## ring, and the top ring's (doorway at the top floor). The rungs run the whole ladder on the +Z wall.
+func _build_spoke(ring: int) -> void:
 	var spoke := Node3D.new()
-	spoke.name = "Spoke%d_%d" % [ring, k]
+	spoke.name = _spoke_name(ring)
 	add_child(spoke)
-	var frame := spoke_frame(ring, k)
-	var length := spoke_length()
+	var frame := ladder_frame(ring)
+	var apothem := RingGeometry.floor_apothem()
 	var ring_top := RingGeometry.CEILING_HEIGHT + SLAB
+	var hub_floor := apothem - HUB_HALF_SIZE
+	var hub_top := apothem + HUB_HALF_SIZE + SLAB
+	var top_ring_bottom := 2.0 * apothem - ring_top
 	var segments := [
-		["RingSeg", 0.0, ring_top, DOOR_HEIGHT],
-		["Shaft", ring_top, length, 0.0],
+		["BottomRingSeg", frame, 0.0, ring_top, PIPE_DOOR_HEIGHT],
+		["BottomShaft", frame, ring_top, hub_floor, 0.0],
+		["HubSeg", frame, hub_floor, hub_top, PIPE_DOOR_HEIGHT],
+		["TopShaft", frame, hub_top, top_ring_bottom, 0.0],
+		["TopRingSeg", top_frame(ring), 0.0, ring_top, PIPE_DOOR_HEIGHT],
 	]
 	for segment in segments:
 		var node := Node3D.new()
 		node.name = segment[0]
 		spoke.add_child(node)
-		add_pipe_segment(node, frame, segment[1], segment[2], segment[3], false, SPOKE_COLOR, spoke.name)
+		add_pipe_segment(node, segment[1], segment[2], segment[3], segment[4], false, SPOKE_COLOR, spoke.name)
+	var length := ladder_length()
 	add_rungs(frame, FOOT_LIFT, length + FOOT_LIFT, func(_s: float) -> Node3D: return spoke)
-	_spoke_shafts.append([spoke.name, frame.affine_inverse()])
-	ladders.append(_build_ladder(frame, length))
+	ladders.append(_build_ladder(frame, length, hub_floor))
 
 
-## The ladder up a spoke, with a landing at each end standing off the doorway side.
-func _build_ladder(frame: Transform3D, length: float) -> Ladder:
-	var up := frame.basis.y
-	var ladder := Ladder.new(frame.origin + up * FOOT_LIFT, up, length)
-	var stand_off := frame.basis * Vector3(0, 0, -(PIPE_OUTER + EXIT_GAP))
-	for s in [0.0, length]:
-		ladder.add_landing(s, ladder.point_at(s) + stand_off, frame.basis.z)
+## The ladder up a pipe, with a landing at the bottom ring, the hub floor and the top ring, each standing off the doorway
+## side. The top landing's exit is where an inverted climber's feet stand on the top ring's floor.
+func _build_ladder(frame: Transform3D, length: float, hub_floor: float) -> Ladder:
+	var ladder := Ladder.new(frame.origin + Vector3.UP * FOOT_LIFT, Vector3.UP, length)
+	var stand_off := Vector3(0, 0, -(PIPE_OUTER + EXIT_GAP))
+	ladder.add_landing(0.0, ladder.point_at(0.0) + stand_off, Vector3.BACK)
+	ladder.add_landing(hub_floor, ladder.point_at(hub_floor) + stand_off, Vector3.BACK)
+	ladder.add_landing(length, ladder.point_at(length) + Vector3.UP * Player.BODY_HEIGHT + stand_off, Vector3.BACK)
 	return ladder
