@@ -51,8 +51,8 @@ func snap() -> void:
 	camera.position = _camera_goal(target.global_position)
 
 
-func _roll_at(position: Vector3) -> float:
-	return 0.0 if ship == null else ship.camera_roll_at(position)
+func _roll_at(point: Vector3) -> float:
+	return 0.0 if ship == null else ship.camera_roll_at(point)
 
 
 func _camera_goal(target_position: Vector3) -> Vector3:

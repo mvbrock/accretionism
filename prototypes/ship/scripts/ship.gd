@@ -1,7 +1,10 @@
 class_name Ship
 extends Node3D
 ## A ship the player can be aboard. Sits at the world origin.
-## Subclasses build their own geometry and override the queries below.
+## Subclasses build their own geometry and override the queries below. Every floor panel goes on
+## FLOOR_LAYER as well as WORLD_LAYER, because the floating player measures its height against it.
+## Walls and ceilings that may hide the player go on OCCLUDER_LAYER and carry a "fade_mesh" meta
+## naming their mesh; `make_panel` does both from the layers it is given.
 
 const WORLD_LAYER := 1
 const OCCLUDER_LAYER := 2
