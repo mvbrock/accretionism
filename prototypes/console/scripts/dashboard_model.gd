@@ -46,6 +46,19 @@ static func system_text(ship: Ship, id: String) -> String:
 	return "RUN"
 
 
+## The breakers the BREAKERS panel lists: the room's light and its doors and hatches, then the
+## system breakers, then every other tripped breaker on the ship.
+static func listed_breakers(ship: Ship, room_id: String) -> Array[String]:
+	var ids: Array[String] = [Ship.light_breaker_id(room_id)]
+	for opening_ in ship.doors_of(room_id):
+		ids.append(opening_.id)
+	ids.append_array(Ship.SYSTEM_BREAKER_IDS)
+	for id in ship.power.breaker_ids:
+		if ship.power.tripped[id] and not ids.has(id):
+			ids.append(id)
+	return ids
+
+
 static func breaker_text(ship: Ship, id: String) -> String:
 	if not ship.power.is_powered(id):
 		return "□ TRIP"

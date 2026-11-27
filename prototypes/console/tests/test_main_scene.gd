@@ -529,3 +529,54 @@ func test_the_view_keeps_half_the_dashboard_under_a_tall_breaker_list() -> void:
 	await tree.process_frame
 	await tree.process_frame
 	assert_true(dashboard.ship_view.size.y >= 0.45 * dashboard.size.y, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, dashboard.size.y])
+
+
+func _listed_breakers(dashboard: DashboardView) -> Array[String]:
+	var listed: Array[String] = []
+	for label in dashboard._breaker_grid.get_children():
+		if label.visible:
+			listed.append(label.text.split("  ")[0])
+	return listed
+
+
+func test_the_breakers_panel_lists_the_selected_rooms_breakers_then_the_systems() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	var wheel := WheelShip.new()
+	dashboard.show_ship(wheel)
+	dashboard.select_room("a0")
+	dashboard.show_ship(wheel)
+	var want: Array[String] = ["light-a0"]
+	for door in wheel.doors_of("a0"):
+		want.append(door.id)
+	want.append_array(Ship.SYSTEM_BREAKER_IDS)
+	assert_true(_listed_breakers(dashboard) == want, "got %s, want %s" % [_listed_breakers(dashboard), want])
+	assert_true(DashboardModel.total_draw_text(wheel) == dashboard._total_label.text, "the total stays the whole ship's")
+
+
+func test_the_breakers_panel_lists_a_breaker_tripped_in_another_room() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	var wheel := WheelShip.new()
+	dashboard.show_ship(wheel)
+	dashboard.select_room("a0")
+	wheel.breaker_trip("light-c5")
+	dashboard.show_ship(wheel)
+	var listed := _listed_breakers(dashboard)
+	assert_true(listed.has("light-c5") and listed.back() == "light-c5", "the tripped breaker is listed last, got %s" % [listed])
+	assert_true(not listed.has("light-c6"), "a closed breaker elsewhere is not listed")
+
+
+func test_selecting_another_room_changes_the_breakers_listed() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	var wheel := WheelShip.new()
+	dashboard.show_ship(wheel)
+	dashboard.select_room("b3")
+	dashboard.show_ship(wheel)
+	var listed := _listed_breakers(dashboard)
+	assert_true(listed.has("light-b3") and listed.has("hatch") and not listed.has("light-a0"), "got %s" % [listed])
+	dashboard.select_room("hub")
+	dashboard.show_ship(wheel)
+	listed = _listed_breakers(dashboard)
+	assert_true(listed.has("light-hub") and not listed.has("light-b3") and not listed.has("hatch"), "got %s" % [listed])

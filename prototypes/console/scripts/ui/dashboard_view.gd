@@ -84,10 +84,7 @@ func show_ship(ship: Ship) -> void:
 	_show_room_panel(DashboardModel.room_tile(ship, selected_room))
 	for id in _system_labels:
 		_show_status(_system_labels[id], "%s  %s" % [id, DashboardModel.system_text(ship, id)], DashboardModel.system_level(ship, id))
-	for id in _breaker_labels:
-		var text := DashboardModel.breaker_text(ship, id)
-		_show_status(_breaker_labels[id], "%s  %s" % [id, text],
-				DashboardModel.breaker_level(ship, id))
+	_show_breakers(ship)
 	for gas in Units.TANK_GASES:
 		var percent := DashboardModel.tank_percent(ship, gas)
 		var filled := clampi(percent * BAR_CELLS / 100, 0, BAR_CELLS)
@@ -129,7 +126,7 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-## The ship's own breakers; the panel is empty until a ship is shown.
+## One label per breaker of the ship; _show_breakers lists some of them.
 func _build_breaker_labels(ship: Ship) -> void:
 	for id in ship.power.breaker_ids:
 		var label := Label.new()
@@ -169,6 +166,18 @@ func _column(title: String, ids: Array[String], labels: Dictionary) -> VBoxConta
 		column.add_child(label)
 		labels[id] = label
 	return column
+
+
+## Lists the selected room's breakers, the system breakers and every other tripped breaker, in that order.
+func _show_breakers(ship: Ship) -> void:
+	var listed := DashboardModel.listed_breakers(ship, selected_room)
+	for id in _breaker_labels:
+		_breaker_labels[id].visible = listed.has(id)
+	for i in listed.size():
+		var label: Label = _breaker_labels[listed[i]]
+		_breaker_grid.move_child(label, i)
+		_show_status(label, "%s  %s" % [listed[i], DashboardModel.breaker_text(ship, listed[i])],
+				DashboardModel.breaker_level(ship, listed[i]))
 
 
 func _show_room_panel(tile: Dictionary) -> void:
