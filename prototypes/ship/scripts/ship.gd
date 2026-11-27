@@ -62,12 +62,12 @@ func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
 	return meshes
 
 
-## Where the player starts.
 ## Nodes to hide so the player at `_p` sees in from above. None by default.
 func cutaway_nodes(_p: Vector3) -> Array[Node3D]:
 	return []
 
 
+## Where the player starts.
 func spawn_point() -> Vector3:
 	return Vector3.ZERO
 
