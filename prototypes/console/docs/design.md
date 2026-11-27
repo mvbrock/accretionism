@@ -21,7 +21,7 @@ No player character, passenger movement, walking or first-person view. No power 
 | Topic | Decision |
 |---|---|
 | Tech | Godot 4.7, GDScript, in `prototypes/console` (same setup as `prototypes/ship` and `prototypes/transit`) |
-| Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim steps it in fixed steps of 0.1 s, or 1 s at the fastest speed |
+| Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim advances it 0.1 s at a time, or 1 s at a time at 1 hour/s |
 | Rooms | `cockpit`, `main`, `cargo`, in a row |
 | Openings | `d1` (cockpit ↔ main), `d2` (main ↔ cargo), `hatch` (cargo ↔ outside) |
 | Life support reach | Each system reaches every room through its own ducts, so it works with every door closed |
@@ -348,7 +348,7 @@ Each file in `data/ships/` is one ship, and the file name, which must be lowerca
   - the recycler holding CO₂ below 0.5 kPa with passengers, and CO₂ rising with it unpowered
   - a tripped breaker removing each component's function, and a reset bringing it back through BOOTING
   - a restart clearing a FAULT, and being refused with no power
-  - the computer down: the command line rejecting input except `computer restart`, and life support still running
+  - the computer down: ship commands refused on arrival (in FAULT, all but `computer restart`), and life support still running
   - an unpowered door holding its position, partly open included
   - a light's switch surviving a trip
   - adding a passenger raising a sealed room's CO₂ faster, a passenger adding `heat.passenger_w` of heat, and removing the last one stopping breathing in that room

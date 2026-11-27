@@ -1,9 +1,9 @@
 # Ship Sim Prototype
 
 A fleet of ships, each with rooms (such as a cockpit, main room and cargo hold), an atmosphere, three
-life-support systems, doors, a hatch and a power panel. A dashboard on the right shows every room and system at a glance,
-and a command line down the left side is the only way to act on the ship. Open the hatch and the
-cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
+life-support systems, doors, a hatch and a power panel. A dashboard on the right shows every room and
+system at a glance, and a command line down the left side is the only way to act on the ship. Open the
+hatch and the cargo hold vents; close it and the hold refills. Design: `docs/design.md`.
 
 ## Run
 
@@ -31,7 +31,7 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 | `ships connect <ship name>` | Connect to that ship (only while disconnected) |
 | `disconnect` | Disconnect from the ship; works even while its computer is down |
 
-Connected, `ships`, `disconnect` and `help` still answer at once, and the commands below go to that ship.
+Connected, `ships`, `disconnect` and `help` answer at once, and the other commands below go to that ship.
 A command takes the ship's `transmission_s` (8 minutes unless its file says otherwise) to arrive and runs
 then; its reply takes as long to come back. The console prints `sent to <ship>; reply in <round trip>` when
 it sends, and `reply to '<line>': <reply>` when the reply lands. The console checks the line first: an
@@ -59,7 +59,8 @@ reply comes back.
 | `debug fault <system>` | Put a system in FAULT, for testing and demos |
 
 While the computer reboots a "COMPUTER REBOOTING" overlay covers the dashboard. In FAULT the
-dashboard freezes and shows "STALE" until `computer restart`.
+dashboard freezes and shows "STALE" until `computer restart`. Ship commands still go out while the
+computer is down, and come back refused (in FAULT, all but `computer restart`).
 
 ## Data
 
