@@ -33,9 +33,10 @@ func spawn_point() -> Vector3:
 	return Vector3(-2, 0.05, -2)
 
 
-## The deck at height `p.y`, clamped to the stack.
+## The deck at height `p.y`, clamped to the stack. A deck runs from the underside of its floor slab
+## to the underside of the next, so feet resting on a floor are well inside their own deck.
 func deck_at(p: Vector3) -> int:
-	return clampi(floori(p.y / PITCH), 0, deck_count - 1)
+	return clampi(floori((p.y + SLAB) / PITCH), 0, deck_count - 1)
 
 
 ## The decks above the one holding `p`.

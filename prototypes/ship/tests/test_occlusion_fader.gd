@@ -118,6 +118,35 @@ func test_cutaway_hides_decks_above_target() -> void:
 		assert_true(decks.get_node("Deck%d" % i).visible, "Deck%d visible on the top deck" % i)
 
 
+func test_stepping_off_onto_a_deck_shows_its_floor() -> void:
+	var ship := DeckShip.new()
+	ship.deck_count = 3
+	own(ship)
+	var player := own_player(ship)
+	var deck_rig := own_rig(player, ship)
+	var deck_fader := own_fader(deck_rig, player, ship)
+	await physics_frames(2)
+	player.board(ship, PlayerPose.new(ship.ladders[0].landings[0].exit, Vector2(0, -1), true))
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y < DeckShip.PITCH - 0.05 and frames < 400:
+		await tree.physics_frame
+		deck_fader.step(1.0 / 60.0)
+		frames += 1
+	player.move_input = Vector2.ZERO
+	player.interact()
+	for i in 90:
+		await tree.physics_frame
+		deck_rig.update_rig(1.0 / 60.0)
+		deck_fader.step(1.0 / 60.0)
+	assert_true(player.is_on_floor(), "standing on deck 1")
+	assert_true(ship.get_node("Deck1").visible, "deck 1 is shown")
+	for piece in ["Slab0a", "Slab0b", "Slab0c", "Slab0d"]:
+		var mesh: MeshInstance3D = ship.get_node("Deck1/%s/Mesh" % piece)
+		assert_true(mesh.material_override.albedo_color.a > 0.98, "deck 1's floor %s is opaque (alpha %.2f)" % [piece, mesh.material_override.albedo_color.a])
+
+
 func test_cutaway_restored_when_ship_changes() -> void:
 	_cutaway_setup(1.0)
 	fader.step(1.0 / 60.0)

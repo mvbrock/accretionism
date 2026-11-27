@@ -30,6 +30,14 @@ func test_rooms() -> void:
 	assert_true(ship.room_at(Vector3(0, 50, 0)) == "Deck1", "clamped to the top deck")
 
 
+func test_feet_on_a_floor_belong_to_that_deck() -> void:
+	var ship := await _make_ship()
+	# A body resting on a floor settles a hair above or below its top surface.
+	for y in [DeckShip.PITCH - 0.001, DeckShip.PITCH, DeckShip.PITCH + 0.001]:
+		assert_true(ship.deck_at(Vector3(0, y, 0)) == 1, "feet at y = %.3f are on deck 1" % y)
+	assert_true(ship.deck_at(Vector3(0, -0.001, 0)) == 0, "feet on deck 0's floor are on deck 0")
+
+
 func test_cutaway_hides_decks_above() -> void:
 	var ship := await _make_ship(3)
 	var d := [ship.get_node("Deck0"), ship.get_node("Deck1"), ship.get_node("Deck2")]
