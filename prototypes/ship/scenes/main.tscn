@@ -42,6 +42,10 @@ script = ExtResource("7_skiff")
 script = ExtResource("8_tug")
 deck_count = 2
 
+[node name="Freighter" type="Node3D" parent="Fleet"]
+script = ExtResource("8_tug")
+deck_count = 4
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
 [node name="ShipLabel" type="Label" parent="HUD"]

@@ -21,7 +21,7 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 | Tab | Switch to the next ship (each remembers where you were) |
 | Esc | Quit |
 
-There are three ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold), and the Tug, two decks under thrust joined by a ladder pipe.
+There are four ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold), the Tug, two decks under thrust joined by a ladder pipe, and the Freighter, four decks under thrust joined by one ladder pipe.
 
 ## Tuning knobs (Inspector, or the `@export` vars)
 
@@ -47,6 +47,7 @@ Ring dimensions are constants in `scripts/ring_geometry.gd`.
   boarding the player at the pose it last had there and pointing the camera rig and fader at the ship.
 - A `DeckShip` stacks decks joined by a ladder pipe. Each pipe gets a `Ladder`; climbing places the
   player on the pipe's axis, and doorway blockers on the hatch layer keep walkers out of the shaft.
+- A cutaway hides every deck above the player's; the ladder reveals each deck as you climb past its floor.
 - `CameraRig` sits on the axis and rolls by the ship's camera roll at the player (the player's
   angle, for the ring); its isometric camera is a child, which makes the ship appear to turn
   under a fixed view.

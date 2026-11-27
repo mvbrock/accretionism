@@ -2,7 +2,7 @@ extends Node3D
 ## Wires up the prototype. Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks, turns gravity off, saves shots, then quits)
 
-const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800, 2100]
+const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800, 2100, 2400]
 
 @onready var player: Player = $Player
 @onready var rig: CameraRig = $CameraRig
@@ -69,6 +69,8 @@ func _process(_delta: float) -> void:
 	if _frame == 1550:
 		fleet.next_ship()
 	if _frame == 1850:
+		fleet.next_ship()
+	if _frame == 2150:
 		fleet.next_ship()
 	if _frame in CAPTURE_FRAMES:
 		var image := get_viewport().get_texture().get_image()
