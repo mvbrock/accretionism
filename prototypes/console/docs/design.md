@@ -2,54 +2,80 @@
 
 ## Intent
 
-Prove a **logistics view of a ship's interior**: a dashboard that shows the state of every room and system at a glance, and a command line that is the only way to act on the ship. The atmosphere model is there to make the consequences of a command believable, such as a room venting, a room repressurizing, or a room cooling after its HVAC loses power. The prototype does not test the physics.
+Prove a **logistics view of a ship's interior**: a dashboard that shows the connected ship in 3D with the state of its rooms and systems, and a command line that is the only way to act on the ship. The atmosphere model is there to make the consequences of a command believable, such as a room venting, a room repressurizing, or a room cooling after its HVAC loses power. The prototype does not test the physics.
 
 ## Goals
 
-- Simulate a three-room ship (cockpit, main room, cargo hold) whose atmosphere has pressure, temperature, and O₂, N₂ and CO₂ levels.
+- Simulate a fleet of ships, from a three-room skiff to a 43-room wheel, each with rooms whose atmosphere has pressure, temperature, and O₂, N₂ and CO₂ levels.
 - Keep the atmosphere livable with three automatic systems: pressure control, heating/cooling (HVAC) and a CO₂ recycler.
-- Model doors and a hatch, so that opening the hatch vents only the rooms connected to it through open doors.
+- Model doors and hatches, so that opening a hatch vents only the rooms connected to it through open doors.
 - Power every component through its own circuit breaker. A tripped breaker takes away that component's function.
-- Show everything on a dashboard, and control the ship only through a simple command line.
+- Show the ship in 3D with its readings on a dashboard, and control the ship only through a simple command line.
 
 ## Non-goals
 
-No player character, passenger movement, walking or first-person view. No power generation, batteries or load limits. No hull damage, fire, or gases other than O₂, N₂ and CO₂. No adiabatic cooling during venting. No art, audio or save/load. Any of these can come later.
+No player character, passenger movement or walking. No power generation, batteries or load limits. No hull damage, fire, or gases other than O₂, N₂ and CO₂. No adiabatic cooling during venting. No art, audio or save/load. Any of these can come later.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
 | Tech | Godot 4.7, GDScript, in `prototypes/console` (same setup as `prototypes/ship` and `prototypes/transit`) |
-| Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim advances it 0.1 s at a time, or 1 s at a time at 1 hour/s |
-| Rooms | `cockpit`, `main`, `cargo`, in a row |
-| Openings | `d1` (cockpit ↔ main), `d2` (main ↔ cargo), `hatch` (cargo ↔ outside) |
+| Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim advances it 0.1 s at a time, or 5 s at a time at 1 hour/s |
+| Ships | Each ship type is a class that subclasses `Ship`: `RingShip`, `SkiffShip`, `TugShip`, `FreighterShip` and `WheelShip` (see Ship layout) |
+| Rooms | A box with a size, a position and an orientation. At most six doors per room, one per face |
+| Openings | A door joins two rooms; a hatch joins a room to outside. A hatch is any opening whose id starts with `hatch` |
 | Life support reach | Each system reaches every room through its own ducts, so it works with every door closed |
-| Venting | Gas leaves through the open hatch. It reaches the hatch from other rooms only through open doors |
+| Venting | Gas leaves through an open hatch. It reaches the hatch from other rooms only through open doors |
 | Repressurizing | Pressure control refills a room on its own once that room no longer connects to the outside |
-| CO₂ source | Passengers, fixed in place (the ship starts with one in the cockpit and one in the main room). They breathe O₂, exhale CO₂ and give off heat. They are a load on the atmosphere, not characters |
-| Gas supply | Finite O₂ and N₂ tanks. Pressure control draws from them. The recycler turns the passengers' CO₂ back into O₂ and returns it to the O₂ tank, so while it runs the O₂ tank holds nearly steady. When the recycler is down, the O₂ tank empties as the passengers breathe. Gas lost through the hatch is gone for good |
-| Power | One unlimited ship bus. Each room light, each opening and each of the three life-support systems has its own breaker. The computer has no breaker |
+| CO₂ source | Passengers, fixed in place (each ship type starts with some, such as one in the skiff's cockpit and one in its cabin). They breathe O₂, exhale CO₂ and give off heat. They are a load on the atmosphere, not characters |
+| Gas supply | Finite O₂ and N₂ tanks. Pressure control draws from them. The recycler turns the passengers' CO₂ back into O₂ and returns it to the O₂ tank, so while it runs the O₂ tank holds nearly steady. When the recycler is down, the O₂ tank empties as the passengers breathe. Gas lost through a hatch is gone for good |
+| Power | One unlimited ship bus. Each room light, each door and hatch and each of the three life-support systems has its own breaker. The computer has no breaker |
 | Restart | A restart reboots a system: it goes offline for a few seconds, then comes back running. A restart clears a fault. It does not reset a breaker |
 | Breakers | Each breaker trips at random. A tripped breaker stays tripped until `breaker reset <breaker ID>` |
 | Faults | System faults happen only when injected with `debug fault`. `debug trip` trips a breaker on demand, so tests and demos don't wait on chance |
-| Door auto-close | When the hatch starts opening, every door except the hatch closes by itself. A door without power stays where it is |
-| IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
-| Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
+| Door auto-close | When a hatch starts opening, every door closes by itself. A door without power stays where it is |
+| IDs | Lowercase with no whitespace, so the command line can type them: rooms such as `cockpit` or `s0`; doors `<room>-<room>`; hatches `hatch` (the ring's are `hatch0` and `hatch6`); breakers as listed under Power. A ship refuses a room or opening id the command line cannot type, `outside`, or one that clashes with a breaker |
+| Randomness | Seeded from the ship's `seed` param, so the same seed and the same commands always give the same run |
 | Clock | Pause, and sim speeds of real time, 1 min/s and 1 hour/s |
-| Fleet | Several ships, one JSON file each in `data/ships/`, named by the file (`kestrel.json` is `kestrel`). The console starts disconnected and connects to one ship at a time. Every ship runs on the one clock whether or not the console is connected to it |
+| Fleet | One ship of each type, named `ring`, `skiff`, `tug`, `freighter` and `wheel`. The console starts disconnected and connects to one ship at a time. Every ship runs on the one clock whether or not the console is connected to it |
+| 3D view | The dashboard draws the connected ship as an orthographic 3D view; see Screen |
 
 ## Ship layout
 
+A ship is a class. `Ship` is the base: it holds the rooms, openings, systems, breakers and tanks and runs them. A ship type subclasses it, overrides `_build()` to add its rooms, doors and hatches, and may override `_param_overrides()` to change the params it runs on. The fleet is one of each type:
+
+| Type | Rooms | Doors | Hatches |
+|---|---|---|---|
+| `RingShip` | 12 segments `s0`…`s11`, each 10 × 5 m and 24.5 m long, round a ring 50 m out | 12, a ring: `s0-s1`…`s11-s0` | `hatch0` in `s0`, `hatch6` in `s6` |
+| `SkiffShip` | `cockpit`, `cabin`, `hold`, each 8 × 4 m, in a row | `cockpit-cabin`, `cabin-hold` | `hatch` in `hold` |
+| `TugShip` | 2 decks `deck1`, `deck2` (12 × 4 × 12 m), and a ladder pipe split into one segment per deck, `pipe1`, `pipe2` | `deck1-pipe1`, `deck2-pipe2`, `pipe1-pipe2` | `hatch` in `deck1` |
+| `FreighterShip` | as the tug with 4 decks and 4 pipe segments | 7 | `hatch` in `deck1` |
+| `WheelShip` | 3 rings of 12 segments (`a0`…`a11`, `b0`…`b11`, `c0`…`c11`), 6 spokes `spoke<ring><k>` (`spokea0`, `spokea6`, `spokeb0`, …) and the `hub` | 48: 36 ring doors `a0-a1`, 6 segment-to-spoke doors `a0-spokea0`, 6 spoke-to-hub doors `spokea0-hub` | `hatch` in `b3` |
+
+The tug and freighter share one class, `DeckShip`, which takes the deck count. A ring's segments hang from its axis: `s0` is the one straight down, and the number grows round the ring. A deck ship stacks its decks under thrust.
+
+**Naming.** A door is named for the two rooms it joins, `<room>-<room>`. Ring segments are `<prefix><k>`: `s` for the ring ship and `a`, `b` and `c` for the wheel's rings. Hatches start with `hatch`.
+
+**Six doors per room.** A room is a box, so it can have a door in each of its six faces: at most six doors per room, and a ship that gives a room more is an error. The Wheel's hub has exactly six, one to each of its six spokes. The ladder pipe is one segment per deck so that no pipe room needs more than three.
+
+**Hatches.** A hatch is any opening to outside. The ring has two; every other ship has one. A hatch has its own breaker and motor, and opening one closes every door.
+
+Skiff (not to scale):
+
 ```
- ┌──────────┐    ┌────────────────────┐    ┌──────────────┐
- │ COCKPIT  │ d1 │        MAIN        │ d2 │    CARGO     │ hatch
- │  12 m³   ├────┤        40 m³       ├────┤    30 m³     ├──────  outside (vacuum)
- │ pass. ×1 │    │     passengers ×1  │    │              │
- └──────────┘    └────────────────────┘    └──────────────┘
+ ┌──────────┐              ┌──────────────────┐              ┌──────────────┐
+ │ COCKPIT  │ cockpit-cabin│       CABIN      │  cabin-hold  │     HOLD     │ hatch
+ │  192 m³  ├──────────────┤      320 m³      ├──────────────┤    256 m³    ├──────  outside (vacuum)
+ │ crew ×1  │              │     crew ×1      │              │              │
+ └──────────┘              └──────────────────┘              └──────────────┘
 ```
 
-All three doors start closed, every light starts on, and every system starts running with every room at its setpoint.
+Every door and hatch starts closed, every light starts on, and every system starts running with every room at its setpoint.
+
+**Scale.** Door strength scales with the door's area: conductance, mixing and heat conductance are 10 m³/s, 0.5 m³/s and 100 W/K for a 1 × 2 m door, times the door's area over 2 m². A hatch is not scaled. Tank capacity and starting level, and pressure control's feed rate, scale with the ship's volume over 82 m³ (never below 1); the HVAC's gain and limit scale with each room's volume over 40 m³ (never below 1).
+
+**Adding a ship type.** Subclass `Ship`. Override `_build()` and call `add_room(id, size_m, position, orientation, crew)`, `add_door(id, room_a, face_a, room_b, face_b, size_m, at)` and `add_hatch(id, room, face)`; a door can name a room added later. Override `_param_overrides()` to return the params that differ from `Ship.default_params()` as a partial Dictionary. Add the type to `Fleet.standard()`.
 
 ## Atmosphere model
 
@@ -59,7 +85,7 @@ Each room holds:
 
 ```
 Room
-  id: String              # cockpit | main | cargo
+  id: String              # such as cockpit, s0 or deck1
   volume: float           # m³
   mol: {O2, N2, CO2}      # moles of each gas
   temperature: float      # K, of the room as a whole (air plus structure)
@@ -69,7 +95,7 @@ Room
 - **Composition** shows as each gas's share of the pressure. CO₂ shows as a partial pressure, since that is what passenger safety depends on.
 - **Temperature belongs to the room**, not only its air: the structure's heat capacity is far larger than the air's. So a room has a temperature even in vacuum, and gas flowing in or out doesn't change it.
 
-The sim steps every 0.1 s of sim time, or every 1 s at 1 hour/s so it keeps up with the clock. At 1 min/s it runs 600 steps per real second. Every rate below is in the data file and can be tuned.
+The sim steps every 0.1 s of sim time, or every 5 s at 1 hour/s so it keeps up with the clock. At 1 min/s it runs 600 steps per real second. Every rate below is a param of `Ship` and can be tuned.
 
 ### Setpoints
 
@@ -85,30 +111,30 @@ The sim steps every 0.1 s of sim time, or every 1 s at 1 hour/s so it keeps up w
 
 An opening has an **open fraction** from 0 (closed) to 1 (open). It changes over the opening's travel time, and every flow through it scales with that fraction.
 
-- **Door, bulk flow.** Gas moves from the higher-pressure room to the lower one: molar flow = `C_door × fraction × ΔP / (R T_source)`, with `C_door` = 10 m³/s. The gas carries the source room's composition. Two rooms at different pressures equalize in a few seconds.
-- **Door, mixing.** At equal pressure, an open door still swaps 0.5 m³/s of air each way, so CO₂ from the main room reaches an open cockpit. It also adds a heat conductance of 100 W/K between the two rooms.
-- **Hatch.** Gas leaves to vacuum at a volumetric rate `C_hatch × fraction`, with `C_hatch` = 5 m³/s, so a room's gas decays as `dn/dt = −n × C_hatch × fraction / V`. The cargo hold alone drops below 1 kPa in about 30 s. With both doors open, the whole ship's 82 m³ drains through the hatch, and the doors slow the flow toward the hatch, so it drops below 1 kPa in about 95 s.
+- **Door, bulk flow.** Gas moves from the higher-pressure room to the lower one: molar flow = `C_door × fraction × ΔP / (R T_source)`, with `C_door` = 10 m³/s for a 1 × 2 m door, scaled by the door's area. The gas carries the source room's composition. Two rooms at different pressures equalize in a few seconds.
+- **Door, mixing.** At equal pressure, an open door still swaps 0.5 m³/s of air each way, so CO₂ from one room reaches an open neighbour. It also adds a heat conductance of 100 W/K between the two rooms. Both scale with the door's area.
+- **Hatch.** Gas leaves to vacuum at a volumetric rate `C_hatch × fraction`, with `C_hatch` = 5 m³/s, so a room's gas decays as `dn/dt = −n × C_hatch × fraction / V`. A 30 m³ room alone drops below 1 kPa in about 30 s. With doors open, the rooms behind them drain through the hatch too, and the doors slow the flow toward it.
 
 ### Exposure
 
-A room is **exposed** when a path of openings that are at least partly open leads from it to the outside. Exposure is worked out on every step:
+A room is **exposed** when a path of openings that are at least partly open leads from it to the outside. Exposure is worked out on every step. On the skiff:
 
-| d1 | d2 | hatch | Exposed rooms |
+| cockpit-cabin | cabin-hold | hatch | Exposed rooms |
 |---|---|---|---|
 | any | any | closed | none |
-| any | closed | open | cargo |
-| closed | open | open | main, cargo |
+| any | closed | open | hold |
+| closed | open | open | cabin, hold |
 | open | open | open | all three |
 
 ### Heat
 
-Each room has a heat capacity of 5 kJ/K per m³. It loses heat through the hull to a fixed −20 °C at 0.5 W/K per m³. That loss is 820 W for the main room at setpoint, and an unheated room's temperature has a time constant of about 2.8 h.
+Each room has a heat capacity of 5 kJ/K per m³. It loses heat through the hull to a fixed −20 °C at 0.5 W/K per m³. That loss is 820 W for a 40 m³ room at setpoint, and an unheated room's temperature has a time constant of about 2.8 h.
 
 Heat sources: each passenger gives 100 W, each powered light that is on gives 40 W, and the HVAC adds or removes heat.
 
 ### Passengers
 
-The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 4 minutes at 1 min/s. The larger main room takes about 12 h.
+Each ship type starts with passengers in some rooms (the skiff has one in its cockpit and one in its cabin). Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, a 12 m³ room's CO₂ reaches the danger level in about 3.7 h of sim time, about 4 minutes at 1 min/s. A 40 m³ room takes about 12 h.
 
 `passenger add` and `passenger remove` change the count in a room, one at a time, and a room can go down to none. A room with no passengers uses no O₂, makes no CO₂ and gives off no body heat.
 
@@ -127,14 +153,14 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 
 ### Pressure control
 
-- For each room that is **not exposed**, it adds O₂ while ppO₂ is below setpoint and N₂ while ppN₂ is below setpoint, at up to 20 mol/s per gas per room. The cargo hold refills in about a minute.
+- For each room that is **not exposed**, it adds O₂ while ppO₂ is below setpoint and N₂ while ppN₂ is below setpoint, at up to 20 mol/s per gas per room. A 30 m³ room refills in about a minute.
 - **It never feeds an exposed room.** That is the breach response: gas sent into a room that is venting would be lost. When the hatch closes, or a door between the room and the hatch closes, the room stops being exposed, and refilling starts on the next step without any command.
 - Gas comes from the O₂ and N₂ tanks. An empty tank stops that gas only, and the dashboard flags the tank.
 - It only adds gas. It doesn't vent overpressure.
 
 ### Tanks
 
-| Tank | Capacity | Starts | Filled by | Drained by |
+| Tank | Capacity (at 82 m³) | Starts | Filled by | Drained by |
 |---|---|---|---|---|
 | O₂ | 3,000 mol | full | the recycler | pressure control, replacing O₂ the passengers breathe and O₂ lost to venting |
 | N₂ | 8,000 mol | full | nothing | pressure control, replacing N₂ lost to venting |
@@ -143,11 +169,11 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 - While the recycler keeps up, the O₂ tank loses only the gap between O₂ breathed and CO₂ exhaled: about 7 mol a day for two passengers, so it lasts more than a year.
 - With the recycler down, the O₂ tank drains at the full rate the passengers breathe, about 52 mol a day, so it empties in about 58 days. CO₂ reaches danger long before that.
 - A tank never fills past its capacity. The recycler's O₂ is discarded when the tank is full.
-- The two tanks hold enough to refill the whole ship about three times.
+- The two tanks hold enough to refill the whole ship about three times. Capacity grows with the ship's volume over 82 m³.
 
 ### HVAC
 
-- For each room, it heats or cools toward 21 °C with a proportional controller. The output is limited to ±1.5 kW per room, so a breached or freezing room recovers over minutes, not instantly.
+- For each room, it heats or cools toward 21 °C with a proportional controller. The output is limited to ±1.5 kW for a 40 m³ room (larger rooms get more, as does their gain), so a breached or freezing room recovers over minutes, not instantly.
 - It runs in exposed rooms too, since the room's temperature belongs to its structure.
 
 ### CO₂ recycler
@@ -162,14 +188,14 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 - While BOOTING, the computer refuses every ship command with `computer: rebooting; try again in <n> s`, and the dashboard shows *COMPUTER REBOOTING* over the panels. In FAULT, it refuses every ship command but `computer restart` with `computer: fault; only 'computer restart' works`, and the dashboard freezes at the values it last showed and is marked *STALE*. The sim keeps running underneath.
 - `computer restart` is still accepted in FAULT, so the computer can always be recovered. The console is separate hardware, so it keeps taking input while the computer is down: ship commands still travel, and the refusal comes back as the reply, with `; 'disconnect' also works` added by the console.
 
-### Doors and hatch
+### Doors and hatches
 
-- Each opening is CLOSED, OPENING, OPEN or CLOSING. Doors take 2 s to travel and the hatch 6 s.
+- Each opening is CLOSED, OPENING, OPEN or CLOSING. Doors take 2 s to travel and a hatch 6 s.
 - Opening or closing reverses an opening that is moving the other way.
 - With no power, an opening stays where it is, partly open included, and rejects commands.
-- **Auto-close.** When the hatch starts opening, every powered door that is open or opening starts closing. The doors take 2 s and the hatch 6 s, so a little air from the main room escapes before `d2` seals. The rule lives in the door controllers, so it works while the computer is down.
-- A door without power when the hatch opens stays open. That, or a door reopened by command while the hatch is open, is how the whole ship vents. The auto-close fires only when the hatch starts opening, so a command to reopen a door is obeyed, and the log warns that the door connects to an open hatch.
-- When the hatch opens with a door left open, the dashboard shows a warning and the log records it.
+- **Auto-close.** When a hatch starts opening, every powered door that is open or opening starts closing. The doors take 2 s and the hatch 6 s, so a little air from the next room escapes before its door seals. The rule lives in the door controllers, so it works while the computer is down.
+- A door without power when a hatch opens stays open. That, or a door reopened by command while a hatch is open, is how the whole ship vents. The auto-close fires only when a hatch starts opening, so a command to reopen a door is obeyed, and the log warns that the door opened onto an open hatch.
+- When a hatch opens with a door left open, the dashboard shows a warning and the log records it.
 
 ### Lights
 
@@ -179,24 +205,24 @@ Each room has one light with a switch that is on or off. A light shines only whe
 
 | Breaker ID | Component | Draw |
 |---|---|---|
-| `light-<room id>`, one per room (`light-cockpit`, `light-main`, `light-cargo`) | room lights | 40 W each when lit |
-| the id of each opening other than the hatch (`d1`, `d2`) | door motors | 5 W idle, 200 W moving |
-| `hatch` | hatch motor | 5 W idle, 500 W moving |
+| `light-<room id>`, one per room (`light-cockpit`, `light-cabin`, `light-hold`) | room lights | 40 W each when lit |
+| the id of each door (`cockpit-cabin`, `cabin-hold`) | door motors | 5 W idle, 200 W moving |
+| the id of each hatch (`hatch`) | hatch motors | 5 W idle, 500 W moving |
 | `pressure-control` | pressure control | 300 W |
 | `hvac` | HVAC | 200 W, plus the heat it moves |
 | `air-recycler` | CO₂ recycler | 800 W while scrubbing, 50 W idle |
 | — | computer, not on the breaker panel | 150 W |
 
-The breaker IDs are the names in the first column. Breakers come from the data file: a room adds its `light-<room id>` breaker and an opening adds a breaker with its own id, alongside the three fixed system breakers. Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
+The breaker IDs are the names in the first column. Breakers come from the ship's rooms and openings: a room adds its `light-<room id>` breaker and a door or hatch adds a breaker with its own id, alongside the three fixed system breakers. The skiff has nine breakers and the Wheel about ninety. Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
 
-A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's state and draw, and the total.
+A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows breaker states and draws (see Screen), and the whole ship's total.
 
 ### Random trips
 
-- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 2.7 minutes at 1 min/s.
-- A trip is checked on every step with probability `dt / mean_time_between_trips`. That rate is in the data file, and setting it to 0 turns random trips off.
+- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the skiff's nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 2.7 minutes at 1 min/s; the Wheel's trips come about ten times as often.
+- A trip is checked on every step with probability `dt / mean_time_between_trips`. That rate is the `breakers.mean_time_between_trips_h` param, and setting it to 0 turns random trips off.
 - A trip is logged and raises a warning on the dashboard.
-- The random source is seeded from the data file and draws once per breaker per step, so a run is repeatable.
+- The random source is seeded from the ship's `seed` param and draws once per breaker per step, so a run is repeatable.
 
 ## Command line
 
@@ -216,7 +242,7 @@ Connected, every command below except `help` goes to that ship, `help` is answer
 
 ### Ship commands
 
-A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, set in the ship file, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to kestrel; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints as `reply to '<line>': <reply>` when it lands, naming the command it answers. Before sending, the console checks the line's syntax against the ship's command table: an unknown command or the wrong number of arguments is answered at once with the interpreter's own `unknown command` or `usage:` text, and nothing is sent, whatever the computer's state; the ship checks argument values (room, door, breaker ids) on arrival. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` says `waiting on '<line>'; disconnect when the reply is in`. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
+A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, a param, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to skiff; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints as `reply to '<line>': <reply>` when it lands, naming the command it answers. Before sending, the console checks the line's syntax against the ship's command table: an unknown command or the wrong number of arguments is answered at once with the interpreter's own `unknown command` or `usage:` text, and nothing is sent, whatever the computer's state; the ship checks argument values (room, door, breaker ids) on arrival. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` says `waiting on '<line>'; disconnect when the reply is in`. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
 
 | Command | Effect |
 |---|---|
@@ -231,7 +257,7 @@ A ship command is transmitted. It reaches the ship after the ship's `transmissio
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands, with the door and room ids from the data file in place of `<door id>` and `<room id>`. *Added* |
+| `help` | List the commands, with the ship's door and room ids in place of `<door id>` and `<room id>`. *Added* |
 | `debug trip <breaker ID>` | Trip a breaker. *Added, for testing and demos* |
 | `debug fault <system>` | Put a system in FAULT. *Added, for testing and demos* |
 
@@ -239,46 +265,46 @@ Sample responses (each reply lands one round trip after its `sent to` line; the 
 
 ```
 > door open hatch
-sent to kestrel; reply in 16:00
+sent to skiff; reply in 16:00
 reply to 'door open hatch': hatch: opening (6 s)
 > door open hatch
-sent to kestrel; reply in 16:00
+sent to skiff; reply in 16:00
 reply to 'door open hatch': hatch: already open
-> door open d1
-sent to kestrel; reply in 16:00
-reply to 'door open d1': d1: no power (breaker tripped)
+> door open cabin-hold
+sent to skiff; reply in 16:00
+reply to 'door open cabin-hold': cabin-hold: no power (breaker tripped)
 > hvac restart
-sent to kestrel; reply in 16:00
+sent to skiff; reply in 16:00
 reply to 'hvac restart': hvac: rebooting (8 s)
 > hvac restart
-sent to kestrel; reply in 16:00
+sent to skiff; reply in 16:00
 reply to 'hvac restart': hvac: no power; reset breaker 'hvac' first
-> door shut d1
+> door shut cabin-hold
 unknown command 'door shut'. Type 'help' for commands
 ```
 
 ## Screen
 
 ```
-┌ console ───────────────┬ clock: ▶ 1 min/s   T+00:42:17 ────────────────────── ⚠ CARGO EXPOSED ┐
+┌ console ───────────────┬ clock: ▶ 1 min/s   T+00:42:17 ────────────────────── ⚠ HOLD EXPOSED ┐
 │                        │                                                                      │
-│                        │  ┌ COCKPIT ─────┐ d1 ┌ MAIN ────────┐ d2 ╔═CARGO════════╗ hatch      │
-│                        │  │              │ ▌▐ │              │ ▐▌ ║              ║ ◁▷ OPEN    │
-│                        │  └──────────────┘    └──────────────┘    ╚══════════════╝            │
+│                        │        ┌────────┐   ┌─────────────┐   ┌───────────┐                 │
+│                        │       ╱ COCKPIT ╱   ╱    CABIN    ╱   ╱   HOLD    ╱ ◁▷ hatch        │
+│                        │      └────────┘   └─────────────┘   └───────────┘                  │
+│                        │         (the ship in 3D; drag to orbit, wheel to zoom)               │
 │                        │                                                                      │
-│                        │  CARGO         SYSTEMS           BREAKERS           TANKS            │
-│                        │  0.4 kPa       pressure-control  light-cockpit ■ 40 W O₂ ██████░░ 78 %│
-│                        │  18.9 °C       hvac         RUN  light-main    ■ 40 W N₂ ███████░ 91 %│
-│                        │  O₂ —          air-recycler BOOT light-cargo   □ TRIP                 │
-│                        │  N₂ —          computer     RUN  d1 ■  d2 ■  hatch ■ ...              │
-│                        │  CO₂ —                           total 3.1 kW                         │
-│                        │  passengers 0                                                         │
-│                        │  light ○                                                              │
-│ > door open hatch      │                                                                       │
-│ sent to kestrel; ...   │  LOG                                                                 │
-│ uplink: ... — 3:12 left│  00:41:52  hatch opened; cargo exposed to vacuum                     │
-│ ███████░░░             │  00:41:52  pressure-control: not feeding cargo (exposed)             │
-│ downlink: waiting      │                                                                      │
+│                        │  HOLD          SYSTEMS           BREAKERS           TANKS            │
+│                        │  0.4 kPa       pressure-control  light-hold   ■ 40 W  O₂ ██████░░ 78 %│
+│                        │  18.9 °C       hvac         RUN  hatch        ■ 5 W   N₂ ███████░ 91 %│
+│                        │  O₂ —          air-recycler BOOT cabin-hold   ■ 5 W                   │
+│                        │  N₂ —          computer     RUN  pressure-control ■ 300 W             │
+│                        │  CO₂ —                           hvac ■ 200 W  air-recycler ■ 50 W    │
+│                        │  passengers 0                    light-cabin □ TRIP                   │
+│ > door open hatch      │  light ○                         total 3.1 kW                         │
+│ sent to skiff; ...     │                                                                      │
+│ uplink: ... — 3:12 left│  LOG                                                                 │
+│ ███████░░░             │  00:41:52  hatch opened; hold exposed to vacuum                      │
+│ downlink: waiting      │  00:41:52  pressure-control: not feeding hold (exposed)              │
 │ ░░░░░░░░░░             │                                                                      │
 │ > _                    │                                                                      │
 └────────────────────────┴──────────────────────────────────────────────────────────────────────┘
@@ -288,13 +314,14 @@ The sketch isn't to scale: the console takes the left 40% of the window, on a da
 
 - **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
 - **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
-- **Bad data file:** if any ship file in `data/ships/` can't be loaded, the window shows "Could not load data/ships/<file>: <problem>" in place of the dashboard (or "Could not load data/ships: <problem>" when the folder is missing or has no ship files), the sim doesn't run, and Esc still quits.
 - **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
-- **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
-- **Room order:** rooms draw left to right in the data file's order, each door between the rooms it joins (after the earlier of the two), so list the rooms in the order they connect.
-- **Room tiles:** each shows only the room's name. The border and name take the room's worst status color. A left click selects a room; the first room in the data file is selected at start, and its tile has a thicker border (drawn double in the sketch).
-- **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". While the computer reboots or is in FAULT the dashboard is frozen and room clicks do nothing.
-- **Systems, breakers and tanks** panels, as above. Breakers list in one column so the four panels fit one row with four rooms.
+- **3D view:** the connected ship, orthographic, under the clock bar and filling about half the dashboard's height. Each room is a see-through box tinted by its status, and the selected room's box is brighter. Each door and hatch is a panel on its wall, coloured by its state: closed, open, moving or without power. Each room's name is flat text at the room's centre that moves with the room and always faces the screen. A name that overlaps a higher-priority name is hidden until the view or the selection changes.
+- **View controls:** left-drag orbits the camera round the ship, the wheel zooms, and a click (press and release without dragging) selects the room under the cursor, or the room whose name is under it. Where rooms stand in front of one another, the nearest wins, and a room that holds the camera is not picked. While the computer reboots or is in FAULT the dashboard is frozen and clicks do nothing.
+- **Selection:** the first room of the ship is selected at start.
+- **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—".
+- **Systems and tanks** panels, as above.
+- **BREAKERS panel:** it lists, in this order, the selected room's breakers (its light, then the doors and hatches in its walls), the system breakers, then every tripped breaker anywhere on the ship that is not already listed. Each row shows the breaker's id with its state and draw. Selecting another room changes the list. The total under it is the whole ship's draw.
+- **Scrolling:** the panels sit in a scroll area under the 3D view, so a long breaker list scrolls instead of shrinking the view.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
 - **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. Between them sit two progress bars, `uplink` and `downlink`, each with a label: idle, or the command with its time left (`uplink: door open hatch — 3:12 left`). While the uplink runs the downlink reads `waiting`; while the reply comes back the uplink stays full and reads `sent`. Both read idle when disconnected. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
 
@@ -312,36 +339,27 @@ All text is 19 px, matching `prototypes/transit`, and the UI scales with the dis
 
 Colors: nominal is green, warning is amber and danger is red. A system in FAULT or NO POWER, and a tripped breaker, show amber.
 
-## Data file
-
-Each file in `data/ships/` is one ship, and the file name, which must be lowercase with no whitespace, is the ship's name. The shipped ones are `kestrel`, the three-room ship above, and `wren`, which adds a `treehouse` joined to the cockpit by `d0`. Each file holds:
-- each room's volume, its passenger count, and its starting gas and temperature
-- the openings, with which rooms each joins, its conductance and its travel time
-- the setpoints and status thresholds
-- every rate in this spec: pressure control's feed rate, the HVAC limit, recycler capacity, passenger metabolism, hull loss and heat capacity
-- tank capacities and starting levels
-- breaker draws and system boot times. The breakers themselves follow the rooms and openings: one light per room, one breaker per opening
-- the mean time between random trips, and the random seed
-
 ## Code structure
 
 - **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, passengers and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
 - **Command interpreter:** a pure function from a command string and the ship to the ship's changes and a response line. It holds no nodes and is tested headless.
-- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships`, `disconnect`, `help` and syntax errors (`CommandInterpreter.syntax_problem`) itself, and sends every other line to the ship's interpreter with the transmission delay. Main advances the whole fleet through `ShipLink.advance`.
-- **UI:** a thin layer of scenes for the clock bar, the schematic, the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
+- **Fleet and link:** `Fleet` holds the ships by name, builds one of each type with `Fleet.standard()`, and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships`, `disconnect`, `help` and syntax errors (`CommandInterpreter.syntax_problem`) itself, and sends every other line to the ship's interpreter with the transmission delay. Main advances the whole fleet through `ShipLink.advance`.
+- **Ship types:** one class per type in `scripts/ships/`, each a subclass of `Ship` that builds its rooms, doors and hatches in code.
+- **UI:** a thin layer of scenes for the clock bar, the 3D view (`ShipView3D`), the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
 - **Tests:** headless, with the same runner as `prototypes/transit/tests`. They cover:
   - pressure from moles and temperature, against hand-worked cases
   - two rooms equalizing through an open door, with the total moles conserved
   - a closed door passing nothing
   - the exposure table above, every row
-  - hatch open with `d2` closed: the cargo hold vents and the main room and cockpit are unchanged
+  - hatch open with `cabin-hold` closed: the hold vents and the cabin and cockpit are unchanged
   - the hatch opening: powered open doors close by themselves, and an unpowered open door stays open
   - hatch open with both doors unpowered and open: all three rooms vent
+  - each ship type: its rooms, doors and hatches, at most six doors per room, a 24 h steady state in range, and its hatches sealing and venting
   - a door reopened by command while the hatch is open: it stays open and the log warns
   - the recycler returning one mole of O₂ to the tank per mole of CO₂, and never past capacity
   - the O₂ tank holding nearly steady with the recycler running, and draining with it down
   - random trips: about the configured rate over a long run, none at rate 0, and the same seed giving the same trips
-  - the hatch closing: the cargo hold refills to setpoint on its own, with no command
+  - the hatch closing: the hold refills to setpoint on its own, with no command
   - pressure control never feeding an exposed room
   - an empty tank stopping only its own gas
   - the HVAC holding setpoint, and a room cooling with the HVAC unpowered
@@ -352,7 +370,9 @@ Each file in `data/ships/` is one ship, and the file name, which must be lowerca
   - an unpowered door holding its position, partly open included
   - a light's switch surviving a trip
   - adding a passenger raising a sealed room's CO₂ faster, a passenger adding `heat.passenger_w` of heat, and removing the last one stopping breathing in that room
-  - each room tile's passenger count, in the model and on the main screen after `passenger add`
+  - each room's passenger count, in the model and on the main screen after `passenger add`
+  - the 3D view: a box and a name per room, a panel per opening, status tints, picking, orbit, zoom and click
+  - the BREAKERS panel: the selected room's breakers, then the systems, then a breaker tripped elsewhere, and the list changing with the selection
   - each command's success and error responses
   - the same commands from the same start always giving the same state
 
