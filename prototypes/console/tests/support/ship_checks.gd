@@ -10,6 +10,7 @@ const _BANDS: Array[String] = ["pressure_kpa", "o2_kpa", "co2_kpa", "temperature
 const STEADY_STATE_S := 86400.0
 const _DOOR_SETTLE_S := 3.0
 const _HATCH_SETTLE_S := 7.0
+const _MAX_DOOR_BEND := PI / 6.0
 
 
 static func room_ids(ship: Ship) -> Array[String]:
@@ -64,10 +65,16 @@ static func unreachable_rooms(ship: Ship) -> Array[String]:
 	return missing
 
 
-## Openings whose position is not on the face of each room they name.
+## Openings whose position is not on the face of each room they name, and doors whose two faces
+## do not face each other. A ring's segments turn by 30 degrees at each door, so that much is allowed.
 static func misplaced_doors(ship: Ship) -> Array[String]:
 	var found: Array[String] = []
 	for door in ship.openings:
+		if not door.is_hatch():
+			var normal_a := ship.room(door.room_a).face_normal(door.face_a)
+			var normal_b := ship.room(door.room_b).face_normal(door.face_b)
+			if normal_a.angle_to(-normal_b) > _MAX_DOOR_BEND + 1e-4:
+				found.append("%s faces" % door.id)
 		var sides: Array = [[door.room_a, door.face_a]]
 		if not door.is_hatch():
 			sides.append([door.room_b, door.face_b])

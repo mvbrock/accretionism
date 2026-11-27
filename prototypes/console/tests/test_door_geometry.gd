@@ -28,6 +28,31 @@ func test_face_contains_a_point_on_the_face_only() -> void:
 	assert_true(not room.face_contains(Room.Face.PLUS_Z, Vector3(11, 0.5, 2.5)), "inside, off the face")
 	assert_true(not room.face_contains(Room.Face.PLUS_Z, Vector3(13, 0, 3)), "in the plane but off the face")
 
+func test_face_contains_its_own_centre_on_a_turned_room_50_m_out() -> void:
+	var ship := Ship.new()
+	var turn := Basis(Vector3.RIGHT, deg_to_rad(30.0))
+	var room := ship.add_room("a", Vector3(10, 5, 24.54), turn * Vector3(0, -45.8, 0), turn)
+	for face in [Room.Face.PLUS_Z, Room.Face.MINUS_Z, Room.Face.PLUS_Y, Room.Face.MINUS_Y]:
+		assert_true(room.face_contains(face, room.face_center(face)), "face %d centre" % face)
+	var off := room.face_center(Room.Face.MINUS_Z) + room.face_normal(Room.Face.MINUS_Z) * 0.01
+	assert_true(not room.face_contains(Room.Face.MINUS_Z, off), "a centimetre off the face")
+
+func test_a_door_between_faces_pointing_the_same_way_is_misplaced() -> void:
+	var ship := Ship.new()
+	ship.add_room("a", Vector3(2, 2, 2), Vector3.ZERO)
+	ship.add_room("b", Vector3(2, 2, 2), Vector3.ZERO)
+	ship.add_door("a-b", "a", Room.Face.PLUS_Z, "b", Room.Face.PLUS_Z)
+	assert_true(ShipChecks.misplaced_doors(ship) == (["a-b faces"] as Array[String]), "got %s" % [ShipChecks.misplaced_doors(ship)])
+
+func test_a_door_where_the_rooms_bend_by_30_degrees_is_in_place() -> void:
+	var ship := Ship.new()
+	var turn := Basis(Vector3.RIGHT, deg_to_rad(30.0))
+	var length := 2.0 * 10.0 * tan(deg_to_rad(15.0))
+	ship.add_room("a", Vector3(2, 2, length), Vector3(0, -10, 0))
+	ship.add_room("b", Vector3(2, 2, length), turn * Vector3(0, -10, 0), turn)
+	ship.add_door("a-b", "a", Room.Face.MINUS_Z, "b", Room.Face.PLUS_Z)
+	assert_true(ShipChecks.misplaced_doors(ship).is_empty(), "got %s" % [ShipChecks.misplaced_doors(ship)])
+
 func test_a_door_defaults_to_the_centre_of_its_first_rooms_face() -> void:
 	var ship := _ship_with_two_rooms()
 	var door := ship.add_door("a-b", "a", Room.Face.PLUS_Z, "b", Room.Face.MINUS_Z)

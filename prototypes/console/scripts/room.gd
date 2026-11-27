@@ -66,8 +66,9 @@ func face_center(face: Face) -> Vector3:
 	return position + orientation * (axis * (size * 0.5).dot(axis.abs()))
 
 
-## Whether `point` (ship space) lies on `face`: in its plane and within its edges.
-func face_contains(face: Face, point: Vector3, tolerance := 1e-6) -> bool:
+## Whether `point` (ship space) lies on `face`: in its plane and within its edges, to within
+## `tolerance` metres. Vector3 is float32, which stores a point 50 m out only to a few microns.
+func face_contains(face: Face, point: Vector3, tolerance := 1e-3) -> bool:
 	var local := orientation.inverse() * (point - position)
 	var axis := _axis(face)
 	var half := size * 0.5
