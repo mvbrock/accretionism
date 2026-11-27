@@ -9,20 +9,9 @@ var fader: OcclusionFader
 
 
 func _setup() -> void:
-	player = load("res://scenes/player.tscn").instantiate()
-	player.drive_by_code = true
-	own(player)
-	rig = CameraRig.new()
-	var camera := Camera3D.new()
-	camera.name = "Camera"
-	rig.add_child(camera)
-	rig.target = player
-	own(rig)
-	fader = OcclusionFader.new()
-	fader.camera = camera
-	fader.target = player
-	own(fader)
-	fader.set_process(false)
+	player = own_player()
+	rig = own_rig(player)
+	fader = own_fader(rig, player)
 	fleet = Fleet.new()
 	ring = RingShip.new()
 	ring.name = "Ring"

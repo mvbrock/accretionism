@@ -1,14 +1,9 @@
 extends TestCase
 
-const PLAYER_SCENE := "res://scenes/player.tscn"
-
 
 func _spawn(offset_along: float = 0.0, x: float = 0.0) -> Player:
 	var ship: Ship = own(RingShip.new())
-	var player: Player = load(PLAYER_SCENE).instantiate()
-	player.drive_by_code = true
-	player.ship = ship
-	own(player)
+	var player := own_player(ship)
 	# Spawn just above the flat floor of section 0 (its surface is at y = -apothem).
 	player.global_position = Vector3(x, -(RingGeometry.floor_apothem() - 0.05), 0) \
 			+ RingGeometry.section_tangent(0) * offset_along
@@ -112,13 +107,8 @@ func test_aim_at_faces_point() -> void:
 
 func test_aim_through_faces_the_spot_under_the_cursor() -> void:
 	var player := await _spawn()
-	var rig := CameraRig.new()
-	var camera := Camera3D.new()
-	camera.name = "Camera"
-	rig.add_child(camera)
-	rig.target = player
-	rig.ship = player.ship
-	own(rig)
+	var rig := own_rig(player, player.ship)
+	var camera: Camera3D = rig.get_node("Camera")
 	await physics_frames(1)
 	rig.snap()
 	var cursor := camera.unproject_position(player.global_position + Vector3(3, 0, 0))
@@ -259,16 +249,12 @@ func test_zero_g_without_floor_below_holds_height() -> void:
 
 
 func test_player_without_ship_logs_nothing() -> void:
-	var player: Player = load(PLAYER_SCENE).instantiate()
-	player.drive_by_code = true
-	own(player)
+	own_player()
 	await physics_frames(5)
 
 
 func _boarder() -> Player:
-	var player: Player = load(PLAYER_SCENE).instantiate()
-	player.drive_by_code = true
-	return own(player)
+	return own_player()
 
 
 func test_board_places_and_faces() -> void:

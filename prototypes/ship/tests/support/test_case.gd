@@ -48,6 +48,36 @@ func own(node: Node) -> Node:
 	return node
 
 
+## Adds a player driven by code. The ship is set before it enters the tree.
+func own_player(ship: Ship = null) -> Player:
+	var player: Player = load("res://scenes/player.tscn").instantiate()
+	player.drive_by_code = true
+	player.ship = ship
+	return own(player)
+
+
+## Adds a camera rig following `target`, with a Camera3D child named "Camera".
+func own_rig(target: Node3D, ship: Ship = null) -> CameraRig:
+	var rig := CameraRig.new()
+	var camera := Camera3D.new()
+	camera.name = "Camera"
+	rig.add_child(camera)
+	rig.target = target
+	rig.ship = ship
+	return own(rig)
+
+
+## Adds an occlusion fader looking through `rig`'s camera. Tests step it by hand.
+func own_fader(rig: CameraRig, target: Node3D, ship: Ship = null) -> OcclusionFader:
+	var fader := OcclusionFader.new()
+	fader.camera = rig.get_node("Camera")
+	fader.target = target
+	fader.ship = ship
+	own(fader)
+	fader.set_process(false)
+	return fader
+
+
 func physics_frames(count: int) -> void:
 	for i in count:
 		await tree.physics_frame

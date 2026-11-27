@@ -8,24 +8,10 @@ var fader: OcclusionFader
 
 func _setup(x: float = 0.0) -> void:
 	ship = own(RingShip.new())
-	player = load("res://scenes/player.tscn").instantiate()
-	player.drive_by_code = true
-	player.ship = ship
-	own(player)
+	player = own_player(ship)
 	player.global_position = Vector3(x, -(RingGeometry.floor_apothem() - 0.05), 0)
-	rig = CameraRig.new()
-	var camera := Camera3D.new()
-	camera.name = "Camera"
-	rig.add_child(camera)
-	rig.target = player
-	rig.ship = ship
-	own(rig)
-	fader = OcclusionFader.new()
-	fader.camera = camera
-	fader.target = player
-	fader.ship = ship
-	own(fader)
-	fader.set_process(false)  # the tests step it by hand
+	rig = own_rig(player, ship)
+	fader = own_fader(rig, player, ship)
 	await physics_frames(3)
 	rig.snap()
 
