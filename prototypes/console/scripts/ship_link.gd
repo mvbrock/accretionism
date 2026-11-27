@@ -109,7 +109,7 @@ func _respond_disconnected(words: PackedStringArray) -> String:
 func _ships(words: PackedStringArray) -> String:
 	var sub := words[1] if words.size() > 1 else ""
 	if sub == "list" and words.size() == 2:
-		return "ships: " + ", ".join(fleet.names())
+		return "\n".join(fleet.names())
 	if sub == "connect" and words.size() == 3:
 		if not fleet.ships.has(words[2]):
 			return "unknown ship '%s'. Ships: %s" % [words[2], ", ".join(fleet.names())]

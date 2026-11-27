@@ -20,7 +20,7 @@
 - Every tunable number in the spec lives in `data/ship.json`. Scripts hold no copies of them.
 - All randomness comes from one `RandomNumberGenerator` seeded from the data file.
 - Text is 19 px (`gui/theme/default_font_size=19`), the window is 1600×900, and the UI scales with the display's HiDPI factor the way `prototypes/transit/scripts/ui/main.gd` does.
-- Every command prints exactly one line, except `help`.
+- Every command prints exactly one line, except `help` and `ships list` (one line per ship).
 - Tests: `godot --headless --path . --import` once (and after adding a `class_name` script), then `godot --headless --path . -s res://tests/run_tests.gd [-- <filter>]`. The runner prints `ok:` or `FAIL:` per test and ends with `N passed, M failed`. A test that logs an unexpected error fails.
 - Commits are prefixed `shipsim: `.
 

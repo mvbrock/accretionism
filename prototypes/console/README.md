@@ -19,7 +19,7 @@ Space pauses every ship unless the command line has focus, connected or not; the
 
 ## Commands
 
-Commands and IDs are case-insensitive. A ship command prints `sent to <ship>; reply in <round trip>` at once, then its one-line reply when it lands, as `reply to '<line>': <reply>`; `help` prints one line per command.
+Commands and IDs are case-insensitive. A ship command prints `sent to <ship>; reply in <round trip>` at once, then its one-line reply when it lands, as `reply to '<line>': <reply>`; `help` prints one line per command and `ships list` one line per ship.
 
 The console starts disconnected. Connect to a ship to see its dashboard and command it:
 
