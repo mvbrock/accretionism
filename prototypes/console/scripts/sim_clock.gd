@@ -2,9 +2,8 @@ class_name SimClock
 extends RefCounted
 ## Turns real time into sim time at a chosen speed, or none while paused.
 
-## Each speed: sim seconds per real second, its label, and the sim step that goes with it. The
-## step is a whole multiple of `Ship.STEP_S`; a long step at the fastest speed keeps the sim ahead
-## of the clock.
+## A long step at the fastest speed keeps the sim ahead of the clock, so each speed (sim seconds
+## per real second, with its label) carries its own step, a whole multiple of `Ship.STEP_S`.
 const _SPEED_TABLE: Array[Dictionary] = [
 	{"speed": 1.0, "label": "real time", "step_s": Ship.STEP_S},
 	{"speed": 60.0, "label": "1 min/s", "step_s": Ship.STEP_S},
