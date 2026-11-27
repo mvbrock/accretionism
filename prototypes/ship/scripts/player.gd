@@ -33,7 +33,7 @@ var aim_camera: Camera3D
 var gravity_enabled := true
 
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
-var _heading := Vector2(0, 1)
+var heading := Vector2(0, 1)
 ## Zero-g velocity along the floor, ship-relative like `aim_heading` (m/s).
 var _drift := Vector2.ZERO
 
@@ -50,6 +50,7 @@ static func ensure_input_actions() -> void:
 		"move_left": KEY_A,
 		"move_right": KEY_D,
 		"toggle_gravity": KEY_G,
+		"next_ship": KEY_TAB,
 	}
 	for action: String in bindings:
 		if InputMap.has_action(action):
@@ -93,8 +94,23 @@ func set_gravity_enabled(enabled: bool) -> void:
 	motion_mode = MOTION_MODE_GROUNDED if enabled else MOTION_MODE_FLOATING
 
 
+## Puts the body aboard `new_ship` at `at`, facing `facing`, at rest and already tipped to match
+## its gravity (a ship without gravity overrides `with_gravity`).
+func board(new_ship: Ship, at: Vector3, facing: Vector2, with_gravity: bool) -> void:
+	ship = new_ship
+	global_position = at
+	heading = facing
+	aim_heading = Vector2.ZERO
+	velocity = Vector3.ZERO
+	set_gravity_enabled(with_gravity and new_ship.has_gravity())
+	_pivot.rotation.x = _wanted_tip()
+	_shape.transform = _pivot.transform
+	_orient(ship.up_at(global_position))
+	reset_physics_interpolation()
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_gravity"):
+	if event.is_action_pressed("toggle_gravity") and ship != null and ship.has_gravity():
 		set_gravity_enabled(not gravity_enabled)
 
 
@@ -109,8 +125,8 @@ func _physics_process(delta: float) -> void:
 
 	var up := ship.up_at(global_position)
 	up_direction = up
-	var right := Vector2(_heading.y, -_heading.x)
-	var push := (_heading * move_input.y + right * move_input.x).limit_length(1.0) * walk_speed
+	var right := Vector2(heading.y, -heading.x)
+	var push := (heading * move_input.y + right * move_input.x).limit_length(1.0) * walk_speed
 	if not gravity_enabled and push != Vector2.ZERO:
 		_drift = push
 	var ship_velocity := push if gravity_enabled else _drift
@@ -135,9 +151,13 @@ func _physics_process(delta: float) -> void:
 		apply_floor_snap()
 
 	_orient(ship.up_at(global_position))
-	var tip := 0.0 if gravity_enabled else -PI / 2.0
-	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, tip, 1.0 - exp(-TIP_SHARPNESS * delta))
+	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, _wanted_tip(), 1.0 - exp(-TIP_SHARPNESS * delta))
 	_shape.transform = _pivot.transform
+
+
+## The pivot's tilt about X: upright with gravity, lying horizontal without.
+func _wanted_tip() -> float:
+	return 0.0 if gravity_enabled else -PI / 2.0
 
 
 ## Unit direction perpendicular to both up and world X (the way a heading's y points).
@@ -149,10 +169,10 @@ func _turn_toward_aim(delta: float) -> void:
 	if aim_heading == Vector2.ZERO:
 		return
 	# Turn by an angle; a lerp can't turn through 180°.
-	var turn := _heading.angle_to(aim_heading)
+	var turn := heading.angle_to(aim_heading)
 	if absf(turn) > PI - 0.01:
 		turn = PI - 0.01  # exactly opposite: pick a side so the turn is visible
-	_heading = _heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
+	heading = heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
 
 
 ## Distance from the body's origin down to the floor beneath it, measured perpendicular to the
@@ -167,9 +187,9 @@ func _height_above_floor(up: Vector3) -> float:
 	return (global_position - hit.position).dot(hit.normal)
 
 
-## Stands the body upright along `up` and faces it along `_heading`.
+## Stands the body upright along `up` and faces it along `heading`.
 func _orient(up: Vector3) -> void:
 	if up.length_squared() < 0.5:
 		return  # on the spin axis (e.g. before being placed): no meaningful "up"
-	var back := -(Vector3.RIGHT * _heading.x + up.cross(Vector3.RIGHT) * _heading.y)
+	var back := -(Vector3.RIGHT * heading.x + up.cross(Vector3.RIGHT) * heading.y)
 	global_basis = Basis(up.cross(back), up, back)

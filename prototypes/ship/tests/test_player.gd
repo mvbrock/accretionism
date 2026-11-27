@@ -91,7 +91,7 @@ func test_wall_stops_player_at_seam() -> void:
 
 func test_ensure_input_actions() -> void:
 	Player.ensure_input_actions()
-	for action in ["move_forward", "move_back", "move_left", "move_right", "toggle_gravity"]:
+	for action in ["move_forward", "move_back", "move_left", "move_right", "toggle_gravity", "next_ship"]:
 		assert_true(InputMap.has_action(action), "%s registered" % action)
 
 
@@ -263,3 +263,55 @@ func test_player_without_ship_logs_nothing() -> void:
 	player.drive_by_code = true
 	own(player)
 	await physics_frames(5)
+
+
+func _boarder() -> Player:
+	var player: Player = load(PLAYER_SCENE).instantiate()
+	player.drive_by_code = true
+	return own(player)
+
+
+func test_board_places_and_faces() -> void:
+	var ship: Ship = own(RingShip.new())
+	var player := _boarder()
+	var spawn := ship.spawn_point()
+	player.board(ship, spawn, Vector2(1, 0), true)
+	await physics_frames(2)
+	assert_near(player.global_position.distance_to(spawn), 0.0, 0.1, "placed at the spawn point")
+	assert_true(player.heading.distance_to(Vector2(1, 0)) < 0.01, "faces across (%s)" % player.heading)
+	assert_true(player.gravity_enabled, "has gravity")
+
+
+func test_board_clears_drift() -> void:
+	var player := await _spawn()
+	await _float(player)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(10)
+	player.move_input = Vector2.ZERO
+	var spawn := player.ship.spawn_point()
+	player.board(player.ship, spawn, Vector2(0, 1), false)
+	await physics_frames(60)
+	var up := player.ship.up_at(spawn)
+	var offset := player.global_position - spawn
+	offset -= up * offset.dot(up)
+	assert_true(offset.length() < 0.05, "did not drift (%.3f)" % offset.length())
+
+
+func test_board_without_gravity_floats() -> void:
+	var ship: Ship = own(SkiffShip.new())
+	var player := _boarder()
+	player.board(ship, ship.spawn_point(), Vector2(0, 1), true)
+	assert_true(not player.gravity_enabled, "no gravity aboard the skiff")
+	assert_near(player.get_node("Pivot").rotation.x, -PI / 2.0, 0.01, "tipped horizontal at once")
+
+
+func test_g_does_nothing_without_gravity() -> void:
+	var ship: Ship = own(SkiffShip.new())
+	var player := _boarder()
+	player.board(ship, ship.spawn_point(), Vector2(0, 1), true)
+	Player.ensure_input_actions()
+	var event := InputEventAction.new()
+	event.action = "toggle_gravity"
+	event.pressed = true
+	player._unhandled_input(event)
+	assert_true(not player.gravity_enabled, "G leaves zero-g alone on the skiff")
