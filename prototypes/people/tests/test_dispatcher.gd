@@ -78,24 +78,31 @@ func test_express_alternates_earth_mars() -> void:
 func test_tender_meets_every_flyby() -> void:
 	var planned := _planned()
 	var fleet: Fleet = planned.fleet
+	var flybys_checked := 0
 	for cycler in fleet.cyclers:
-		var probe := Config.WARMUP_START + 2.0
-		while probe < WINDOW_END - 2.0:
+		var probe := Config.WARMUP_START
+		while probe < WINDOW_END + Config.TENDER_LEAD_DAYS:
 			var leg := cycler.leg_at(probe)
 			probe = leg.end_day + 1e-6
 			var flyby: float = leg.end_day
-			if flyby < Config.WARMUP_START + 2.0 or flyby > WINDOW_END - 2.0:
+			var depart_day := flyby - Config.TENDER_LEAD_DAYS
+			if depart_day <= Config.WARMUP_START or depart_day > WINDOW_END:
 				continue
-			var met := false
-			var out_trip: Trip = null
-			for trip: Trip in planned.schedule.trips:
-				if fleet.service_of[trip.ship] == "tender" and is_same(trip.to, cycler) \
-						and trip.arrive_day < flyby and trip.depart_day <= flyby:
-					out_trip = trip
-					for back: Trip in planned.schedule.trips_of(trip.ship):
-						if is_same(back.from, cycler) and back.depart_day > flyby and back.depart_day > trip.arrive_day:
-							met = true
-			assert_true(met, "%s flyby on day %.1f is met" % [cycler.name, flyby])
+			flybys_checked += 1
+			assert_true(_some_tender_meets(planned, cycler, leg.to, flyby), "%s flyby at %s on day %.1f is met" % [cycler.name, Orbits.body_name(leg.to), flyby])
+	assert_true(flybys_checked > 0, "the window has flybys")
+
+
+## True when one tender flies to `cycler` arriving before `flyby` and flies on
+## its next trip from the cycler back to `planet`, departing after `flyby`.
+func _some_tender_meets(planned: Dictionary, cycler: Cycler, planet: Orbits.Body, flyby: float) -> bool:
+	for trip: Trip in planned.schedule.trips:
+		if planned.fleet.service_of[trip.ship] != "tender" or not is_same(trip.to, cycler) or trip.arrive_day >= flyby:
+			continue
+		var back: Trip = planned.schedule.next_trip_of(trip.ship, trip.depart_day)
+		if back != null and is_same(back.from, cycler) and back.to == planet and back.depart_day > flyby:
+			return true
+	return false
 
 
 func test_trips_chain() -> void:
