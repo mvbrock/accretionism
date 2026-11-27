@@ -229,3 +229,36 @@ func test_the_whole_fleet_advances_through_the_link() -> void:
 	link.advance(5.0, 0.1)
 	for ship in link.fleet.ships.values():
 		assert_near((ship as Ship).time_s, 5.0, 1e-6, "every ship advanced")
+
+
+func test_an_unknown_command_is_answered_at_once_and_not_sent() -> void:
+	var link := _connected()
+	var response := link.run("dor open hatch")
+	assert_true(response == "unknown command 'dor open'. Type 'help' for commands", "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_the_wrong_argument_count_is_answered_at_once_and_not_sent() -> void:
+	var link := _connected()
+	var response := link.run("door open")
+	assert_true(response.begins_with("usage: door open <"), "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+	response = link.run("hvac restart now")
+	assert_true(response == "usage: hvac restart", "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_a_typo_is_caught_while_the_computer_is_down() -> void:
+	var link := _connected()
+	(link.ship().systems[Ship.COMPUTER_ID] as SystemUnit).state = SystemUnit.State.FAULT
+	assert_true(link.run("dor open hatch").begins_with("unknown command"), "the console checks, not the computer")
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_a_bad_room_id_is_still_sent_and_refused_on_arrival() -> void:
+	var link := _connected()
+	var response := link.run("light on nowhere")
+	assert_true(response.begins_with("sent to kestrel"), "got '%s'" % response)
+	assert_true(link.in_flight(), "in flight")
+	var replies := link.advance(21.0, 0.1)
+	assert_true(replies[0].begins_with("reply to 'light on nowhere': unknown room"), "got '%s'" % replies[0])

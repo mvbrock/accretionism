@@ -2,7 +2,8 @@ class_name ShipLink
 extends RefCounted
 ## The console's connection to one ship of the fleet. Disconnected, the console
 ## can only list ships and connect to one. Connected, `ships`, `disconnect` and
-## `help` are answered by the console at once; every other line is sent to that
+## `help` are answered by the console at once, as is a line with an unknown command
+## or the wrong argument count; every other line is sent to that
 ## ship's command interpreter. It takes the ship's `transmission_s` to arrive, runs
 ## then, and its reply takes as long to come back. One line is in flight at a time.
 ## `disconnect` works even while the ship's computer is down, since the link is the
@@ -132,6 +133,9 @@ func _respond_connected(words: PackedStringArray, line: String) -> String:
 		return "connected to %s; type 'disconnect' first" % ship_name
 	if words.size() == 1 and words[0] == "help":
 		return CommandInterpreter.help_text(ship()) + "\ndisconnect — Disconnect from %s" % ship_name
+	var problem := CommandInterpreter.syntax_problem(ship(), line)
+	if problem != "":
+		return problem
 	if in_flight():
 		return "waiting on '%s'; one command at a time" % _line
 	_line = line.strip_edges()
