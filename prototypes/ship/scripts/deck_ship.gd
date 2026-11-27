@@ -25,7 +25,7 @@ const SOLID_FLOOR := WORLD_LAYER | FLOOR_LAYER | OCCLUDER_LAYER
 func _ready() -> void:
 	for i in deck_count:
 		add_child(_build_deck(i))
-	add_child(_build_pipe())
+	_add_rungs()
 	ladders.append(_build_ladder())
 
 
@@ -33,11 +33,24 @@ func spawn_point() -> Vector3:
 	return Vector3(-2, 0.05, -2)
 
 
+## The deck at height `p.y`, clamped to the stack.
+func deck_at(p: Vector3) -> int:
+	return clampi(floori(p.y / PITCH), 0, deck_count - 1)
+
+
+## The decks above the one holding `p`.
+func cutaway_nodes(p: Vector3) -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	for j in range(deck_at(p) + 1, deck_count):
+		nodes.append(get_node("Deck%d" % j))
+	return nodes
+
+
 ## "Pipe" inside the shaft, otherwise the deck at height `p.y`.
 func room_at(p: Vector3) -> String:
 	if absf(p.x - PIPE_CENTER.x) < PIPE_INNER and absf(p.z - PIPE_CENTER.y) < PIPE_INNER:
 		return "Pipe"
-	return "Deck%d" % clampi(floori(p.y / PITCH), 0, deck_count - 1)
+	return "Deck%d" % deck_at(p)
 
 
 func _build_deck(i: int) -> Node3D:
@@ -72,6 +85,7 @@ func _build_deck(i: int) -> Node3D:
 				trim, WALL))
 		add_room_bound(room, deck.get_node("Roof"), Vector3.UP)
 
+	_add_pipe_segment(deck, i)
 	deck.add_child(make_light(Vector3(0, top - 0.6, 0), 14.0))
 	deck.add_child(make_crate("Crate0", 1.0, Transform3D(Basis.IDENTITY, Vector3(-4.5, base + 0.5, 3.5))))
 	deck.add_child(make_crate("Crate1", 1.0, Transform3D(Basis.IDENTITY, Vector3(-3.5, base + 0.5, -4.5))))
@@ -101,30 +115,31 @@ func _add_slab(parent: Node3D, prefix: String, y0: float, color: Color, layers: 
 	return panels
 
 
-## The shaft walls on every deck, the doorway blockers and the rungs.
-func _build_pipe() -> Node3D:
-	var pipe := Node3D.new()
-	pipe.name = "Pipe"
+## Deck i's shaft walls and doorway blocker.
+func _add_pipe_segment(deck: Node3D, i: int) -> void:
 	var o := PIPE_OUTER
 	var cx := PIPE_CENTER.x
 	var cz := PIPE_CENTER.y
-	for i in deck_count:
-		var y0 := i * PITCH
-		var y1 := y0 + (HEIGHT if i == deck_count - 1 else PITCH)
-		var door_top := y0 + DOOR_HEIGHT
-		var trim := trim_color(i, deck_count)
-		# [name, lo, hi, outward]. The side walls span the -Z wall's corners, so it is only a lintel over the doorway.
-		var pieces := [
-			["Left%d" % i, Vector3(cx - o, y0, cz - o), Vector3(cx - PIPE_INNER, y1, cz + o), Vector3.LEFT],
-			["Right%d" % i, Vector3(cx + PIPE_INNER, y0, cz - o), Vector3(cx + o, y1, cz + o), Vector3.RIGHT],
-			["Aft%d" % i, Vector3(cx - PIPE_INNER, y0, cz + PIPE_INNER), Vector3(cx + PIPE_INNER, y1, cz + o), Vector3.BACK],
-			["Lintel%d" % i, Vector3(cx - PIPE_INNER, door_top, cz - o), Vector3(cx + PIPE_INNER, y1, cz - PIPE_INNER), Vector3.FORWARD],
-		]
-		for piece in pieces:
-			var panel := make_panel(piece[0], box_points(piece[1], piece[2]), trim, WALL)
-			pipe.add_child(panel)
-			add_room_bound("Pipe", panel, piece[3])
-		pipe.add_child(_build_hatch(i, y0, door_top))
+	var y0 := i * PITCH
+	var y1 := y0 + (HEIGHT if i == deck_count - 1 else PITCH)
+	var door_top := y0 + DOOR_HEIGHT
+	var trim := trim_color(i, deck_count)
+	# [name, lo, hi, outward]. The side walls span the -Z wall's corners, so it is only a lintel over the doorway.
+	var pieces := [
+		["PipeLeft", Vector3(cx - o, y0, cz - o), Vector3(cx - PIPE_INNER, y1, cz + o), Vector3.LEFT],
+		["PipeRight", Vector3(cx + PIPE_INNER, y0, cz - o), Vector3(cx + o, y1, cz + o), Vector3.RIGHT],
+		["PipeAft", Vector3(cx - PIPE_INNER, y0, cz + PIPE_INNER), Vector3(cx + PIPE_INNER, y1, cz + o), Vector3.BACK],
+		["PipeLintel", Vector3(cx - PIPE_INNER, door_top, cz - o), Vector3(cx + PIPE_INNER, y1, cz - PIPE_INNER), Vector3.FORWARD],
+	]
+	for piece in pieces:
+		var panel := make_panel(piece[0], box_points(piece[1], piece[2]), trim, WALL)
+		deck.add_child(panel)
+		add_room_bound("Pipe", panel, piece[3])
+	deck.add_child(_build_hatch(y0, door_top))
+
+
+## The ladder's rungs, each under the deck whose height span holds it.
+func _add_rungs() -> void:
 	var rungs := int(floor(_ladder_length() / RUNG_SPACING)) + 1
 	var rung_material := StandardMaterial3D.new()
 	rung_material.albedo_color = RUNG_COLOR
@@ -135,15 +150,15 @@ func _build_pipe() -> Node3D:
 		box.size = Vector3(2.0 * PIPE_INNER - 0.2, 0.04, 0.04)
 		rung.mesh = box
 		rung.material_override = rung_material
-		rung.position = Vector3(cx, 0.05 + k * RUNG_SPACING, cz + PIPE_INNER - 0.06)
-		pipe.add_child(rung)
-	return pipe
+		var y := 0.05 + k * RUNG_SPACING
+		rung.position = Vector3(PIPE_CENTER.x, y, PIPE_CENTER.y + PIPE_INNER - 0.06)
+		get_node("Deck%d" % deck_at(Vector3(0, y, 0))).add_child(rung)
 
 
-## An invisible blocker filling deck i's pipe doorway, on the hatch layer only.
-func _build_hatch(i: int, y0: float, door_top: float) -> StaticBody3D:
+## An invisible blocker filling a pipe doorway, on the hatch layer only.
+func _build_hatch(y0: float, door_top: float) -> StaticBody3D:
 	var hatch := StaticBody3D.new()
-	hatch.name = "Hatch%d" % i
+	hatch.name = "Hatch"
 	hatch.collision_layer = HATCH_LAYER
 	hatch.collision_mask = 0
 	var shape := CollisionShape3D.new()

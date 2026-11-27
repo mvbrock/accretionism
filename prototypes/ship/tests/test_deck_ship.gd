@@ -30,6 +30,23 @@ func test_rooms() -> void:
 	assert_true(ship.room_at(Vector3(0, 50, 0)) == "Deck1", "clamped to the top deck")
 
 
+func test_cutaway_hides_decks_above() -> void:
+	var ship := await _make_ship(3)
+	var d := [ship.get_node("Deck0"), ship.get_node("Deck1"), ship.get_node("Deck2")]
+	assert_true(ship.cutaway_nodes(Vector3(0, 1, 0)) == [d[1], d[2]], "lowest deck hides the two above")
+	assert_true(ship.cutaway_nodes(Vector3(0, PITCH + 1, 0)) == [d[2]], "middle deck hides the top")
+	assert_true(ship.cutaway_nodes(Vector3(0, 2 * PITCH + 1, 0)).is_empty(), "top deck hides nothing")
+	assert_true(ship.cutaway_nodes(Vector3(3.5, PITCH + 0.1, 3.5)) == [d[2]], "in the pipe above deck 1's floor")
+
+
+func test_each_deck_owns_its_pipe_segment() -> void:
+	var ship := await _make_ship(3)
+	assert_true(ship.get_node_or_null("Deck1/PipeLeft") != null, "Deck1 owns PipeLeft")
+	assert_true(ship.get_node_or_null("Deck1/Hatch") != null, "Deck1 owns Hatch")
+	assert_true(not ship.get_node("Deck1").find_children("Rung*", "", false, false).is_empty(), "Deck1 owns rungs")
+	assert_true(ship.get_node_or_null("Pipe") == null, "no separate Pipe node")
+
+
 func test_floors() -> void:
 	await _make_ship()
 	var low := _ray(Vector3(0, 3, 0), Vector3(0, -1, 0), Ship.FLOOR_LAYER)
