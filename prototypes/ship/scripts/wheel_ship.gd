@@ -78,6 +78,17 @@ func room_at(p: Vector3) -> String:
 	return ""
 
 
+## Every ring wholly on the camera's side (+X) of `p`, with its spokes: they would cover the view of the player.
+func cutaway_nodes(p: Vector3) -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	for ring in RING_CENTERS.size():
+		if RING_CENTERS[ring] - RingGeometry.HALF_WIDTH - SLAB > p.x:
+			nodes.append(get_node("Ring%d" % ring))
+			for k: int in SPOKE_SECTIONS:
+				nodes.append(get_node("Spoke%d_%d" % [ring, k]))
+	return nodes
+
+
 static func hub_floor_apothem() -> float:
 	return HUB_CORNER_RADIUS * cos(RingGeometry.HALF_ANGLE)
 

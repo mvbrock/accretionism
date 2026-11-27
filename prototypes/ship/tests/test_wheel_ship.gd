@@ -114,3 +114,33 @@ func test_climb_spoke_into_hub_floats() -> void:
 	assert_true(player.gravity_enabled, "gravity back in the ring")
 	await physics_frames(30)
 	assert_true(player.is_on_floor(), "standing on the ring floor")
+
+
+## The names of the nodes `ship.cutaway_nodes(p)` returns.
+func _cutaway_names(ship: WheelShip, p: Vector3) -> Array:
+	var names := []
+	for node in ship.cutaway_nodes(p):
+		names.append(str(node.name))
+	names.sort()
+	return names
+
+
+func _ring_with_spokes(ring: int) -> Array:
+	var names := ["Ring%d" % ring]
+	for k: int in WheelShip.SPOKE_SECTIONS:
+		names.append("Spoke%d_%d" % [ring, k])
+	return names
+
+
+func test_cutaway_hides_rings_on_the_camera_side() -> void:
+	var ship := await _make_ship()
+	var expected := _ring_with_spokes(2)
+	expected.sort()
+	assert_true(_cutaway_names(ship, ship.spawn_point()) == expected, "ring 1 hides ring 2 and its spokes")
+	expected = _ring_with_spokes(1) + _ring_with_spokes(2)
+	expected.sort()
+	assert_true(_cutaway_names(ship, Vector3(-24, -47, 0)) == expected, "ring 0 hides rings 1 and 2")
+	assert_true(_cutaway_names(ship, Vector3(24, -47, 0)).is_empty(), "ring 2 hides nothing")
+	expected = _ring_with_spokes(2)
+	expected.sort()
+	assert_true(_cutaway_names(ship, Vector3(2.5, -8, 0)) == expected, "the hub hides ring 2 and its spokes")
