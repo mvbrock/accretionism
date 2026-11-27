@@ -5,6 +5,20 @@ func _link() -> ShipLink:
 	return ShipLink.new(Fleet.load_dir(Main.SHIPS_DIR))
 
 
+func _connected(transmission_s := 10.0) -> ShipLink:
+	var link := _link()
+	for ship in link.fleet.ships.values():
+		(ship as Ship).transmission_s = transmission_s
+	link.run("ships connect kestrel")
+	return link
+
+
+func _round_trip(link: ShipLink, line: String) -> String:
+	link.run(line)
+	var replies := link.advance(link.ship().transmission_s * 2.0 + 1.0, 0.1)
+	return replies[0] if not replies.is_empty() else ""
+
+
 func test_ships_list() -> void:
 	var response := _link().run("ships list")
 	assert_true(response == "kestrel\nwren", "got '%s'" % response)
@@ -46,8 +60,8 @@ func test_disconnected_help_lists_the_ships_commands() -> void:
 func test_connected_commands_reach_only_that_ship() -> void:
 	var link := _link()
 	link.run("ships connect wren")
-	assert_true(link.run("door open hatch") == "hatch: opening (6 s)", "the ship's interpreter answers")
-	assert_true(link.fleet.ships.wren.opening("hatch").state == Opening.State.OPENING, "wren's hatch opens")
+	assert_true(_round_trip(link, "door open hatch") == "reply to 'door open hatch': hatch: opening (6 s)", "the ship's interpreter answers")
+	assert_true(link.fleet.ships.wren.opening("hatch").state != Opening.State.CLOSED, "wren's hatch opens")
 	assert_true(link.fleet.ships.kestrel.opening("hatch").state == Opening.State.CLOSED, "kestrel's stays shut")
 
 
@@ -68,33 +82,183 @@ func test_disconnect() -> void:
 
 
 func test_disconnect_works_while_the_computer_is_down() -> void:
-	var link := _link()
-	link.run("ships connect kestrel")
-	link.run("debug fault computer")
+	var link := _connected(0.0)
+	_round_trip(link, "debug fault computer")
 	assert_true(link.run("disconnect") == "disconnected from kestrel", "FAULT doesn't hold the link")
 	link.run("ships connect kestrel")
-	link.run("computer restart")
+	_round_trip(link, "computer restart")
 	assert_true(link.run("disconnect") == "disconnected from kestrel", "BOOTING doesn't hold the link")
 
 
-func test_connected_help_adds_disconnect() -> void:
-	var link := _link()
-	link.run("ships connect kestrel")
+func test_connected_help_is_local_and_adds_disconnect() -> void:
+	var link := _connected()
 	var response := link.run("help")
 	assert_true(response.begins_with("door open"), "the ship's commands come first, got '%s'" % response.get_slice("\n", 0))
 	assert_true(response.ends_with("\ndisconnect — Disconnect from kestrel"), "disconnect comes last")
-	link.run("computer restart")
+	assert_true(not link.in_flight(), "nothing was sent")
+	link.ship().systems[Ship.COMPUTER_ID].restart(true)
 	response = link.run("help")
-	assert_true(response.begins_with("computer: rebooting") and response.ends_with("; 'disconnect' also works"),
-			"a booting computer refuses help and says disconnect still works, got '%s'" % response)
+	assert_true(response.begins_with("door open") and not response.contains("rebooting"),
+			"a booting computer doesn't refuse help, got '%s'" % response)
 
 
 func test_fault_refusal_mentions_disconnect() -> void:
-	var link := _link()
-	link.run("ships connect kestrel")
-	link.run("debug fault computer")
-	var response := link.run("door open hatch")
-	assert_true(response == "computer: fault; only 'computer restart' works; 'disconnect' also works", "got '%s'" % response)
-	response = link.run("computer restart")
-	assert_true(response.begins_with("computer: rebooting (") and not response.contains("disconnect"),
+	var link := _connected(0.0)
+	_round_trip(link, "debug fault computer")
+	var response := _round_trip(link, "door open hatch")
+	assert_true(response == "reply to 'door open hatch': computer: fault; only 'computer restart' works; 'disconnect' also works", "got '%s'" % response)
+	response = _round_trip(link, "computer restart")
+	assert_true(response.begins_with("reply to 'computer restart': computer: rebooting (") and not response.contains("disconnect"),
 			"the restart is accepted, with no hint, got '%s'" % response)
+
+
+func test_sending_reports_the_round_trip() -> void:
+	var link := _connected(480.0)
+	var response := link.run("door open hatch")
+	assert_true(response == "sent to kestrel; reply in 16:00", "got '%s'" % response)
+	assert_true(link.ship().opening("hatch").state == Opening.State.CLOSED, "nothing has reached the ship yet")
+
+
+func test_command_runs_at_the_exact_landing_time() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	var replies := link.advance(9.9, 0.1)
+	assert_true(replies.is_empty(), "still in flight")
+	assert_true(link.ship().opening("hatch").state == Opening.State.CLOSED, "not yet")
+	replies = link.advance(0.1, 0.1)
+	assert_true(replies.is_empty(), "the reply is still on its way")
+	assert_true(link.ship().opening("hatch").state == Opening.State.OPENING, "the hatch moves when the uplink lands")
+	assert_near(link.ship().time_s, 10.0, 1e-6, "the ship is at the landing time")
+
+
+func test_reply_lands_after_the_downlink() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	link.advance(19.9, 0.1)
+	var replies := link.advance(0.1, 0.1)
+	assert_true(replies == PackedStringArray(["reply to 'door open hatch': hatch: opening (6 s)"]), "got %s" % [replies])
+	assert_true(not link.in_flight(), "the link is free again")
+	assert_true(link.line() == "", "the line is cleared once the reply lands")
+
+
+func test_one_advance_can_land_both_legs() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	var replies := link.advance(50.0, 0.1)
+	assert_true(replies.size() == 1, "one reply, got %d" % replies.size())
+	assert_near(link.ship().time_s, 50.0, 1e-6, "the ship got the whole advance")
+
+
+func test_the_computer_refusal_is_decided_on_arrival() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	link.advance(5.0, 0.1)
+	link.ship().systems[Ship.COMPUTER_ID].restart(true)
+	var replies := link.advance(20.0, 0.1)
+	assert_true(replies.size() == 1 and replies[0].begins_with("reply to 'door open hatch': computer: rebooting") and replies[0].ends_with("; 'disconnect' also works"),
+			"got %s" % [replies])
+	assert_true(link.ship().opening("hatch").state == Opening.State.CLOSED, "the refused command did nothing")
+
+
+func test_a_ready_computer_at_arrival_accepts_a_command_sent_while_down() -> void:
+	var link := _connected(30.0)
+	link.ship().systems[Ship.COMPUTER_ID].restart(true)
+	link.run("door open hatch")
+	var replies := link.advance(70.0, 0.1)
+	assert_true(replies == PackedStringArray(["reply to 'door open hatch': hatch: opening (6 s)"]), "booted by arrival (20 s boot), got %s" % [replies])
+
+
+func test_a_second_command_is_refused_while_one_is_in_flight() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	var response := link.run("light off cargo")
+	assert_true(response == "waiting on 'door open hatch'; one command at a time", "got '%s'" % response)
+	link.advance(10.0, 0.1)
+	assert_true(link.run("light off cargo") == "waiting on 'door open hatch'; one command at a time", "busy during the downlink too")
+
+
+func test_disconnect_is_refused_in_flight() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	var response := link.run("disconnect")
+	assert_true(response == "waiting on 'door open hatch'; disconnect when the reply is in", "got '%s'" % response)
+	assert_true(link.ship_name == "kestrel", "still connected")
+	link.advance(20.0, 0.1)
+	assert_true(link.run("disconnect") == "disconnected from kestrel", "free once the reply is in")
+
+
+func test_console_commands_stay_instant_in_flight() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	assert_true(link.run("ships list") == "connected to kestrel; type 'disconnect' first", "ships is answered at once")
+	assert_true(link.run("help").begins_with("door open"), "help is answered at once")
+
+
+func test_zero_transmission_replies_on_the_next_advance() -> void:
+	var link := _connected(0.0)
+	var response := link.run("door open hatch")
+	assert_true(response == "sent to kestrel; reply in 0:00", "got '%s'" % response)
+	assert_true(link.ship().opening("hatch").state == Opening.State.CLOSED, "nothing runs before an advance")
+	var replies := link.advance(0.0, 0.1)
+	assert_true(replies == PackedStringArray(["reply to 'door open hatch': hatch: opening (6 s)"]), "got %s" % [replies])
+
+
+func test_phase_and_leg_progress_follow_each_leg() -> void:
+	var link := _connected(10.0)
+	assert_true(link.phase() == ShipLink.Phase.IDLE, "idle")
+	assert_near(link.leg_fraction(), 0.0, 1e-9, "no progress when idle")
+	assert_near(link.leg_left_s(), 0.0, 1e-9, "no time left when idle")
+	link.run("door open hatch")
+	link.advance(4.0, 0.1)
+	assert_true(link.phase() == ShipLink.Phase.UPLINK, "uplink first")
+	assert_true(link.line() == "door open hatch", "the line, got '%s'" % link.line())
+	assert_near(link.leg_fraction(), 0.4, 1e-6, "40% up")
+	assert_near(link.leg_left_s(), 6.0, 1e-6, "6 s left up")
+	link.advance(8.0, 0.1)
+	assert_true(link.phase() == ShipLink.Phase.DOWNLINK, "then downlink")
+	assert_near(link.leg_fraction(), 0.2, 1e-6, "20% down")
+	assert_near(link.leg_left_s(), 8.0, 1e-6, "8 s left down")
+	link.advance(8.0, 0.1)
+	assert_true(link.phase() == ShipLink.Phase.IDLE and link.line() == "", "idle again")
+	assert_near(link.leg_fraction(), 0.0, 1e-9, "progress is back at 0")
+	assert_near(link.leg_left_s(), 0.0, 1e-9, "time left is back at 0")
+
+
+func test_the_whole_fleet_advances_through_the_link() -> void:
+	var link := _link()
+	link.advance(5.0, 0.1)
+	for ship in link.fleet.ships.values():
+		assert_near((ship as Ship).time_s, 5.0, 1e-6, "every ship advanced")
+
+
+func test_an_unknown_command_is_answered_at_once_and_not_sent() -> void:
+	var link := _connected()
+	var response := link.run("dor open hatch")
+	assert_true(response == "unknown command 'dor open'. Type 'help' for commands", "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_the_wrong_argument_count_is_answered_at_once_and_not_sent() -> void:
+	var link := _connected()
+	var response := link.run("door open")
+	assert_true(response.begins_with("usage: door open <"), "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+	response = link.run("hvac restart now")
+	assert_true(response == "usage: hvac restart", "got '%s'" % response)
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_a_typo_is_caught_while_the_computer_is_down() -> void:
+	var link := _connected()
+	(link.ship().systems[Ship.COMPUTER_ID] as SystemUnit).state = SystemUnit.State.FAULT
+	assert_true(link.run("dor open hatch").begins_with("unknown command"), "the console checks, not the computer")
+	assert_true(not link.in_flight(), "nothing was sent")
+
+
+func test_a_bad_room_id_is_still_sent_and_refused_on_arrival() -> void:
+	var link := _connected()
+	var response := link.run("light on nowhere")
+	assert_true(response.begins_with("sent to kestrel"), "got '%s'" % response)
+	assert_true(link.in_flight(), "in flight")
+	var replies := link.advance(21.0, 0.1)
+	assert_true(replies[0].begins_with("reply to 'light on nowhere': unknown room"), "got '%s'" % replies[0])

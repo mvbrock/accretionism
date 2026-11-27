@@ -20,3 +20,15 @@ static func celsius(kelvin: float) -> float:
 
 static func whole_seconds_left(seconds: float) -> int:
 	return ceili(seconds - SECONDS_EPSILON)
+
+
+## `m:ss`, or `h:mm:ss` from an hour up; a part second counts as a whole one.
+static func duration_text(seconds: float) -> String:
+	var total := whole_seconds_left(seconds)
+	@warning_ignore("integer_division")
+	var hours := total / 3600
+	@warning_ignore("integer_division")
+	var minutes := (total % 3600) / 60
+	if hours > 0:
+		return "%d:%02d:%02d" % [hours, minutes, total % 60]
+	return "%d:%02d" % [minutes, total % 60]

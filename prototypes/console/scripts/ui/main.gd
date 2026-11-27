@@ -3,7 +3,7 @@ extends Control
 ## Wires the fleet, the clock, the dashboard and the console. The console starts
 ## disconnected; the dashboard shows the ship it connects to. Every ship runs on
 ## the one clock. Space pauses unless the command line has focus; Esc quits.
-## Screenshot mode: godot --path . -- --capture <dir>   (runs at 100x, connects to
+## Screenshot mode: godot --path . -- --capture <dir>   (runs at 1 min/s, connects to
 ## the first ship, opens the hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
 const SHIPS_DIR := "res://data/ships"
@@ -96,6 +96,7 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
 ## Disconnected: no dashboard, only NO SHIP CONNECTED.
 func refresh() -> void:
+	console.link_status.show_link(link)
 	no_ship_label.visible = ship == null
 	if ship == null:
 		overlay.visible = false
@@ -119,7 +120,8 @@ func _process(delta: float) -> void:
 	var sim_seconds := clock.tick(delta)
 	if _capture != null:
 		sim_seconds = _capture.limit(sim_seconds)
-	fleet.advance(sim_seconds)
+	for reply in link.advance(sim_seconds, clock.step_s()):
+		console.print_line(reply)
 	refresh()
 	if _capture != null:
 		_capture.step()
@@ -241,7 +243,7 @@ func _toggle_pause() -> void:
 
 
 func _next_speed() -> void:
-	clock.speed_index = (clock.speed_index + 1) % SimClock.SPEEDS.size()
+	clock.speed_index = (clock.speed_index + 1) % SimClock.speed_count()
 	refresh()
 
 
@@ -249,7 +251,7 @@ func _next_speed() -> void:
 ## rate: the clock is cut short at each stop, paused a few frames for the shot,
 ## then resumed.
 class CaptureScript:
-	const SPEED_INDEX := 2
+	const SPEED_INDEX := 1
 	const VENT_STOP_S := 20.0
 	const REFILL_STOP_S := 120.0
 	## Frames to let the redraw reach the screen before saving.

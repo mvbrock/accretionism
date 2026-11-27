@@ -204,3 +204,23 @@ func test_room_named_outside_is_reported() -> void:
 	data.rooms[0].id = "outside"
 	data.openings[0].between = ["outside", "main"]
 	_assert_rejected(data, "room id 'outside' is reserved")
+
+
+func test_negative_transmission_is_reported() -> void:
+	var data := _data()
+	data.transmission_s = -1
+	expect_error("transmission_s")
+	assert_true(ShipLoader.from_dict(data) == null, "no ship from bad data")
+
+
+func test_transmission_defaults_to_eight_minutes() -> void:
+	var ship := ShipLoader.from_dict(_data())
+	assert_near(ship.transmission_s, 480.0, 1e-9, "no key means 8 minutes")
+
+
+func test_transmission_is_read_from_the_file() -> void:
+	var data := _data()
+	data.transmission_s = 90
+	assert_near(ShipLoader.from_dict(data).transmission_s, 90.0, 1e-9, "the file's value")
+	data.transmission_s = 0
+	assert_near(ShipLoader.from_dict(data).transmission_s, 0.0, 1e-9, "zero is allowed")

@@ -36,7 +36,7 @@ No player character, passenger movement, walking or first-person view. No power 
 | Door auto-close | When the hatch starts opening, every door except the hatch closes by itself. A door without power stays where it is |
 | IDs | Short: rooms `cockpit`, `main`, `cargo`; openings `d1`, `d2`, `hatch`; breakers as listed under Power. Room and opening ids come from the data file; these are the shipped ones |
 | Randomness | Seeded from the data file, so the same seed and the same commands always give the same run |
-| Clock | Pause, 1×, 10× and 100× sim speed |
+| Clock | Pause, and sim speeds of real time, 1 min/s and 1 hour/s |
 | Fleet | Several ships, one JSON file each in `data/ships/`, named by the file (`kestrel.json` is `kestrel`). The console starts disconnected and connects to one ship at a time. Every ship runs on the one clock whether or not the console is connected to it |
 
 ## Ship layout
@@ -69,7 +69,7 @@ Room
 - **Composition** shows as each gas's share of the pressure. CO₂ shows as a partial pressure, since that is what passenger safety depends on.
 - **Temperature belongs to the room**, not only its air: the structure's heat capacity is far larger than the air's. So a room has a temperature even in vacuum, and gas flowing in or out doesn't change it.
 
-The sim steps every 0.1 s of sim time. At 100× it runs 1,000 steps per real second. Every rate below is in the data file and can be tuned.
+The sim steps every 0.1 s of sim time, or every 1 s at 1 hour/s so it keeps up with the clock. At 1 min/s it runs 600 steps per real second. Every rate below is in the data file and can be tuned.
 
 ### Setpoints
 
@@ -108,7 +108,7 @@ Heat sources: each passenger gives 100 W, each powered light that is on gives 40
 
 ### Passengers
 
-The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 2 minutes at 100×. The larger main room takes about 12 h.
+The ship starts with one passenger in the cockpit and one in the main room. Each passenger uses 3.0 × 10⁻⁴ mol/s of O₂ and makes 2.6 × 10⁻⁴ mol/s of CO₂, about 0.84 kg and 1.0 kg a day. Consumption stops when the room's O₂ runs out. Passengers can't be hurt and never move. With the recycler off and the doors closed, the cockpit's CO₂ reaches the danger level in about 3.7 h of sim time, about 4 minutes at 1 min/s. The larger main room takes about 12 h.
 
 `passenger add` and `passenger remove` change the count in a room, one at a time, and a room can go down to none. A room with no passengers uses no O₂, makes no CO₂ and gives off no body heat.
 
@@ -193,14 +193,14 @@ A breaker is CLOSED (powered) or TRIPPED. The dashboard shows each breaker's sta
 
 ### Random trips
 
-- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 1.6 minutes at 100×.
+- Each closed breaker trips at random, on average once every 24 h of sim time, independently of the others. With the shipped nine breakers, the ship sees a trip about every 2.7 h of sim time, about every 2.7 minutes at 1 min/s.
 - A trip is checked on every step with probability `dt / mean_time_between_trips`. That rate is in the data file, and setting it to 0 turns random trips off.
 - A trip is logged and raises a warning on the dashboard.
 - The random source is seeded from the data file and draws once per breaker per step, so a run is repeatable.
 
 ## Command line
 
-One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. Every command prints one line saying what happened, or why it didn't, except `ships list`, which prints one line per ship.
+One line of input, with a scrollback above it that shows each command and its response. Up and down arrows recall earlier commands. Commands and IDs are case-insensitive. A ship command prints `sent to <ship>; reply in <round trip>` at once, then its one-line reply when it lands, as `reply to '<line>': <reply>`; `help` prints one line per command and `ships list` one line per ship.
 
 ### Connecting
 
@@ -212,9 +212,11 @@ The console starts disconnected. Disconnected, only these work; any other comman
 | `ships connect <ship name>` | Connect to that ship. Its dashboard replaces "NO SHIP CONNECTED" |
 | `help` | List these two |
 
-Connected, every command below goes to that ship, `help` also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
+Connected, every command below except `help` goes to that ship, `help` is answered by the console and also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
 
 ### Ship commands
+
+A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, set in the ship file, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to kestrel; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints as `reply to '<line>': <reply>` when it lands, naming the command it answers. Before sending, the console checks the line's syntax against the ship's command table: an unknown command or the wrong number of arguments is answered at once with the interpreter's own `unknown command` or `usage:` text, and nothing is sent, whatever the computer's state; the ship checks argument values (room, door, breaker ids) on arrival. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` says `waiting on '<line>'; disconnect when the reply is in`. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
 
 | Command | Effect |
 |---|---|
@@ -233,19 +235,24 @@ Connected, every command below goes to that ship, `help` also lists `disconnect`
 | `debug trip <breaker ID>` | Trip a breaker. *Added, for testing and demos* |
 | `debug fault <system>` | Put a system in FAULT. *Added, for testing and demos* |
 
-Sample responses:
+Sample responses (each reply lands one round trip after its `sent to` line; the unknown command is answered at once):
 
 ```
 > door open hatch
-hatch: opening (6 s)
+sent to kestrel; reply in 16:00
+reply to 'door open hatch': hatch: opening (6 s)
 > door open hatch
-hatch: already open
+sent to kestrel; reply in 16:00
+reply to 'door open hatch': hatch: already open
 > door open d1
-d1: no power (breaker tripped)
+sent to kestrel; reply in 16:00
+reply to 'door open d1': d1: no power (breaker tripped)
 > hvac restart
-hvac: rebooting (8 s)
+sent to kestrel; reply in 16:00
+reply to 'hvac restart': hvac: rebooting (8 s)
 > hvac restart
-hvac: no power; reset breaker 'hvac' first
+sent to kestrel; reply in 16:00
+reply to 'hvac restart': hvac: no power; reset breaker 'hvac' first
 > door shut d1
 unknown command 'door shut'. Type 'help' for commands
 ```
@@ -253,7 +260,7 @@ unknown command 'door shut'. Type 'help' for commands
 ## Screen
 
 ```
-┌ console ───────────────┬ clock: ▶ 10×   T+00:42:17 ────────────────────────── ⚠ CARGO EXPOSED ┐
+┌ console ───────────────┬ clock: ▶ 1 min/s   T+00:42:17 ────────────────────── ⚠ CARGO EXPOSED ┐
 │                        │                                                                      │
 │                        │  ┌ COCKPIT ─────┐ d1 ┌ MAIN ────────┐ d2 ╔═CARGO════════╗ hatch      │
 │                        │  │              │ ▌▐ │              │ ▐▌ ║              ║ ◁▷ OPEN    │
@@ -267,11 +274,13 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │  CO₂ —                           total 3.1 kW                         │
 │                        │  passengers 0                                                         │
 │                        │  light ○                                                              │
-│                        │                                                                       │
-│ > door open hatch      │  LOG                                                                 │
-│ hatch: opening (6 s)   │  00:41:52  hatch opened; cargo exposed to vacuum                     │
-│ > _                    │  00:41:52  pressure-control: not feeding cargo (exposed)             │
-│                        │                                                                      │
+│ > door open hatch      │                                                                       │
+│ sent to kestrel; ...   │  LOG                                                                 │
+│ uplink: ... — 3:12 left│  00:41:52  hatch opened; cargo exposed to vacuum                     │
+│ ███████░░░             │  00:41:52  pressure-control: not feeding cargo (exposed)             │
+│ downlink: waiting      │                                                                      │
+│ ░░░░░░░░░░             │                                                                      │
+│ > _                    │                                                                      │
 └────────────────────────┴──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -280,14 +289,14 @@ The sketch isn't to scale: the console takes the left 40% of the window, on a da
 - **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
 - **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
 - **Bad data file:** if any ship file in `data/ships/` can't be loaded, the window shows "Could not load data/ships/<file>: <problem>" in place of the dashboard (or "Could not load data/ships: <problem>" when the folder is missing or has no ship files), the sim doesn't run, and Esc still quits.
-- **Clock bar:** pause/play, speed (1×, 10×, 100×), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
+- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
 - **Ship schematic:** a tile per room and a symbol per opening, showing its state and how far open it is.
 - **Room order:** rooms draw left to right in the data file's order, each door between the rooms it joins (after the earlier of the two), so list the rooms in the order they connect.
 - **Room tiles:** each shows only the room's name. The border and name take the room's worst status color. A left click selects a room; the first room in the data file is selected at start, and its tile has a thicker border (drawn double in the sketch).
 - **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". While the computer reboots or is in FAULT the dashboard is frozen and room clicks do nothing.
 - **Systems, breakers and tanks** panels, as above. Breakers list in one column so the four panels fit one row with four rooms.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
-- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
+- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. Between them sit two progress bars, `uplink` and `downlink`, each with a label: idle, or the command with its time left (`uplink: door open hatch — 3:12 left`). While the uplink runs the downlink reads `waiting`; while the reply comes back the uplink stays full and reads `sent`. Both read idle when disconnected. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
 
@@ -318,7 +327,7 @@ Each file in `data/ships/` is one ship, and the file name, which must be lowerca
 
 - **Simulation core:** plain GDScript classes, no nodes. It holds the rooms, openings, exposure, systems, breakers, tanks, passengers and the clock, and is stepped by `step(dt)`. Everything that can be tested lives here.
 - **Command interpreter:** a pure function from a command string and the ship to the ship's changes and a response line. It holds no nodes and is tested headless.
-- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships` and `disconnect` itself, and passes every other line to the interpreter.
+- **Fleet and link:** `Fleet` loads every ship file and advances them all; `ShipLink` holds which ship the console is connected to, answers `ships`, `disconnect`, `help` and syntax errors (`CommandInterpreter.syntax_problem`) itself, and sends every other line to the ship's interpreter with the transmission delay. Main advances the whole fleet through `ShipLink.advance`.
 - **UI:** a thin layer of scenes for the clock bar, the schematic, the panels, the log and the command line. It reads the core's state and sends it commands through the interpreter.
 - **Tests:** headless, with the same runner as `prototypes/transit/tests`. They cover:
   - pressure from moles and temperature, against hand-worked cases

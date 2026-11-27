@@ -42,19 +42,44 @@ static func computer_refusal(ship: Ship, key: String) -> String:
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
 	var commands := _build_commands(ship)
-	var key := " ".join(words.slice(0, 2))
-	if not commands.has(key) and commands.has(words[0]):
-		key = words[0]
-	var arg_count := words.size() - key.count(" ") - 1
+	var key := _command_key(commands, words)
 	var refusal := computer_refusal(ship, key)
 	if refusal != "":
 		return refusal
+	var problem := _syntax_problem(commands, key, words)
+	if problem != "":
+		return problem
+	return commands[key].handler.call(ship, words.slice(words.size() - _arg_count(key, words)))
+
+
+## What the ship would answer to a line it can't parse: an unknown command or the
+## wrong number of arguments. Empty when the line is well-formed; argument values
+## are not checked, and the computer's state doesn't matter.
+static func syntax_problem(ship: Ship, line: String) -> String:
+	var line_words := words(line)
+	if line_words.is_empty():
+		return ""
+	var commands := _build_commands(ship)
+	return _syntax_problem(commands, _command_key(commands, line_words), line_words)
+
+
+static func _command_key(commands: Dictionary, words: PackedStringArray) -> String:
+	var key := " ".join(words.slice(0, 2))
+	if not commands.has(key) and commands.has(words[0]):
+		key = words[0]
+	return key
+
+
+static func _arg_count(key: String, words: PackedStringArray) -> int:
+	return words.size() - key.count(" ") - 1
+
+
+static func _syntax_problem(commands: Dictionary, key: String, words: PackedStringArray) -> String:
 	if not commands.has(key):
 		return "unknown command '%s'. Type 'help' for commands" % " ".join(words.slice(0, 2))
-	var command: Dictionary = commands[key]
-	if arg_count != command.args:
-		return "usage: " + command.usage
-	return command.handler.call(ship, words.slice(words.size() - arg_count))
+	if _arg_count(key, words) != commands[key].args:
+		return "usage: " + commands[key].usage
+	return ""
 
 
 ## The usage lines list the ship's own door and room ids.
@@ -84,6 +109,11 @@ static func _add(commands: Dictionary, key: String, usage: String, effect: Strin
 
 
 static func _help(ship: Ship, _args: PackedStringArray) -> String:
+	return help_text(ship)
+
+
+## One line per command. Unlike `run`, it never waits on the ship's computer.
+static func help_text(ship: Ship) -> String:
 	var lines := PackedStringArray()
 	var commands := _build_commands(ship)
 	for key in commands:

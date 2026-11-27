@@ -55,7 +55,7 @@ func _init() -> void:
 
 func show_clock(clock: SimClock) -> void:
 	pause_button.text = "Play" if clock.paused else "Pause"
-	speed_button.text = "Speed: %d×" % int(SimClock.SPEEDS[clock.speed_index])
+	speed_button.text = "Speed: %s" % clock.speed_label()
 
 
 func show_ship(ship: Ship) -> void:

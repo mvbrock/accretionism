@@ -13,7 +13,7 @@ func test_loads_every_shipped_ship_by_file_name() -> void:
 
 func test_advance_runs_every_ship() -> void:
 	var fleet := Fleet.load_dir(Main.SHIPS_DIR)
-	fleet.advance(2.0)
+	fleet.advance(2.0, Ship.STEP_S)
 	for ship_name in fleet.ships:
 		assert_near(fleet.ships[ship_name].time_s, 2.0, 1e-6, "%s advanced" % ship_name)
 

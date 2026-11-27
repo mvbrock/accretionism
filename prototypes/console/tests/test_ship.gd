@@ -194,3 +194,19 @@ func test_passenger_adds_body_heat() -> void:
 	var rise_k := more.room("cargo").temperature - base.room("cargo").temperature
 	var expected_k: float = 2.0 * more.params.heat.passenger_w * 60.0 / more.room("cargo").heat_capacity
 	assert_near(rise_k, expected_k, expected_k * 0.01, "each passenger adds heat.passenger_w")
+
+func test_advance_at_a_one_second_step_runs_whole_seconds() -> void:
+	var ship := ShipFixture.make()
+	assert_true(ship.advance(2.5, 1.0) == 2, "2.5 s holds two 1 s steps")
+	assert_near(ship.time_s, 2.0, 1e-9, "time_s counts the steps run")
+	assert_true(ship.advance(0.5, 1.0) == 1, "the carried half second completes a step")
+	assert_near(ship.time_s, 3.0, 1e-9, "time_s exact")
+
+func test_pending_time_carries_across_a_change_of_step_size() -> void:
+	var ship := ShipFixture.make()
+	ship.advance(0.55, 1.0)
+	assert_near(ship.time_s, 0.0, 1e-9, "no whole 1 s step yet")
+	assert_true(ship.advance(0.0) == 5, "the carried 0.55 s holds five 0.1 s steps")
+	assert_near(ship.time_s, 0.5, 1e-9, "time_s after the small steps")
+	assert_true(ship.advance(0.95, 1.0) == 1, "0.05 s carried plus 0.95 s makes one 1 s step")
+	assert_near(ship.time_s, 1.5, 1e-9, "time_s after the 1 s step")
