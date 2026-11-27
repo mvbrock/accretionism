@@ -45,6 +45,8 @@ func step(delta: float) -> void:
 
 
 ## Hides the ship's cutaway nodes above the target and shows any it hid before that are no longer cut away.
+## It hides rather than fades: crates share one material, so fading a deck would leave its crates and
+## lights floating in view.
 func _apply_cutaway() -> void:
 	var wanted: Array[Node3D] = []
 	if ship != null and target != null:
@@ -85,12 +87,16 @@ func find_occluders() -> Array[MeshInstance3D]:
 	var space := camera.get_world_3d().direct_space_state
 	for point in sight_points():
 		var exclude: Array[RID] = []
-		for i in MAX_HITS_PER_RAY:
+		var hits := 0
+		while hits < MAX_HITS_PER_RAY:
 			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, Ship.OCCLUDER_LAYER, exclude)
 			var hit := space.intersect_ray(query)
 			if hit.is_empty():
 				break
 			exclude.append(hit.rid)
+			if not hit.collider.is_visible_in_tree():
+				continue  # cut away: it hides nothing, so it doesn't use up this ray's hits
+			hits += 1
 			var mesh: MeshInstance3D = hit.collider.get_meta("fade_mesh", null)
 			if mesh != null and mesh not in found:
 				found.append(mesh)

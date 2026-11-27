@@ -126,9 +126,9 @@ func board(new_ship: Ship, at: PlayerPose) -> void:
 	aim_heading = Vector2.ZERO
 	velocity = Vector3.ZERO
 	set_gravity_enabled(at.gravity and new_ship.has_gravity())
-	_set_tip(_wanted_tip())
 	if at.ladder != null:
 		_hold_ladder(at.ladder, at.climb_s)
+	_set_tip(_wanted_tip())
 	_orient(ship.up_at(global_position))
 	reset_physics_interpolation()
 
