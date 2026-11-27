@@ -66,6 +66,9 @@ var _hull_k := 0.0
 var _pressure_control_max_mol_s := 0.0
 var _hvac_scale: Dictionary = {}  # room id -> factor on the HVAC's gain and max watts
 var _unplaced: Array[Opening] = []  # openings that take the centre of their face once the rooms exist
+var _rooms_by_id: Dictionary = {}  # room id -> Room, so step() finds a door's rooms without a scan
+var _light_breakers: Dictionary = {}  # room id -> its light's breaker id
+var _passing: Array[bool] = []  # each opening's passes() when exposure was last worked out
 
 
 func _init(overrides := {}) -> void:
@@ -74,6 +77,8 @@ func _init(overrides := {}) -> void:
 	merge_params(params, overrides)
 	transmission_s = float(params.transmission_s)
 	_build()
+	for room_ in rooms:
+		_rooms_by_id[room_.id] = room_
 	_check_doors()
 	_place_openings()
 	power = PowerPanel.new(int(params.seed), float(params.breakers.mean_time_between_trips_h) * 3600.0,
@@ -89,6 +94,7 @@ func _init(overrides := {}) -> void:
 	_pressure_control_max_mol_s = float(params.pressure_control.max_mol_s) * ship_scale
 	for room_ in rooms:
 		light_switches[room_.id] = true
+		_light_breakers[room_.id] = light_breaker_id(room_.id)
 		last_hvac_w[room_.id] = 0.0
 		# Gain scales with max watts, or a big room's hull loss would leave it a few degrees cold.
 		_hvac_scale[room_.id] = maxf(1.0, room_.volume / REFERENCE_ROOM_VOLUME_M3)
@@ -128,6 +134,7 @@ func add_room(id: String, size_m: Vector3, position: Vector3, orientation := Bas
 	room_.set_partial_pressure("N2", start.n2_kpa * 1000.0)
 	room_.set_partial_pressure("CO2", start.co2_kpa * 1000.0)
 	rooms.append(room_)
+	_rooms_by_id[id] = room_
 	return room_
 
 
@@ -290,10 +297,7 @@ func _breaker_ids() -> Array[String]:
 
 
 func room(id: String) -> Room:
-	for candidate in rooms:
-		if candidate.id == id:
-			return candidate
-	return null
+	return _rooms_by_id.get(id)
 
 
 func opening(id: String) -> Opening:
@@ -471,6 +475,17 @@ func _compute_exposed() -> Dictionary:
 
 
 func _update_exposure() -> void:
+	# Exposure only changes when an opening starts or stops passing air, so most steps skip the search.
+	var changed := _passing.size() != openings.size() or exposed.size() != rooms.size()
+	for i in openings.size():
+		if changed:
+			break
+		changed = openings[i].passes() != _passing[i]
+	if not changed:
+		return
+	_passing.resize(openings.size())
+	for i in openings.size():
+		_passing[i] = openings[i].passes()
 	var now := _compute_exposed()
 	for r in rooms:
 		if now[r.id] == exposed[r.id]:
@@ -485,8 +500,9 @@ func _update_exposure() -> void:
 
 
 func _breathe(dt: float) -> void:
+	var passenger: Dictionary = params.passenger
 	for r in rooms:
-		LifeSupport.breathe(r, params.passenger.o2_mol_s, params.passenger.co2_mol_s, dt)
+		LifeSupport.breathe(r, passenger.o2_mol_s, passenger.co2_mol_s, dt)
 
 
 func _run_pressure_control(dt: float) -> void:
@@ -520,14 +536,16 @@ func _log_empty_tanks() -> void:
 
 func _apply_heat(dt: float) -> void:
 	var hvac_running: bool = systems["hvac"].is_running()
+	var heat: Dictionary = params.heat
+	var hvac: Dictionary = params.hvac
 	for r in rooms:
-		var watts: float = r.passengers * params.heat.passenger_w
-		if light_lit(r.id):
-			watts += params.heat.light_w
+		var watts: float = r.passengers * heat.passenger_w
+		if light_switches[r.id] and power.is_powered(_light_breakers[r.id]):
+			watts += heat.light_w
 		var hvac_w := 0.0
 		if hvac_running:
 			hvac_w = LifeSupport.hvac_heat_w(r, _setpoint_k,
-					params.hvac.gain_w_per_k * _hvac_scale[r.id], params.hvac.max_w * _hvac_scale[r.id])
+					hvac.gain_w_per_k * _hvac_scale[r.id], hvac.max_w * _hvac_scale[r.id])
 		last_hvac_w[r.id] = hvac_w
 		Atmosphere.add_heat(r, (watts + hvac_w) * dt)
 		Atmosphere.hull_loss(r, _hull_k, dt)
