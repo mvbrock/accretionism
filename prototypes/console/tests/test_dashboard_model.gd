@@ -30,20 +30,8 @@ func test_vacuum_tile_shows_dashes() -> void:
 	assert_true(tile.o2 == "—" and tile.n2 == "—" and tile.co2 == "—", "dashes")
 	assert_true(tile.level == Status.Level.DANGER, "danger")
 
-func test_opening_and_system_text() -> void:
+func test_system_text() -> void:
 	var ship := ShipFixture.make()
-	assert_true(DashboardModel.opening_text(ship, "d1") == "CLOSED", "closed")
-	var d1 := ship.opening("d1")
-	d1.fraction = 0.4
-	d1.state = Opening.State.OPENING
-	assert_true(DashboardModel.opening_text(ship, "d1") == "OPENING 40 %", "opening")
-	d1.state = Opening.State.CLOSING
-	d1.fraction = 0.6
-	assert_true(DashboardModel.opening_text(ship, "d1") == "CLOSING 60 %", "closing")
-	d1.state = Opening.State.OPENING
-	d1.fraction = 0.4
-	ship.breaker_trip("d1")
-	assert_true(DashboardModel.opening_text(ship, "d1") == "OPENING 40 % (no power)", "no power")
 	assert_true(DashboardModel.system_text(ship, "hvac") == "RUN", "run")
 	ship.restart_system("hvac")
 	ship.advance(0.5)

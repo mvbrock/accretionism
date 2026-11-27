@@ -38,7 +38,7 @@ func test_connect_shows_that_ships_dashboard() -> void:
 	main.console.line_submitted.emit("ships connect wren")
 	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
 	assert_true(not main.no_ship_label.visible, "the placeholder hides")
-	assert_true(main.dashboard != null and main.dashboard.tile("treehouse") != null, "the dashboard shows wren's rooms")
+	assert_true(main.dashboard != null and main.dashboard.ship_view.room_box("treehouse") != null, "the dashboard shows wren's rooms")
 	assert_true(main.console.scrollback.get_parsed_text().contains("connected to wren"), "the response prints")
 
 
@@ -64,6 +64,9 @@ func test_reconnecting_to_another_ship_rebuilds_the_dashboard() -> void:
 	main.console.line_submitted.emit("ships connect wren")
 	assert_true(main.dashboard.selected_room == "treehouse", "the ROOM panel starts on wren's first room, got '%s'" % main.dashboard.selected_room)
 	assert_true(main.dashboard.get_index() == 0, "the dashboard sits under the banners")
+	var boxes := main.dashboard.ship_view.find_children("*", "MeshInstance3D", true, false).filter(
+			func(node: Node) -> bool: return (node as MeshInstance3D).mesh is BoxMesh and node.name.begins_with("room "))
+	assert_true(boxes.size() == 4, "the 3D view shows wren's four rooms, got %d" % boxes.size())
 
 
 func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
@@ -72,7 +75,7 @@ func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
 	main.console.line_submitted.emit("disconnect")
 	main.console.line_submitted.emit("ships connect kestrel")
 	assert_true(main.stale_label.visible, "STALE shows")
-	assert_true(main.dashboard.tile("cargo") != null, "the tiles are drawn")
+	assert_true(main.dashboard.ship_view.room_box("cargo") != null, "the rooms are drawn")
 	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the ROOM panel has a room, got '%s'" % main.dashboard.room_heading.text)
 	assert_true(main.dashboard._clock_label.text != "", "the clock shows")
 
@@ -84,7 +87,7 @@ func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
 	main.console.line_submitted.emit("ships connect wren")
 	await tree.process_frame
 	assert_true(not is_instance_valid(old), "the old dashboard is freed")
-	_click(main.dashboard.tile("cargo"))
+	await _click_room(main, "cargo")
 	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
 
 
@@ -161,38 +164,44 @@ func test_history_recall() -> void:
 	assert_true(main.console.input.text == "light off cargo", "Down steps forward, got '%s'" % main.console.input.text)
 
 
-func _click(tile: Control) -> void:
-	var event := InputEventMouseButton.new()
-	event.button_index = MOUSE_BUTTON_LEFT
-	event.pressed = true
-	tile.gui_input.emit(event)
+## Lays the main scene out at window size, so the 3D view has a size to pick in. The headless window is only 64x64.
+func _lay_out(main: Main) -> void:
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT) # so the size below isn't overridden by full-rect anchors
+	main.size = Vector2(1600, 900)
+	await tree.process_frame
+
+
+## Presses and releases the left button over the centre of `room_id` in the 3D view.
+func _click_room(main: Main, room_id: String) -> void:
+	await _lay_out(main)
+	var view := main.dashboard.ship_view
+	var point := view.screen_point(main.ship.room(room_id).position)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = point
+		view.gui_input.emit(event)
 
 
 func _panel_text(main: Main, key: String) -> String:
 	return main.dashboard.room_label(key).text
 
 
-func _label_texts(node: Node) -> Array[String]:
-	var texts: Array[String] = []
-	for child in node.find_children("*", "Label", true, false):
-		texts.append((child as Label).text)
-	return texts
-
-
-func test_tiles_show_only_the_room_name() -> void:
+func test_the_3d_view_names_every_room() -> void:
 	var main := _main()
 	for room in main.ship.rooms:
-		var texts := _label_texts(main.dashboard.tile(room.id))
-		assert_true(texts == [room.id.to_upper()], "%s tile text is just its name, got %s" % [room.id, texts])
+		var label := main.dashboard.ship_view.room_name(room.id)
+		assert_true(label.text == room.id.to_upper(), "%s is labelled with its name, got '%s'" % [room.id, label.text])
 
 
-func test_tile_border_is_the_rooms_status_colour() -> void:
+func test_a_rooms_box_is_its_status_colour() -> void:
 	var main := _main()
-	var style := main.dashboard.tile(("cargo")).get_theme_stylebox("panel") as StyleBoxFlat
-	assert_true(style.border_color == DashboardView.GREEN, "nominal cargo is green, got %s" % style.border_color)
+	var view := main.dashboard.ship_view
+	assert_true(Color(view.room_tint("cargo"), 1.0) == DashboardView.GREEN, "nominal cargo is green, got %s" % view.room_tint("cargo"))
 	_vent(main.ship.room("cargo"))
 	main.refresh()
-	assert_true(style.border_color == DashboardView.RED, "vented cargo is red, got %s" % style.border_color)
+	assert_true(Color(view.room_tint("cargo"), 1.0) == DashboardView.RED, "vented cargo is red, got %s" % view.room_tint("cargo"))
 
 
 func test_room_panel_starts_on_the_first_room() -> void:
@@ -208,9 +217,9 @@ func test_room_panel_is_the_left_most_panel() -> void:
 	assert_true(heading_x <= main.dashboard.panels.get_global_rect().position.x + 1.0, "ROOM sits at the row's left edge")
 
 
-func test_clicking_a_tile_shows_that_room() -> void:
+func test_clicking_a_room_shows_it() -> void:
 	var main := _main()
-	_click(main.dashboard.tile("main"))
+	await _click_room(main, "main")
 	assert_true(main.dashboard.room_heading.text == "MAIN", "got '%s'" % main.dashboard.room_heading.text)
 	assert_true(_panel_text(main, "pressure") == "101.3 kPa", "got '%s'" % _panel_text(main, "pressure"))
 	_vent(main.ship.room("main"))
@@ -220,20 +229,37 @@ func test_clicking_a_tile_shows_that_room() -> void:
 
 func test_clicking_the_selected_room_keeps_it_selected() -> void:
 	var main := _main()
-	_click(main.dashboard.tile("main"))
-	_click(main.dashboard.tile("main"))
+	await _click_room(main, "main")
+	await _click_room(main, "main")
 	assert_true(main.dashboard.selected_room == "main", "got '%s'" % main.dashboard.selected_room)
 	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel still shows MAIN")
 
 
+func test_clicking_a_room_leaves_the_command_line_focused() -> void:
+	var main := _main()
+	main.console.input.grab_focus()
+	await _lay_out(main)
+	var view := main.dashboard.ship_view
+	var point := view.global_position + view.screen_point(main.ship.room("main").position)
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = point
+		event.global_position = point
+		main.get_viewport().push_input(event)
+	assert_true(main.dashboard.selected_room == "main", "the click reaches the view, got '%s'" % main.dashboard.selected_room)
+	assert_true(main.console.input.has_focus(), "the command line keeps the focus")
+
+
 func test_one_room_is_highlighted() -> void:
 	var main := _main()
-	_click(main.dashboard.tile("cargo"))
-	var widths := {}
+	await _click_room(main, "cargo")
+	var alphas := {}
 	for room in main.ship.rooms:
-		widths[room.id] = (main.dashboard.tile(room.id).get_theme_stylebox("panel") as StyleBoxFlat).border_width_left
-	assert_true(widths.cargo > widths.cockpit and widths.cockpit == widths.main,
-			"only the selected tile has the thicker border, got %s" % widths)
+		alphas[room.id] = main.dashboard.ship_view.room_tint(room.id).a
+	assert_true(alphas.cargo > alphas.cockpit and alphas.cockpit == alphas.main,
+			"only the selected box is brighter, got %s" % alphas)
 
 
 func test_panel_shows_passengers_after_command() -> void:
@@ -250,15 +276,15 @@ func test_clicking_while_the_computer_is_down_does_nothing() -> void:
 	var main := _main()
 	_send(main, "debug fault computer")
 	main.refresh()
-	_click(main.dashboard.tile("main"))
+	await _click_room(main, "main")
 	assert_true(main.dashboard.selected_room == "cockpit", "FAULT: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
 	_send(main, "computer restart")
 	main.refresh()
-	_click(main.dashboard.tile("main"))
+	await _click_room(main, "main")
 	assert_true(main.dashboard.selected_room == "cockpit", "BOOTING: the selection is unchanged, got '%s'" % main.dashboard.selected_room)
 	main.ship.advance(21.0)
 	main.refresh()
-	_click(main.dashboard.tile("main"))
+	await _click_room(main, "main")
 	assert_true(main.dashboard.selected_room == "main", "RUN: the click selects, got '%s'" % main.dashboard.selected_room)
 	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel shows MAIN")
 
@@ -281,12 +307,10 @@ func test_capture_opens_the_skiffs_hold() -> void:
 
 
 func _fits(main: Main) -> void:
-	main.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	main.size = Vector2(1600, 900)
-	await tree.process_frame
+	await _lay_out(main)
 	await tree.process_frame
 	var bounds := main.dashboard.get_global_rect()
-	for part in [main.dashboard.schematic, main.dashboard.panels]:
+	for part in [main.dashboard.ship_view, main.dashboard.panels]:
 		assert_true(bounds.encloses(part.get_global_rect()), "%s stays inside the dashboard %s" % [part.get_global_rect(), bounds])
 
 

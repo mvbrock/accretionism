@@ -25,26 +25,13 @@ static func room_tile(ship: Ship, room_id: String) -> Dictionary:
 		"co2": NO_READING if in_vacuum else "%.2f kPa" % (room.partial_pressure("CO2") / 1000.0),
 		"passengers": "passengers %d" % room.passengers,
 		"lit": ship.light_lit(room_id),
-		"level": Status.worst(_readings(ship, room).map(func(reading: Dictionary) -> int: return reading.level)),
+		"level": room_level(ship, room_id),
 	}
 
 
-static func opening_text(ship: Ship, id: String) -> String:
-	var opening := ship.opening(id)
-	var percent := roundi(opening.fraction * 100.0)
-	var text := ""
-	match opening.state:
-		Opening.State.OPEN:
-			text = "OPEN"
-		Opening.State.CLOSED:
-			text = "CLOSED"
-		Opening.State.OPENING:
-			text = "OPENING %d %%" % percent
-		Opening.State.CLOSING:
-			text = "CLOSING %d %%" % percent
-	if not ship.power.is_powered(id):
-		text += " (no power)"
-	return text
+## The worst of the room's readings.
+static func room_level(ship: Ship, room_id: String) -> Status.Level:
+	return Status.worst(_readings(ship, ship.room(room_id)).map(func(reading: Dictionary) -> int: return reading.level))
 
 
 static func system_text(ship: Ship, id: String) -> String:
