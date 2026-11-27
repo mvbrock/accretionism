@@ -52,7 +52,14 @@ const NEST_FIT_ITERATIONS := 20
 ## from Mars steeper than the lanes' fan; nested trips push both outward.
 const MARS_MOON_FIRST_CONTROL := Vector2(860, BAND_Y + 800)
 const MARS_MOON_SECOND_CONTROL := Vector2(-200, 600)
-const PARKED_RING_GAP := 16.8
+## Transports parked at a body stack in a column beside it, PARKED_GAP past its
+## edge: left of Earth and the Moon, away from the lanes, and right of Mars.
+## A full column starts another a step further out.
+const PARKED_GAP := 16.8
+const PARKED_SPACING := 14.4
+const PARKED_PER_COLUMN := 9
+## -1 for a column on the body's left, 1 for one on its right.
+const PARKED_SIDE := {Orbits.Body.EARTH: -1.0, Orbits.Body.MOON: -1.0, Orbits.Body.MARS: 1.0}
 const DOCKED_ROW_RISE := 18.0
 const DOCKED_ROW_SPACING := 14.4
 ## A ship's icon (square or triangle, with its highlight outline) reaches this far
@@ -240,7 +247,7 @@ static func _inside_canvas(points: PackedVector2Array) -> bool:
 ## Screen-space rect (padded around the text) for the name label of `ship`, or an
 ## empty Rect2 if it is not in `layout`. It never covers the ship's own icon or
 ## the docked row: a cycler's label hangs below its square, a docked transport's
-## sits above the row, a transport parked at a body's is out past the ring, and
+## sits above the row, a transport parked at a body's is beyond its column, and
 ## an in-flight transport's is above its triangle, or below it where the canvas
 ## has no room above.
 static func ship_label_rect(layout: Dictionary, ship: Variant, text_size: Vector2) -> Rect2:
@@ -260,9 +267,7 @@ static func ship_label_rect(layout: Dictionary, ship: Variant, text_size: Vector
 			continue
 		var outward := Vector2.UP
 		if ship.state == Transport.State.AT_BODY:
-			for body in layout.bodies:
-				if body.body == ship.body:
-					outward = (entry.pos - body.center).normalized()
+			outward = Vector2(PARKED_SIDE[ship.body], 0.0)
 		# Slide the rect out along `outward` until its near corner is `distance` from the icon.
 		var half_extent_along_outward := absf(outward.x) * size.x / 2.0 + absf(outward.y) * size.y / 2.0
 		var center: Vector2 = entry.pos + outward * (distance + half_extent_along_outward)
@@ -289,19 +294,26 @@ static func _parked_positions(fleet: Fleet, square_at: Dictionary) -> Dictionary
 		var group: Array = groups[place]
 		group.sort_custom(func(a: Transport, b: Transport) -> bool: return a.name < b.name)
 		var slots := _docked_row(square_at[place], group.size()) if place is Cycler \
-			else _parked_ring(place, group.size())
+			else _parked_column(place, group.size())
 		for i in group.size():
 			positions[group[i]] = slots[i]
 	return positions
 
 
-## `count` slots spaced evenly in a ring just outside `body`, from the top.
-static func _parked_ring(body: Orbits.Body, count: int) -> PackedVector2Array:
-	var ring := PackedVector2Array()
+## `count` slots in columns beside `body`, top to bottom and then outward, each
+## column centered on the body's height.
+static func _parked_column(body: Orbits.Body, count: int) -> PackedVector2Array:
+	var slots := PackedVector2Array()
+	var center: Vector2 = BODY_CENTERS[body]
+	var side: float = PARKED_SIDE[body]
 	for i in count:
-		var angle := -PI / 2.0 + TAU * i / count
-		ring.append(BODY_CENTERS[body] + Vector2.from_angle(angle) * (BODY_RADII[body] + PARKED_RING_GAP))
-	return ring
+		@warning_ignore("integer_division")
+		var column := i / PARKED_PER_COLUMN
+		var in_column := mini(PARKED_PER_COLUMN, count - column * PARKED_PER_COLUMN)
+		var row := i % PARKED_PER_COLUMN
+		var x: float = center.x + side * (BODY_RADII[body] + PARKED_GAP + column * PARKED_SPACING)
+		slots.append(Vector2(x, center.y + (row - (in_column - 1) / 2.0) * PARKED_SPACING))
+	return slots
 
 
 ## `count` slots in a level row centered just above `square`. At a flyby, where

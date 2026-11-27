@@ -211,11 +211,11 @@ func _draw_triangle(transport: Transport, pos: Vector2, angle: float, highlighte
 		draw_polyline(outline, HIGHLIGHT, 2.0, true)
 
 
-## Parked triangles point out from their body; docked ones point up.
+## Parked triangles point away from their body, across their column; docked ones point up.
 func _parked_angle(entry: Dictionary) -> float:
 	var transport: Transport = entry.transport
 	if transport.state == Transport.State.AT_BODY:
-		return (entry.pos - _body_entry(transport.body).center).angle()
+		return 0.0 if DiagramLayout.PARKED_SIDE[transport.body] > 0.0 else PI
 	return -PI / 2.0
 
 
@@ -235,16 +235,13 @@ func _draw_body_label(entry: Dictionary) -> void:
 	var font_size := get_theme_default_font_size()
 	var text := Orbits.body_name(entry.body)
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-	# Clear of the parked ring: Earth's label to its left, Mars's to its right, the Moon's above it.
+	# Clear of the parked column beside it: the Moon's label above it, Earth's and Mars's below.
 	var reach: float = entry.radius + 26.0
 	var anchor: Vector2 = entry.center
-	match entry.body:
-		Orbits.Body.EARTH:
-			anchor += Vector2(-reach - text_size.x, text_size.y / 4.0)
-		Orbits.Body.MARS:
-			anchor += Vector2(reach, text_size.y / 4.0)
-		_:
-			anchor += Vector2(-text_size.x / 2.0, -reach)
+	if entry.body == Orbits.Body.MOON:
+		anchor += Vector2(-text_size.x / 2.0, -reach)
+	else:
+		anchor += Vector2(-text_size.x / 2.0, reach + text_size.y / 2.0)
 	draw_string(font, anchor, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, LABEL_COLOR)
 
 
@@ -276,10 +273,3 @@ func _transport_marker(transport: Transport) -> Dictionary:
 		if entry.transport == transport:
 			return {pos = entry.pos, angle = _parked_angle(entry)}
 	return {pos = Vector2.INF, angle = 0.0}
-
-
-func _body_entry(body: Orbits.Body) -> Dictionary:
-	for entry in layout.bodies:
-		if entry.body == body:
-			return entry
-	return {}

@@ -241,22 +241,44 @@ func test_no_lines_for_parked_and_docked() -> void:
 	assert_true(docked_pos.distance_to(square + Vector2(0, -18)) < 0.01, "docked just above its cycler's square")
 
 
-func test_parked_ring_spaced_in_name_order() -> void:
-	var fleet := _fleet()
-	for ship_name in ["Wren", "Heron", "Kestrel"]:
-		_parked(fleet, ship_name, MARS)
-	var layout := DiagramLayout.build(fleet, SIZE)
-	var mars := _body_center(layout, MARS)
-	var angle_of := func(ship_name: String) -> float:
-		for entry in layout.parked:
-			if entry.transport.name == ship_name:
-				return (entry.pos - mars).angle()
-		return NAN
-	var step := TAU / 3.0
-	assert_near(absf(angle_difference(angle_of.call("Heron"), angle_of.call("Kestrel"))), step, 0.001, "evenly spaced")
-	assert_near(angle_difference(angle_of.call("Heron"), angle_of.call("Kestrel")), step, 0.001, "Kestrel follows Heron")
-	assert_near(angle_difference(angle_of.call("Kestrel"), angle_of.call("Wren")), step, 0.001, "Wren follows Kestrel")
+func _parked_pos(layout: Dictionary, ship_name: String) -> Vector2:
+	for entry in layout.parked:
+		if entry.transport.name == ship_name:
+			return entry.pos
+	return Vector2.INF
 
+
+func test_parked_ships_stack_in_a_column_beside_their_body() -> void:
+	for body in [EARTH, MOON, MARS]:
+		var fleet := _fleet()
+		for ship_name in ["Wren", "Heron", "Kestrel"]:
+			_parked(fleet, ship_name, body)
+		var layout := DiagramLayout.build(fleet, SIZE)
+		var center := _body_center(layout, body)
+		var heron := _parked_pos(layout, "Heron")
+		var kestrel := _parked_pos(layout, "Kestrel")
+		var wren := _parked_pos(layout, "Wren")
+		var name := Orbits.body_name(body)
+		var side := 1.0 if body == MARS else -1.0
+		for p in [heron, kestrel, wren]:
+			assert_true((p.x - center.x) * side > DiagramLayout.BODY_RADII[body], "%s: on its %s, clear of it" % [name, "right" if side > 0 else "left"])
+			assert_near(p.x, heron.x, 0.001, "%s: one column" % name)
+		assert_true(heron.y < kestrel.y and kestrel.y < wren.y, "%s: top to bottom in name order" % name)
+		assert_near(kestrel.y - heron.y, DiagramLayout.PARKED_SPACING, 0.001, "%s: evenly spaced" % name)
+		assert_near(kestrel.y, center.y, 0.001, "%s: centered on the body's height" % name)
+
+
+func test_a_full_column_starts_another_further_out() -> void:
+	var fleet := _fleet()
+	var count := DiagramLayout.PARKED_PER_COLUMN + 1
+	for i in count:
+		_parked(fleet, "Ship %02d" % i, MOON)
+	var layout := DiagramLayout.build(fleet, SIZE)
+	var first := _parked_pos(layout, "Ship 00")
+	var overflow := _parked_pos(layout, "Ship %02d" % (count - 1))
+	assert_near(first.x - overflow.x, DiagramLayout.PARKED_SPACING, 0.001, "the next column sits one step further left")
+	for entry in layout.parked:
+		assert_true(Rect2(Vector2.ZERO, SIZE).has_point(entry.pos), "%s stays on the canvas" % entry.transport.name)
 
 func test_docked_row_spacing() -> void:
 	var fleet := _fleet()
@@ -314,15 +336,16 @@ func test_ship_labels_stay_clear_of_docked_row_and_own_icon() -> void:
 			assert_true(not label.intersects(icon), "%s label %s clear of icon %s" % [ship.name, label, icon])
 
 
-func test_parked_ship_label_sits_outside_the_ring() -> void:
-	var fleet := _fleet()
-	var transport := _parked(fleet, "Wren", EARTH)
-	var layout := DiagramLayout.build(fleet, SIZE)
-	var center := _body_center(layout, EARTH)
-	var pos: Vector2 = _entry_for(layout.parked, "transport", transport).pos
-	var label := DiagramLayout.ship_label_rect(layout, transport, Vector2(60, 20))
-	assert_true(label.get_center().distance_to(center) > pos.distance_to(center), "label is farther from Earth than its icon")
-	assert_true(not label.intersects(_icon_rect(pos)), "label clear of its own icon")
+func test_parked_ship_label_sits_on_the_far_side_of_its_column() -> void:
+	for body in [EARTH, MARS]:
+		var fleet := _fleet()
+		var transport := _parked(fleet, "Wren", body)
+		var layout := DiagramLayout.build(fleet, SIZE)
+		var pos: Vector2 = _entry_for(layout.parked, "transport", transport).pos
+		var label := DiagramLayout.ship_label_rect(layout, transport, Vector2(60, 20))
+		var side := 1.0 if body == MARS else -1.0
+		assert_true((label.get_center().x - pos.x) * side > 0.0, "%s: label beyond its icon, away from the body" % Orbits.body_name(body))
+		assert_true(not label.intersects(_icon_rect(pos)), "%s: label clear of its own icon" % Orbits.body_name(body))
 
 
 ## The smallest gap between neighboring lanes' ends at `body`.

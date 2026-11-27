@@ -155,7 +155,7 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 - **Moon:** a smaller white circle above and to the left of Earth. Earth–Moon trips then sit outside the Earth–Mars corridor.
 - **Mars:** a red circle, centered vertically on the right side.
 - **Background:** dark, so the white Moon shows up.
-- **Labels:** each body is always labeled. A ship shows its name on a dark backing when hovered or selected, placed clear of its own icon and of any docked row: a cycler's name hangs below its square, a docked transport's sits above the row, an in-flight transport's sits above its triangle (below it when there is no room above, near the top of the canvas), and a parked transport's sits out past the ring.
+- **Labels:** each body is always labeled: the Moon above its circle, Earth and Mars below theirs, clear of the parked columns. A ship shows its name on a dark backing when hovered or selected, placed clear of its own icon and of any docked row: a cycler's name hangs below its square, a docked transport's sits above the row, an in-flight transport's sits above its triangle (below it when there is no room above, near the top of the canvas), and a parked transport's sits beyond its column, on the side away from the body.
 
 ### Cyclers
 
@@ -166,7 +166,7 @@ The diagram is a schematic. It draws trips and how far along they are, not where
 
 ### Transports
 
-- **Parked at a body:** the triangle sits in a ring around that body's circle, spaced evenly. No line is drawn.
+- **Parked at a body:** the triangles stack in a vertical column beside the body, in name order from the top and centered on its height: left of Earth and the Moon, right of Mars. Each points away from the body. A column holds nine; more start another column further out. No line is drawn.
 - **Docked to a cycler:** the triangle sits in a small row just above the cycler's square and moves with it. No line is drawn. When the cycler is at a flyby and its square sits on a planet's edge, the whole row lifts until every triangle clears the planet's disc.
 - **In flight:**
   - A curve runs from the origin's node to the destination's node, where a node is a body circle or a cycler square.
