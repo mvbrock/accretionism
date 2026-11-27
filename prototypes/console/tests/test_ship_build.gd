@@ -93,6 +93,45 @@ func test_a_door_id_cannot_start_with_hatch() -> void:
 	var ship := Ship.new()
 	assert_true(ship.add_door("hatchway", "a", Room.Face.PLUS_X, "b", Room.Face.MINUS_X) == null, "refused")
 
+func test_a_room_id_must_be_typeable() -> void:
+	expect_error("Room id 'Big Room' must be lowercase")
+	var ship := Ship.new()
+	assert_true(ship.add_room("Big Room", Vector3(1, 1, 1), Vector3.ZERO) == null, "refused")
+	assert_true(ship.rooms.is_empty(), "nothing added")
+
+func test_a_room_id_cannot_be_outside() -> void:
+	expect_error("Room id 'outside' is reserved")
+	assert_true(Ship.new().add_room("outside", Vector3(1, 1, 1), Vector3.ZERO) == null, "refused")
+
+func test_a_room_id_cannot_be_empty() -> void:
+	expect_error("Room id '' is empty")
+	assert_true(Ship.new().add_room("", Vector3(1, 1, 1), Vector3.ZERO) == null, "refused")
+
+func test_a_door_id_must_be_typeable() -> void:
+	expect_error("Door id 'Door 1' must be lowercase")
+	assert_true(Ship.new().add_door("Door 1", "a", Room.Face.PLUS_X, "b", Room.Face.MINUS_X) == null, "refused")
+
+func test_a_door_id_cannot_be_outside() -> void:
+	expect_error("Door id 'outside' is reserved")
+	assert_true(Ship.new().add_door("outside", "a", Room.Face.PLUS_X, "b", Room.Face.MINUS_X) == null, "refused")
+
+func test_a_door_id_cannot_be_a_system_id() -> void:
+	expect_error("Door id 'hvac' cannot be a system's id")
+	assert_true(Ship.new().add_door("hvac", "a", Room.Face.PLUS_X, "b", Room.Face.MINUS_X) == null, "refused")
+
+func test_a_door_id_cannot_be_a_lights_breaker() -> void:
+	expect_error("Door id 'light-a' cannot be a system's id or start with 'light-'")
+	assert_true(Ship.new().add_door("light-a", "a", Room.Face.PLUS_X, "b", Room.Face.MINUS_X) == null, "refused")
+
+func test_a_hatch_id_must_be_typeable() -> void:
+	expect_error("Hatch id 'hatch A' must be lowercase")
+	var ship := Ship.new()
+	ship.add_room("a", Vector3(1, 1, 1), Vector3.ZERO)
+	assert_true(ship.add_hatch("hatch A", "a", Room.Face.PLUS_X) == null, "refused")
+
+func test_the_standard_fleet_builds_without_errors() -> void:
+	assert_true(Fleet.standard().ships.size() == 5, "five ships built")
+
 func test_two_hatches_each_expose_their_room() -> void:
 	var ship := TwoHatchShip.new()
 	assert_true(not ship.exposed["fore"] and not ship.exposed["aft"], "sealed at first")

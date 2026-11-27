@@ -23,6 +23,12 @@ func test_a_fleet_keeps_the_ships_it_is_given() -> void:
 	assert_true(fleet.ships.kestrel.room("treehouse") == null, "kestrel does not")
 
 
+func test_a_ship_name_must_be_typeable() -> void:
+	expect_error("Ship name 'Big Ship' must be lowercase")
+	var fleet := Fleet.new({"Big Ship": ShipFixture.make(), "wren": ShipFixture.make_four_room()})
+	assert_true(fleet.names() == PackedStringArray(["wren"]), "the bad name is left out, got %s" % fleet.names())
+
+
 func test_advance_runs_every_ship() -> void:
 	var fleet := Fleet.standard()
 	fleet.advance(2.0, Ship.STEP_S)

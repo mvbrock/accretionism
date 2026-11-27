@@ -7,8 +7,13 @@ extends RefCounted
 var ships := {}
 
 
+## A ship whose name cannot be typed on the command line is left out, with an error naming it.
 func _init(ships_by_name := {}) -> void:
-	ships = ships_by_name
+	for ship_name in ships_by_name:
+		if CommandInterpreter.is_typeable(ship_name):
+			ships[ship_name] = ships_by_name[ship_name]
+		else:
+			push_error("Ship name '%s' must be lowercase and contain no whitespace" % ship_name)
 
 
 ## One ship of each type: `ring`, `skiff`, `tug`, `freighter` and `wheel`.

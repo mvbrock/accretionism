@@ -117,9 +117,14 @@ func _param_overrides() -> Dictionary:
 
 ## A room: `size_m` (x width, y height, z length) in metres, centred at `position` in ship space,
 ## turned by `orientation` (see `yaw`). Volume is size.x * size.y * size.z. It starts at the
-## `params.start` air. Returns the room, or null (and an error naming the id) if the id is taken.
+## `params.start` air. Returns the room, or null (and an error naming the id) if the id is taken
+## or cannot be typed on the command line.
 func add_room(id: String, size_m: Vector3, position: Vector3, orientation := Basis.IDENTITY,
 		passengers := 0) -> Room:
+	var id_problem := _typing_problem(id)
+	if id_problem != "":
+		push_error("Room id '%s' %s" % [id, id_problem])
+		return null
 	if room(id) != null:
 		push_error("Room '%s' already exists" % id)
 		return null
@@ -143,9 +148,14 @@ func add_room(id: String, size_m: Vector3, position: Vector3, orientation := Bas
 ## space; by default at the centre of `room_a`'s face. Conductance, mixing and heat conductance
 ## scale with its area against the reference door `DOOR_SIZE_M`. Two doors may share a face. A
 ## room has at most MAX_DOORS_PER_ROOM doors; one more is an error naming the room, and nothing
-## is added (returns null). So is a taken id.
+## is added (returns null). So is a taken id, an id that cannot be typed, or an id that is a
+## system's or begins with LIGHT_BREAKER_PREFIX, since an opening's breaker takes its id.
 func add_door(id: String, room_a: String, face_a: Room.Face, room_b: String, face_b: Room.Face,
 		size_m := DOOR_SIZE_M, at: Variant = null) -> Opening:
+	var id_problem := _opening_id_problem(id)
+	if id_problem != "":
+		push_error("Door id '%s' %s" % [id, id_problem])
+		return null
 	if id.begins_with(Opening.HATCH_PREFIX):
 		push_error("Door '%s' cannot start with '%s'; that is for hatches" % [id, Opening.HATCH_PREFIX])
 		return null
@@ -165,6 +175,10 @@ func add_door(id: String, room_a: String, face_a: Room.Face, room_b: String, fac
 ## any number. Returns null on an error, like `add_door`.
 func add_hatch(id: String, room_id: String, face: Room.Face, travel_s := HATCH_TRAVEL_S,
 		conductance_m3s := HATCH_CONDUCTANCE_M3S, size_m := HATCH_SIZE_M, at: Variant = null) -> Opening:
+	var id_problem := _opening_id_problem(id)
+	if id_problem != "":
+		push_error("Hatch id '%s' %s" % [id, id_problem])
+		return null
 	if not id.begins_with(Opening.HATCH_PREFIX):
 		push_error("Hatch '%s' must start with '%s'" % [id, Opening.HATCH_PREFIX])
 		return null
@@ -187,6 +201,24 @@ func doors_of(room_id: String) -> Array[Opening]:
 		if opening_.room_a == room_id or opening_.room_b == room_id:
 			found.append(opening_)
 	return found
+
+
+## An id the command line cannot spell could never be typed.
+static func _typing_problem(id: String) -> String:
+	if id.is_empty():
+		return "is empty"
+	if not CommandInterpreter.is_typeable(id):
+		return "must be lowercase and contain no whitespace"
+	if id == Opening.OUTSIDE:
+		return "is reserved for the outside"
+	return ""
+
+
+## Breaker ids are unique, and an opening's breaker takes its id.
+static func _opening_id_problem(id: String) -> String:
+	if SYSTEM_IDS.has(id) or id.begins_with(LIGHT_BREAKER_PREFIX):
+		return "cannot be a system's id or start with '%s'" % LIGHT_BREAKER_PREFIX
+	return _typing_problem(id)
 
 
 func _add_opening(opening_: Opening, at: Variant) -> Opening:
