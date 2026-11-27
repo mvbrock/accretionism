@@ -42,7 +42,7 @@ var gravity_enabled := true
 
 ## The ladder held, or null while walking or floating.
 var climbing: Ladder = null
-## Distance along `climbing` the feet are at; the Fleet saves it to resume the climb.
+## Distance along `climbing` the feet are at; `pose()` saves it to resume the climb.
 var climb_s := 0.0
 
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
@@ -108,20 +108,30 @@ func set_gravity_enabled(enabled: bool) -> void:
 	motion_mode = MOTION_MODE_GROUNDED if enabled else MOTION_MODE_FLOATING
 
 
-## Puts the body aboard `new_ship` at `at`, facing `facing`, at rest and already tipped to match
-## its gravity (a ship without gravity overrides `with_gravity`).
-func board(new_ship: Ship, at: Vector3, facing: Vector2, with_gravity: bool) -> void:
+## Where the player is now, as a ship would remember it.
+func pose() -> PlayerPose:
+	var now := PlayerPose.new(global_position, heading, gravity_enabled)
+	now.ladder = climbing
+	now.climb_s = climb_s
+	return now
+
+
+## Puts the body aboard `new_ship` as `at` describes, at rest and already tipped to match its
+## gravity (a ship without gravity overrides `at.gravity`), holding `at.ladder` if it has one.
+func board(new_ship: Ship, at: PlayerPose) -> void:
 	ship = new_ship
 	climbing = null
-	global_position = at
-	heading = facing
+	global_position = at.position
+	heading = at.heading
 	aim_heading = Vector2.ZERO
 	velocity = Vector3.ZERO
-	set_gravity_enabled(with_gravity and new_ship.has_gravity())
+	set_gravity_enabled(at.gravity and new_ship.has_gravity())
 	_pivot.rotation.x = _wanted_tip()
 	_shape.transform = _pivot.transform
 	_orient(ship.up_at(global_position))
 	reset_physics_interpolation()
+	if at.ladder != null:
+		_hold_ladder(at.ladder, at.climb_s)
 
 
 ## E: grab the ladder with a landing within REACH, or let go at a landing within LANDING_SNAP.
@@ -173,13 +183,13 @@ func _grab_nearby_ladder() -> void:
 	if ladder == null:
 		return
 	var landing := ladder.landings[ladder.landing_near(_reach_point(), REACH)]
-	hold_ladder(ladder, landing.s)
+	_hold_ladder(ladder, landing.s)
 	heading = _heading_toward(landing.facing)
 	_orient(ship.up_at(global_position))
 
 
 ## Holds `ladder` with the feet `s` metres along it, at rest.
-func hold_ladder(ladder: Ladder, s: float) -> void:
+func _hold_ladder(ladder: Ladder, s: float) -> void:
 	climbing = ladder
 	climb_s = s
 	global_position = ladder.point_at(s)

@@ -10,7 +10,7 @@ signal ship_changed(ship: Ship)
 @export var fader: OcclusionFader
 
 var active: Ship
-## Ship -> {position, heading, gravity, ladder, climb_s}, for each ship the player has left.
+## Ship -> PlayerPose, for each ship the player has left.
 var _poses := {}
 
 
@@ -38,26 +38,11 @@ func switch_to(ship: Ship) -> void:
 	if ship == active:
 		return
 	if active != null:
-		_poses[active] = {
-			"position": player.global_position,
-			"heading": player.heading,
-			"gravity": player.gravity_enabled,
-			"ladder": player.climbing,
-			"climb_s": player.climb_s,
-		}
+		_poses[active] = player.pose()
 		_set_active(active, false)
 	active = ship
 	_set_active(ship, true)
-	var pose: Dictionary = _poses.get(ship, {
-		"position": ship.spawn_point(),
-		"heading": Vector2(0, 1),
-		"gravity": ship.has_gravity(),
-		"ladder": null,
-		"climb_s": 0.0,
-	})
-	player.board(ship, pose.position, pose.heading, pose.gravity)
-	if pose.ladder != null:
-		player.hold_ladder(pose.ladder, pose.climb_s)
+	player.board(ship, _poses.get(ship, PlayerPose.at_spawn(ship)))
 	rig.ship = ship
 	fader.ship = ship
 	rig.snap()

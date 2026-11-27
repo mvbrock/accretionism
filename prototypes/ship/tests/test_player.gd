@@ -261,7 +261,7 @@ func test_board_places_and_faces() -> void:
 	var ship: Ship = own(RingShip.new())
 	var player := _boarder()
 	var spawn := ship.spawn_point()
-	player.board(ship, spawn, Vector2(1, 0), true)
+	player.board(ship, PlayerPose.new(spawn, Vector2(1, 0), true))
 	await physics_frames(2)
 	assert_near(player.global_position.distance_to(spawn), 0.0, 0.1, "placed at the spawn point")
 	assert_true(player.heading.distance_to(Vector2(1, 0)) < 0.01, "faces across (%s)" % player.heading)
@@ -275,7 +275,7 @@ func test_board_clears_drift() -> void:
 	await physics_frames(10)
 	player.move_input = Vector2.ZERO
 	var spawn := player.ship.spawn_point()
-	player.board(player.ship, spawn, Vector2(0, 1), false)
+	player.board(player.ship, PlayerPose.new(spawn, Vector2(0, 1), false))
 	await physics_frames(60)
 	var up := player.ship.up_at(spawn)
 	var offset := player.global_position - spawn
@@ -286,7 +286,7 @@ func test_board_clears_drift() -> void:
 func test_board_without_gravity_floats() -> void:
 	var ship: Ship = own(SkiffShip.new())
 	var player := _boarder()
-	player.board(ship, ship.spawn_point(), Vector2(0, 1), true)
+	player.board(ship, PlayerPose.new(ship.spawn_point(), Vector2(0, 1), true))
 	assert_true(not player.gravity_enabled, "no gravity aboard the skiff")
 	assert_near(player.get_node("Pivot").rotation.x, -PI / 2.0, 0.01, "tipped horizontal at once")
 
@@ -294,7 +294,7 @@ func test_board_without_gravity_floats() -> void:
 func test_g_does_nothing_without_gravity() -> void:
 	var ship: Ship = own(SkiffShip.new())
 	var player := _boarder()
-	player.board(ship, ship.spawn_point(), Vector2(0, 1), true)
+	player.board(ship, PlayerPose.new(ship.spawn_point(), Vector2(0, 1), true))
 	Player.ensure_input_actions()
 	var event := InputEventAction.new()
 	event.action = "toggle_gravity"
@@ -308,7 +308,7 @@ func _at_ladder() -> Player:
 	var ship: DeckShip = own(DeckShip.new())
 	var player := own_player(ship)
 	await physics_frames(2)
-	player.board(ship, ship.ladders[0].landings[0].exit, Vector2(0, -1), true)
+	player.board(ship, PlayerPose.new(ship.ladders[0].landings[0].exit, Vector2(0, -1), true))
 	await physics_frames(2)
 	return player
 
@@ -370,7 +370,7 @@ func test_far_from_ladder_cannot_grab() -> void:
 	var ship: DeckShip = own(DeckShip.new())
 	var player := own_player(ship)
 	await physics_frames(2)
-	player.board(ship, ship.spawn_point(), Vector2(0, -1), true)
+	player.board(ship, PlayerPose.new(ship.spawn_point(), Vector2(0, -1), true))
 	await physics_frames(2)
 	player.interact()
 	assert_true(player.climbing == null, "nothing to grab")
@@ -393,8 +393,36 @@ func test_board_ends_climb() -> void:
 	var player := await _at_ladder()
 	player.interact()
 	var ring: Ship = own(RingShip.new())
-	player.board(ring, ring.spawn_point(), Vector2(0, 1), true)
+	player.board(ring, PlayerPose.new(ring.spawn_point(), Vector2(0, 1), true))
 	assert_true(player.climbing == null, "boarding lets go")
+
+
+func test_pose_round_trips_a_climb() -> void:
+	var player := await _at_ladder()
+	var deck: DeckShip = player.ship
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y <= 2.0 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	var saved := player.pose()
+	var ring: Ship = own(RingShip.new())
+	player.board(ring, PlayerPose.at_spawn(ring))
+	player.board(deck, saved)
+	assert_true(player.climbing == deck.ladders[0], "back on the deck ship's ladder")
+	assert_near(player.climb_s, saved.climb_s, 0.01, "same height on the ladder")
+	assert_near(player.global_position.x, 3.5, 0.05, "on the pipe axis (x)")
+	assert_near(player.global_position.z, 3.5, 0.05, "on the pipe axis (z)")
+
+
+func test_pose_at_spawn() -> void:
+	var skiff: Ship = own(SkiffShip.new())
+	var pose := PlayerPose.at_spawn(skiff)
+	assert_true(pose.position == skiff.spawn_point(), "at the spawn point")
+	assert_true(pose.heading == Vector2(0, 1), "facing across")
+	assert_true(not pose.gravity, "no gravity on the skiff")
 
 
 func test_walking_into_doorway_is_blocked() -> void:

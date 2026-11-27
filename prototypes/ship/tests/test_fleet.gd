@@ -158,7 +158,7 @@ func test_returns_to_ladder_mid_climb() -> void:
 	await physics_frames(3)
 	fleet.switch_to(deck_ship)
 	var ladder := deck_ship.ladders[0]
-	player.board(deck_ship, ladder.landings[0].exit, Vector2(0, -1), true)
+	player.board(deck_ship, PlayerPose.new(ladder.landings[0].exit, Vector2(0, -1), true))
 	await physics_frames(2)
 	player.interact()
 	player.move_input = Vector2(0, 1)
