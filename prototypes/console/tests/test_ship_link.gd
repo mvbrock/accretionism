@@ -140,6 +140,7 @@ func test_reply_lands_after_the_downlink() -> void:
 	var replies := link.advance(0.1, 0.1)
 	assert_true(replies == PackedStringArray(["hatch: opening (6 s)"]), "got %s" % [replies])
 	assert_true(not link.in_flight(), "the link is free again")
+	assert_true(link.line() == "", "the line is cleared once the reply lands")
 
 
 func test_one_advance_can_land_both_legs() -> void:
@@ -210,6 +211,8 @@ func test_progress_accessors_follow_each_leg() -> void:
 	link.run("door open hatch")
 	link.advance(4.0, 0.1)
 	assert_true(link.uplink_active() and not link.downlink_active(), "uplink first")
+	assert_near(link.downlink_fraction(), 0.0, 1e-9, "the downlink hasn't started")
+	assert_near(link.downlink_left_s(), 0.0, 1e-9, "no downlink time is counted yet")
 	assert_true(link.line() == "door open hatch", "the line, got '%s'" % link.line())
 	assert_near(link.uplink_fraction(), 0.4, 1e-6, "40% up")
 	assert_near(link.uplink_left_s(), 6.0, 1e-6, "6 s left up")
@@ -217,6 +220,12 @@ func test_progress_accessors_follow_each_leg() -> void:
 	assert_true(link.downlink_active() and not link.uplink_active(), "then downlink")
 	assert_near(link.downlink_fraction(), 0.2, 1e-6, "20% down")
 	assert_near(link.downlink_left_s(), 8.0, 1e-6, "8 s left down")
+	assert_near(link.uplink_fraction(), 1.0, 1e-9, "the uplink is complete")
+	assert_near(link.uplink_left_s(), 0.0, 1e-9, "no uplink time is left")
+	link.advance(8.0, 0.1)
+	assert_true(not link.uplink_active() and not link.downlink_active() and link.line() == "", "idle again")
+	for value in [link.uplink_fraction(), link.uplink_left_s(), link.downlink_fraction(), link.downlink_left_s()]:
+		assert_near(value, 0.0, 1e-9, "every accessor is back at 0")
 
 
 func test_the_whole_fleet_advances_through_the_link() -> void:

@@ -1,11 +1,12 @@
 class_name ShipLink
 extends RefCounted
 ## The console's connection to one ship of the fleet. Disconnected, the console
-## can only list ships and connect to one. Connected, every line but `disconnect`
-## goes to that ship's command interpreter. `disconnect` works even while the
-## ship's computer is down, since the link is the console's, not the ship's.
-## A line for the ship takes the ship's `transmission_s` to arrive, runs then, and
-## its reply takes as long to come back. One line is in flight at a time.
+## can only list ships and connect to one. Connected, `ships`, `disconnect` and
+## `help` are answered by the console at once; every other line is sent to that
+## ship's command interpreter. It takes the ship's `transmission_s` to arrive, runs
+## then, and its reply takes as long to come back. One line is in flight at a time.
+## `disconnect` works even while the ship's computer is down, since the link is the
+## console's, not the ship's.
 
 const NOT_CONNECTED := "not connected to a ship; type 'ships list' to see them, 'ships connect <ship name>' to connect"
 
@@ -48,6 +49,8 @@ func advance(sim_seconds: float, step_s := Ship.STEP_S) -> PackedStringArray:
 		else:
 			replies.append(_reply)
 			_phase = Phase.IDLE
+			_line = ""
+			_reply = ""
 	fleet.advance(end_s - _now_s, step_s)
 	_now_s = end_s
 	return replies

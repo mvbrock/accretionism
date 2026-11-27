@@ -19,7 +19,7 @@ Space pauses every ship unless the command line has focus, connected or not; the
 
 ## Commands
 
-Commands and IDs are case-insensitive. Every command prints one line, except `help`.
+Commands and IDs are case-insensitive. Every command prints one line, except `help`. A ship command prints `sent to <ship>; reply in <round trip>` at once and its reply when it lands.
 
 The console starts disconnected. Connect to a ship to see its dashboard and command it:
 
@@ -66,6 +66,8 @@ time for a command or reply to cross the link to that ship. Add a room or a door
 
 - The simulation core (`scripts/*.gd`) has no nodes. `Ship` advances in whole steps of sim time, 0.1 s, or 1 s at
   1 hour/s, so nothing depends on frame rate.
+- `ShipLink` holds which ship the console is connected to, advances the whole fleet, and carries each ship command
+  across the transmission delay and its reply back.
 - `scripts/dashboard_model.gd` turns a `Ship` into the strings and levels the screen shows.
 - `scripts/ui/` is a thin layer built in code: `Main` runs the clock and the command line,
   `DashboardView` draws the model, `Console` is the input and scrollback (the left column).
