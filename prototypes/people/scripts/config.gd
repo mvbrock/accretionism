@@ -58,3 +58,10 @@ const WINDOW_DAYS := 800.0
 const CONNECTION_DAYS := 0.25
 const WARMUP_START := -400.0
 const ARRIVED_LINGER_DAYS := 10.0
+
+const SHUTTLE_TURNAROUND_DAYS := 0.5
+const EXPRESS_TURNAROUND_DAYS := 3.0
+## A tender leaves its planet this long before a flyby, and leaves the cycler
+## this long after it.
+const TENDER_LEAD_DAYS := 1.0
+const TENDER_LINGER_DAYS := 1.0
