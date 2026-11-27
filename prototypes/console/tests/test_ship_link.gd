@@ -5,7 +5,6 @@ func _link() -> ShipLink:
 	return ShipLink.new(Fleet.load_dir(Main.SHIPS_DIR))
 
 
-## A link connected to kestrel, with every ship's transmission time set to `transmission_s`.
 func _connected(transmission_s := 10.0) -> ShipLink:
 	var link := _link()
 	for ship in link.fleet.ships.values():
@@ -14,7 +13,6 @@ func _connected(transmission_s := 10.0) -> ShipLink:
 	return link
 
 
-## Sends `line`, advances the link until the reply lands and returns it.
 func _round_trip(link: ShipLink, line: String) -> String:
 	link.run(line)
 	var replies := link.advance(link.ship().transmission_s * 2.0 + 1.0, 0.1)

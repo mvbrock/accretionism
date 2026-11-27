@@ -19,7 +19,6 @@ var ship_name := ""
 var _phase := Phase.IDLE
 var _line := ""
 var _reply := ""
-## Sim seconds this link has advanced.
 var _now_s := 0.0
 var _leg_start_s := 0.0
 var _leg_end_s := 0.0

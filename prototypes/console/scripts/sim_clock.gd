@@ -15,11 +15,9 @@ func tick(real_delta: float) -> float:
 	return 0.0 if paused else real_delta * SPEEDS[speed_index]
 
 
-## The current speed, such as "1 min/s".
 func speed_label() -> String:
 	return _SPEED_LABELS[speed_index]
 
 
-## The sim step to advance with at the current speed.
 func step_s() -> float:
 	return _STEPS_S[speed_index]
