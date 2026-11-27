@@ -86,7 +86,7 @@ func test_wall_stops_player_at_seam() -> void:
 
 func test_ensure_input_actions() -> void:
 	Player.ensure_input_actions()
-	for action in ["move_forward", "move_back", "move_left", "move_right", "toggle_gravity", "next_ship"]:
+	for action in ["move_forward", "move_back", "move_left", "move_right", "toggle_gravity", "next_ship", "interact"]:
 		assert_true(InputMap.has_action(action), "%s registered" % action)
 
 
@@ -301,3 +301,105 @@ func test_g_does_nothing_without_gravity() -> void:
 	event.pressed = true
 	player._unhandled_input(event)
 	assert_true(not player.gravity_enabled, "G leaves zero-g alone on the skiff")
+
+
+## A DeckShip with a player boarded at deck 0's landing exit, facing the pipe, with gravity.
+func _at_ladder() -> Player:
+	var ship: DeckShip = own(DeckShip.new())
+	var player := own_player(ship)
+	await physics_frames(2)
+	player.board(ship, ship.ladders[0].landings[0].exit, Vector2(0, -1), true)
+	await physics_frames(2)
+	return player
+
+
+func test_interact_grabs_nearby_ladder() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	await physics_frames(2)
+	assert_true(player.climbing != null, "climbing after interact")
+	assert_near(player.global_position.x, 3.5, 0.05, "on the pipe axis (x)")
+	assert_near(player.global_position.z, 3.5, 0.05, "on the pipe axis (z)")
+	assert_true(player.interact_hint() == "W/S: climb   E: let go", "hint at a landing while climbing")
+
+
+func test_climb_up_and_off() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y <= DeckShip.PITCH - 0.2 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	player.interact()
+	var exit: Vector3 = (player.ship as DeckShip).ladders[0].landings[1].exit
+	assert_true(player.climbing == null, "let go at the top")
+	assert_true(player.global_position.distance_to(exit) < 0.1, "stands at landing 1's exit")
+	await physics_frames(30)
+	assert_true(player.is_on_floor(), "on deck 1's floor")
+	assert_near(player.global_position.y, DeckShip.PITCH, 0.1, "at deck 1's height")
+
+
+func test_climb_clamps_at_ends() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	player.move_input = Vector2(0, -1)
+	await physics_frames(60)
+	assert_true(player.global_position.y >= 0.04, "not below the bottom (y %.3f)" % player.global_position.y)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(400)
+	assert_true(player.global_position.y <= DeckShip.PITCH + 0.06, "not above the top (y %.3f)" % player.global_position.y)
+
+
+func test_cannot_let_go_mid_shaft() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y < DeckShip.PITCH / 2.0 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	player.interact()
+	assert_true(player.climbing != null, "still climbing mid-shaft")
+	assert_true(player.interact_hint() == "W/S: climb", "hint mid-shaft")
+
+
+func test_far_from_ladder_cannot_grab() -> void:
+	var ship: DeckShip = own(DeckShip.new())
+	var player := own_player(ship)
+	await physics_frames(2)
+	player.board(ship, ship.spawn_point(), Vector2(0, -1), true)
+	await physics_frames(2)
+	player.interact()
+	assert_true(player.climbing == null, "nothing to grab")
+	assert_true(player.interact_hint() == "", "no hint")
+
+
+func test_g_ignored_while_climbing() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	var event := InputEventAction.new()
+	event.action = "toggle_gravity"
+	event.pressed = true
+	player._unhandled_input(event)
+	await physics_frames(10)
+	assert_true(player.gravity_enabled, "gravity stays on")
+	assert_near(player.get_node("Pivot").rotation.x, 0.0, 0.01, "stays upright")
+
+
+func test_board_ends_climb() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	var ring: Ship = own(RingShip.new())
+	player.board(ring, ring.spawn_point(), Vector2(0, 1), true)
+	assert_true(player.climbing == null, "boarding lets go")
+
+
+func test_walking_into_doorway_is_blocked() -> void:
+	var player := await _at_ladder()
+	player.move_input = Vector2(0, 1)
+	await physics_frames(90)
+	var limit := DeckShip.PIPE_CENTER.y - DeckShip.PIPE_INNER - DeckShip.PIPE_WALL
+	assert_true(player.global_position.z < limit, "never enters the shaft (z %.3f)" % player.global_position.z)

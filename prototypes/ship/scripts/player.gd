@@ -2,6 +2,7 @@ class_name Player
 extends CharacterBody3D
 ## Capsule walker aboard a ship. "Up" is whatever the ship says it is at the body's position.
 ## It faces the mouse; W/S move forward and back along that facing, A/D strafe.
+## E grabs a ladder at a landing, W/S climb it, and E lets go at a landing.
 ## G toggles gravity. Without it the body lies horizontal and hovers at FLOAT_HEIGHT, and a
 ## key press sets a drift that carries on after release until it hits something or another key
 ## changes it.
@@ -12,6 +13,13 @@ const FLOAT_HEIGHT := 1.6
 const FLOAT_SHARPNESS := 3.0
 ## How quickly the body tips between upright and horizontal.
 const TIP_SHARPNESS := 6.0
+
+## Metres per second along a ladder.
+const CLIMB_SPEED := 1.5
+## How close to a landing's exit the player must stand to grab the ladder.
+const REACH := 1.2
+## How close along the ladder to a landing the player must be to let go there.
+const LANDING_SNAP := 0.5
 
 ## The ship the body walks on; it answers which way is up.
 @export var ship: Ship
@@ -32,6 +40,11 @@ var aim_camera: Camera3D
 
 var gravity_enabled := true
 
+## The ladder held, or null while walking or floating.
+var climbing: Ladder = null
+## Distance along `climbing` the feet are at.
+var _climb_s := 0.0
+
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
 var heading := Vector2(0, 1)
 ## Zero-g velocity along the floor, ship-relative like `aim_heading` (m/s).
@@ -51,6 +64,7 @@ static func ensure_input_actions() -> void:
 		"move_right": KEY_D,
 		"toggle_gravity": KEY_G,
 		"next_ship": KEY_TAB,
+		"interact": KEY_E,
 	}
 	for action: String in bindings:
 		if InputMap.has_action(action):
@@ -98,6 +112,7 @@ func set_gravity_enabled(enabled: bool) -> void:
 ## its gravity (a ship without gravity overrides `with_gravity`).
 func board(new_ship: Ship, at: Vector3, facing: Vector2, with_gravity: bool) -> void:
 	ship = new_ship
+	climbing = null
 	global_position = at
 	heading = facing
 	aim_heading = Vector2.ZERO
@@ -109,9 +124,83 @@ func board(new_ship: Ship, at: Vector3, facing: Vector2, with_gravity: bool) -> 
 	reset_physics_interpolation()
 
 
+## E: grab the ladder with a landing within REACH, or let go at a landing within LANDING_SNAP.
+func interact() -> void:
+	if climbing == null:
+		_grab_nearby_ladder()
+	else:
+		_let_go_at_landing()
+
+
+## What E would do now, as a prompt for the screen.
+func interact_hint() -> String:
+	if climbing == null:
+		return "E: climb" if _ladder_in_reach() != null else ""
+	if climbing.landing_at(_climb_s, LANDING_SNAP) != -1:
+		return "W/S: climb   E: let go"
+	return "W/S: climb"
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_gravity") and ship != null and ship.has_gravity():
+	if event.is_action_pressed("interact"):
+		interact()
+	elif event.is_action_pressed("toggle_gravity") and climbing == null and ship != null and ship.has_gravity():
 		set_gravity_enabled(not gravity_enabled)
+
+
+func _ladder_in_reach() -> Ladder:
+	if ship == null:
+		return null
+	for ladder in ship.ladders:
+		if ladder.landing_near(global_position, REACH) != -1:
+			return ladder
+	return null
+
+
+func _grab_nearby_ladder() -> void:
+	var ladder := _ladder_in_reach()
+	if ladder == null:
+		return
+	var landing := ladder.landings[ladder.landing_near(global_position, REACH)]
+	climbing = ladder
+	_climb_s = landing.s
+	global_position = ladder.point_at(_climb_s)
+	heading = _heading_toward(landing.facing)
+	_stop()
+	reset_physics_interpolation()
+
+
+func _let_go_at_landing() -> void:
+	var i := climbing.landing_at(_climb_s, LANDING_SNAP)
+	if i == -1:
+		return
+	var landing := climbing.landings[i]
+	climbing = null
+	global_position = landing.exit
+	heading = _heading_toward(-landing.facing)
+	_stop()
+	reset_physics_interpolation()
+
+
+## Zeroes velocity and drift.
+func _stop() -> void:
+	velocity = Vector3.ZERO
+	_drift = Vector2.ZERO
+	_orient(ship.up_at(global_position))
+
+
+## The ship-relative 2D heading that faces the 3D direction `direction`.
+func _heading_toward(direction: Vector3) -> Vector2:
+	return Vector2(direction.dot(Vector3.RIGHT), direction.dot(_around())).normalized()
+
+
+## Climbing: W/S slide along the ladder; the body is placed on it, with no walking or drift.
+func _climb(delta: float) -> void:
+	_climb_s = clampf(_climb_s + move_input.y * CLIMB_SPEED * delta, 0.0, climbing.length)
+	global_position = climbing.point_at(_climb_s)
+	_orient(ship.up_at(global_position))
+	_pivot.rotation.x = _wanted_tip()
+	_shape.transform = _pivot.transform
 
 
 func _physics_process(delta: float) -> void:
@@ -119,8 +208,11 @@ func _physics_process(delta: float) -> void:
 		return
 	if not drive_by_code:
 		move_input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
-		if aim_camera != null:
+		if aim_camera != null and climbing == null:
 			aim_through(aim_camera, get_viewport().get_mouse_position())
+	if climbing != null:
+		_climb(delta)
+		return
 	_turn_toward_aim(delta)
 
 	var up := ship.up_at(global_position)
@@ -157,7 +249,7 @@ func _physics_process(delta: float) -> void:
 
 ## The pivot's tilt about X: upright with gravity, lying horizontal without.
 func _wanted_tip() -> float:
-	return 0.0 if gravity_enabled else -PI / 2.0
+	return 0.0 if gravity_enabled or climbing != null else -PI / 2.0
 
 
 ## Unit direction perpendicular to both up and world X (the way a heading's y points).
