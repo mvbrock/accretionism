@@ -137,7 +137,7 @@ func test_scaled_window_size_fits_the_screen() -> void:
 	assert_near(float(size.x) / size.y, 16.0 / 9.0, 0.01, "keeps the 16:9 shape")
 
 
-func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() -> void:
+func test_a_ship_in_flight_shows_its_destination_until_it_arrives() -> void:
 	var main := _main()
 	var kestrel: Transport = _ship(main, "Kestrel")
 	main.select(kestrel)
@@ -146,14 +146,17 @@ func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() ->
 	main.dispatch.targets.select(mars_index)
 	main.dispatch.depart_button.pressed.emit()
 	assert_true(kestrel.state == Transport.State.IN_TRANSIT, "Kestrel is on its way")
-	main.dispatch.targets.select(_option_texts(main).find("Mars"))
-	assert_true(main.dispatch.selected_target() == Orbits.Body.MARS, "Mars is chosen mid-flight")
+	assert_true(main.dispatch.note_label.visible and main.dispatch.note_label.text == "In flight to Mars.",
+		"the panel says where it is headed, got '%s'" % main.dispatch.note_label.text)
+	for control in [main.dispatch.targets, main.dispatch.estimate_label, main.dispatch.depart_button]:
+		assert_true(not control.visible, "%s hides while it flies" % control.name)
 
 	main.fleet.advance_to(main.fleet.day + 1000.0)
 	main.dispatch.refresh()
-	assert_true(not _option_texts(main).has("Mars"), "Mars is no longer a target once Kestrel has arrived")
-	assert_true(main.dispatch.selected_target() == null, "nothing is selected")
-	assert_true(main.dispatch.targets.selected == -1, "the list shows no choice")
+	assert_true(not main.dispatch.note_label.visible, "the note goes once Kestrel has arrived")
+	assert_true(main.dispatch.targets.visible and main.dispatch.depart_button.visible, "the controls come back")
+	assert_true(not _option_texts(main).has("Mars"), "Mars is no longer a target")
+	assert_true(main.dispatch.selected_target() == null, "nothing is chosen for it")
 	assert_true(main.dispatch.estimate_label.text == "Pick a destination", "got '%s'" % main.dispatch.estimate_label.text)
 	assert_true(main.dispatch.depart_button.disabled, "Depart is disabled until a destination is picked")
 
@@ -161,7 +164,6 @@ func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() ->
 	main.dispatch.refresh()
 	assert_true(main.dispatch.estimate_label.text.begins_with("Est. travel time: "), "picking a target brings the estimate back")
 	assert_true(not main.dispatch.depart_button.disabled, "and Depart")
-
 
 func test_dispatch_keeps_the_list_when_its_targets_have_not_changed() -> void:
 	var main := _main()

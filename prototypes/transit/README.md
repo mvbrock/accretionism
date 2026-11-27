@@ -19,8 +19,9 @@ shows as a table and as a schematic diagram, on separate tabs. Design: `docs/des
 | Target list, then **Depart** | Send the selected transport, after showing its estimated travel time |
 | Esc | Quit |
 
-Cyclers keep to their timetable, so selecting one shows no dispatch controls. Sending a transport
-that is already in flight redirects it.
+Cyclers keep to their timetable, so selecting one shows no dispatch controls. A transport in
+flight keeps its destination: selecting it shows where it is headed, and its dispatch controls
+come back once it arrives.
 
 ## Data
 

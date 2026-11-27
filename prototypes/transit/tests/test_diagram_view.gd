@@ -125,21 +125,6 @@ func test_mouse_leaving_clears_hover_until_it_returns() -> void:
 	assert_true(view._hovered == null, "rebuilding with the mouse outside hovers nothing")
 
 
-func test_a_turned_back_cycler_square_is_still_pickable() -> void:
-	var main: Main = await _main()
-	var view := main.diagram
-	var host: Cycler = main.fleet.cyclers[0]
-	var docked: Array = main.fleet.transports.filter(
-		func(t: Transport) -> bool: return t.state == Transport.State.DOCKED and t.host == host)
-	assert_true(not docked.is_empty(), "%s has a docked transport" % host.name)
-	var t: Transport = docked[0]
-	assert_true(main.fleet.depart(t, Orbits.Body.MOON), "%s leaves for the Moon" % t.name)
-	main.fleet.advance_to(main.fleet.day + 0.05)
-	assert_true(main.fleet.depart(t, host), "%s turns back to %s" % [t.name, host.name])
-	view.rebuild()
-	assert_true(view.ship_at(_cycler_pos(view, host)) == host, "the square still picks the cycler, not the looping transport")
-
-
 func _length(polyline: PackedVector2Array) -> float:
 	var total := 0.0
 	for i in range(1, polyline.size()):

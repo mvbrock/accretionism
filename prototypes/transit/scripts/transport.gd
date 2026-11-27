@@ -13,7 +13,7 @@ var body: Orbits.Body
 ## The cycler it is docked to (DOCKED).
 var host: Cycler
 
-## Name of the place the whole trip started from; a redirect keeps it.
+## Name of the place the trip started from.
 var origin_name: String
 ## Where it is headed: an Orbits.Body or a Cycler.
 var target: Variant
@@ -24,10 +24,8 @@ var depart_point: Vector2
 var t0: float
 var t_arrive: float
 var intercept_point: Vector2
-## Length of the current straight-line leg.
+## Length of the trip, a straight line.
 var leg_km: float
-## Distance flown on earlier legs of a redirected trip.
-var flown_before_km: float
 
 
 static func parked_at(transport_name: String, parked_body: Orbits.Body) -> Transport:

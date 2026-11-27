@@ -64,7 +64,7 @@ The sim bisects over [0, horizon] (the horizon is 2 years). This is valid withou
 
 - Every possible target (a planet, the Moon, a cycler) follows a fully predictable path, so the intercept worked out at departure is exact. The sim never has to steer mid-flight or re-estimate.
 - The fastest target is the Moon, at about 31 km/s in the Sun's frame. Transports fly at 50 km/s, so an intercept always exists. The horizon only guards against bugs. If the search ever fails, departure is refused with the message *unreachable*.
-- **Local legs.** Earth's 30 km/s drift through the Sun's frame would make Earth → Moon (about 5 h) and Moon → Earth (about 1.4 h) very unequal, so Earth ↔ Moon trips use Earth's frame instead. A **local leg** is one that leaves Earth or the Moon for the other of the two. A ship on a local leg that is redirected to Earth or the Moon stays on a local leg. Every other leg is flown in the Sun's frame at 50 km/s.
+- **Local legs.** Earth's 30 km/s drift through the Sun's frame would make Earth → Moon (about 5 h) and Moon → Earth (about 1.4 h) very unequal, so Earth ↔ Moon trips use Earth's frame instead. A **local leg** is one that leaves Earth or the Moon for the other of the two. Every other leg is flown in the Sun's frame at 50 km/s.
   - A local leg is solved and flown relative to Earth: every position is an offset from Earth's position that day, and the ship flies at 5 km/s through those offsets. The Moon moves about 1 km/s relative to Earth, slower than the ship, so the intercept is still unique.
   - Both directions take about 384,400 km ÷ 5 km/s ≈ 21 h. Progress and leg length use the leg's own speed.
 - Because arrival times are worked out exactly, a fast clock can't skip past an arrival.
@@ -112,7 +112,7 @@ A cycler is an automated ship that never stops. It runs on a timetable that mimi
 ### Transports
 
 - A transport can be sent to Earth, the Moon, Mars, or any cycler. It can't target the place it is already at or docked to.
-- It can leave from a body, from the cycler it's docked to (the departure point is the cycler's current position), or mid-flight, which redirects it. A redirected trip keeps its original origin. The new leg starts from the ship's current position.
+- It can leave from a body or from the cycler it's docked to (the departure point is the cycler's current position). Once in flight it keeps its destination until it arrives: it can't be sent anywhere else, and the dispatch panel shows where it is headed in place of the dispatch controls.
 - On arrival a transport becomes `AtBody` or `DockedTo`. Any number of transports can dock with one cycler. A docked transport rides through the cycler's flybys until it is sent somewhere.
 
 ## Screen
@@ -137,14 +137,7 @@ The clock bar and dispatch panel stay on screen in both tabs. Switching tabs kee
 | Transport in flight | where the trip started | % of the trip done | target's name |
 | Cycler | planet it last flew past | % of the current leg done | - |
 
-**Progress** is `distance flown ÷ trip length`, rounded down to two decimal places, so 100.00% shows only on arrival. Every number on screen has two decimal places. For a redirected trip, the distance flown before the redirect counts toward both numbers:
-
-```
-progress = (flown before redirect + flown on new leg) ÷ (flown before redirect + new leg length)
-```
-
-A redirect to a farther target can make progress go down.
-
+**Progress** is `distance flown ÷ trip length`, rounded down to two decimal places, so 100.00% shows only on arrival. Every number on screen has two decimal places. 
 ## Diagram view
 
 The diagram is a schematic. It draws trips and how far along they are, not where ships are in space. The only sim values it uses are each ship's state, origin, destination and progress, so it never reads an orbital position.
@@ -180,7 +173,6 @@ The diagram is a schematic. It draws trips and how far along they are, not where
   - The triangle sits on the curve at its progress fraction and points toward the destination.
   - The curve is solid from the origin to the triangle and dotted from the triangle onward.
   - When an end of the curve is a cycler, it follows the square as it moves.
-  - A transport redirected back to where it started draws a teardrop loop that leaves and returns to its origin node on the node's free side: toward the lower left for Earth, the upper left for the Moon and the lower right for Mars. Back to a cycler's square, the loop hangs below the square, so it never hides the docked row above it.
 
 ### Keeping lines from overlapping
 
@@ -239,8 +231,7 @@ All transports start parked or docked. None start in flight.
   - six cyclers spaced 130 days apart, alternating UP and DOWN
   - transport arrival and docking
   - docked ships moving with their cycler
-  - refused targets (another transport, the current location)
-  - redirect progress
+  - refused targets (another transport, the current location, anywhere for a ship in flight)
   - formatting of every row state
   - building the same fleet from the same seed
   - the diagram layout:
