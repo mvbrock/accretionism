@@ -300,7 +300,6 @@ func _frame(ship: Ship) -> void:
 	_reframe()
 
 
-
 func _reframe() -> void:
 	var basis := Basis.from_euler(Vector3(-_pitch, _yaw, 0.0))
 	var inverse := basis.inverse()
