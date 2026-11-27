@@ -34,8 +34,8 @@ func ship() -> Ship:
 
 
 ## Advances every ship by `sim_seconds`, running a landing command on its ship at
-## the landing time. Returns the replies that landed.
-func advance(sim_seconds: float, step_s := Ship.STEP_S) -> PackedStringArray:
+## the landing time. Returns the replies that landed, each naming the line it answers.
+func advance(sim_seconds: float, step_s: float) -> PackedStringArray:
 	var replies := PackedStringArray()
 	var end_s := _now_s + sim_seconds
 	while _phase != Phase.IDLE and _leg_end_s <= end_s + Units.SECONDS_EPSILON:
@@ -46,7 +46,7 @@ func advance(sim_seconds: float, step_s := Ship.STEP_S) -> PackedStringArray:
 			_reply = _run_on_ship(_line)
 			_start_leg(Phase.DOWNLINK)
 		else:
-			replies.append(_reply)
+			replies.append("reply to '%s': %s" % [_line, _reply])
 			_phase = Phase.IDLE
 			_line = ""
 			_reply = ""
@@ -64,28 +64,22 @@ func line() -> String:
 	return _line
 
 
-func uplink_active() -> bool:
-	return _phase == Phase.UPLINK
+func phase() -> Phase:
+	return _phase
 
 
-func uplink_fraction() -> float:
-	return _fraction(Phase.UPLINK)
+## Progress through the current leg, 0..1; 0 when idle.
+func leg_fraction() -> float:
+	if _phase == Phase.IDLE:
+		return 0.0
+	if _leg_end_s <= _leg_start_s:
+		return 1.0
+	return clampf((_now_s - _leg_start_s) / (_leg_end_s - _leg_start_s), 0.0, 1.0)
 
 
-func uplink_left_s() -> float:
-	return _left_s(Phase.UPLINK)
-
-
-func downlink_active() -> bool:
-	return _phase == Phase.DOWNLINK
-
-
-func downlink_fraction() -> float:
-	return _fraction(Phase.DOWNLINK)
-
-
-func downlink_left_s() -> float:
-	return _left_s(Phase.DOWNLINK)
+## Sim seconds left in the current leg; 0 when idle.
+func leg_left_s() -> float:
+	return maxf(_leg_end_s - _now_s, 0.0) if _phase != Phase.IDLE else 0.0
 
 
 func run(line: String) -> String:
@@ -158,15 +152,3 @@ func _start_leg(phase: Phase) -> void:
 	_phase = phase
 	_leg_start_s = _now_s
 	_leg_end_s = _now_s + ship().transmission_s
-
-
-func _fraction(leg: Phase) -> float:
-	if _phase == Phase.IDLE or (leg == Phase.DOWNLINK and _phase == Phase.UPLINK):
-		return 0.0
-	if _phase != leg or _leg_end_s <= _leg_start_s:
-		return 1.0
-	return clampf((_now_s - _leg_start_s) / (_leg_end_s - _leg_start_s), 0.0, 1.0)
-
-
-func _left_s(leg: Phase) -> float:
-	return maxf(_leg_end_s - _now_s, 0.0) if _phase == leg else 0.0

@@ -19,7 +19,7 @@ Space pauses every ship unless the command line has focus, connected or not; the
 
 ## Commands
 
-Commands and IDs are case-insensitive. Every command prints one line, except `help`. A ship command prints `sent to <ship>; reply in <round trip>` at once and its reply when it lands.
+Commands and IDs are case-insensitive. Every command prints one line, except `help`. A ship command prints `sent to <ship>; reply in <round trip>` at once and its reply when it lands, as `reply to '<line>': <reply>`.
 
 The console starts disconnected. Connect to a ship to see its dashboard and command it:
 
@@ -31,7 +31,7 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 
 Connected, these go to that ship. A command takes the ship's `transmission_s` (8 minutes unless its file says
 otherwise) to arrive and runs then; its reply takes as long to come back. The console prints
-`sent to <ship>; reply in <round trip>` when it sends, and the reply when it lands. One command is in flight
+`sent to <ship>; reply in <round trip>` when it sends, and `reply to '<line>': <reply>` when the reply lands. One command is in flight
 at a time, and `disconnect` waits for the reply. Two bars under the scrollback show the command's
 progress, each with the time left: `uplink` while it travels to the ship, `downlink` while the reply comes
 back. `ships`, `disconnect` and `help` answer at once:

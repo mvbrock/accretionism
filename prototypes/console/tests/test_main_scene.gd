@@ -146,7 +146,7 @@ func test_reply_prints_after_the_transmission_time() -> void:
 	assert_true(not main.console.scrollback.get_parsed_text().contains("hatch: opening"), "no reply yet")
 	assert_true(main.ship.opening("hatch").state != Opening.State.CLOSED, "the hatch has moved by then")
 	main._process(1.0)
-	assert_true(main.console.scrollback.get_parsed_text().contains("hatch: opening (6 s)"), "the reply prints when it lands")
+	assert_true(main.console.scrollback.get_parsed_text().contains("reply to 'door open hatch': hatch: opening (6 s)"), "the reply names its command when it lands")
 
 
 func test_main_advances_with_the_clock_step() -> void:

@@ -20,26 +20,39 @@ func _init() -> void:
 
 
 func show_link(link: ShipLink) -> void:
+	var phase := link.phase()
 	var line := link.line()
-	uplink_label.text = uplink_text(link.uplink_active(), link.downlink_active(), line, link.uplink_left_s())
-	downlink_label.text = downlink_text(link.uplink_active(), link.downlink_active(), line, link.downlink_left_s())
-	uplink_bar.value = link.uplink_fraction()
-	downlink_bar.value = link.downlink_fraction()
+	var left_s := link.leg_left_s()
+	var fraction := link.leg_fraction()
+	uplink_label.text = uplink_text(phase, line, left_s)
+	downlink_label.text = downlink_text(phase, line, left_s)
+	match phase:
+		ShipLink.Phase.UPLINK:
+			uplink_bar.value = fraction
+			downlink_bar.value = 0.0
+		ShipLink.Phase.DOWNLINK:
+			uplink_bar.value = 1.0
+			downlink_bar.value = fraction
+		_:
+			uplink_bar.value = 0.0
+			downlink_bar.value = 0.0
 
 
-static func uplink_text(uplink_active: bool, downlink_active: bool, line: String, left_s: float) -> String:
-	if uplink_active:
-		return "uplink: %s — %s left" % [line, Units.duration_text(left_s)]
-	if downlink_active:
-		return "uplink: %s — sent" % line
+static func uplink_text(phase: ShipLink.Phase, line: String, left_s: float) -> String:
+	match phase:
+		ShipLink.Phase.UPLINK:
+			return "uplink: %s — %s left" % [line, Units.duration_text(left_s)]
+		ShipLink.Phase.DOWNLINK:
+			return "uplink: %s — sent" % line
 	return "uplink: idle"
 
 
-static func downlink_text(uplink_active: bool, downlink_active: bool, line: String, left_s: float) -> String:
-	if downlink_active:
-		return "downlink: %s — %s left" % [line, Units.duration_text(left_s)]
-	if uplink_active:
-		return "downlink: waiting"
+static func downlink_text(phase: ShipLink.Phase, line: String, left_s: float) -> String:
+	match phase:
+		ShipLink.Phase.DOWNLINK:
+			return "downlink: %s — %s left" % [line, Units.duration_text(left_s)]
+		ShipLink.Phase.UPLINK:
+			return "downlink: waiting"
 	return "downlink: idle"
 
 
