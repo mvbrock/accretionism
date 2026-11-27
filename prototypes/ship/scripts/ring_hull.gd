@@ -17,7 +17,7 @@ var light_range := 22.0
 ## Added to each section's hue fraction, so rings can differ.
 var hue_offset := 0.0
 
-## Section index -> [across position, half size] of its ceiling / floor hole.
+## Section index -> list of [across position, half size] of its ceiling / floor holes.
 var _ceiling_holes := {}
 var _floor_holes := {}
 
@@ -30,14 +30,20 @@ func ceiling_apothem() -> float:
 	return floor_apothem() - ceiling_height
 
 
-## A square hole centered on section k's ceiling panel center at across-position x. Call before build.
+## A square hole centered on section k's ceiling panel center at across-position x. Call before build. A section may have several holes, which must not overlap across.
 func add_ceiling_hole(k: int, x: float, half_size: float) -> void:
-	_ceiling_holes[k] = [x, half_size]
+	_add_hole(_ceiling_holes, k, x, half_size)
 
 
-## A square hole centered on section k's floor panel center at across-position x. Call before build.
+## A square hole centered on section k's floor panel center at across-position x. Call before build. A section may have several holes, which must not overlap across.
 func add_floor_hole(k: int, x: float, half_size: float) -> void:
-	_floor_holes[k] = [x, half_size]
+	_add_hole(_floor_holes, k, x, half_size)
+
+
+func _add_hole(holes: Dictionary, k: int, x: float, half_size: float) -> void:
+	if not holes.has(k):
+		holes[k] = []
+	holes[k].append([x, half_size])
 
 
 ## The room containing `p`, or "" outside the hull's slabs.
@@ -94,22 +100,31 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 	return section
 
 
-## Adds one panel, or with a hole up to four pieces named `panel_name` + "a".."d". Each piece is
-## registered as a room bound facing `outward`; a zero `outward` registers nothing.
+## Adds one panel, or with holes several pieces named `panel_name` + "a", "b", "c"... in build order.
+## Holes (lists of [across position, half size]) must not overlap across. Across the panel come full-length
+## strips in the gaps and beyond the outermost holes, and before and after each hole its two along-panel strips.
+## Each piece is registered as a room bound facing `outward`; a zero `outward` registers nothing.
 func _add_slab(section: Node3D, panel_name: String, k: int, x0: float, x1: float, r0: float, r1: float,
-		hole: Variant, color: Color, layers: int, ship: Ship, room: String, outward: Vector3) -> void:
+		holes: Variant, color: Color, layers: int, ship: Ship, room: String, outward: Vector3) -> void:
 	var pieces: Array[PackedVector3Array] = []
-	if hole == null:
+	if holes == null:
 		pieces.append(_slab_points(k, x0, x1, r0, r1))
 	else:
-		var hx: float = hole[0]
-		var h: float = hole[1]
-		pieces.append(_slab_points(k, x0, hx - h, r0, r1))
-		pieces.append(_slab_points(k, hx + h, x1, r0, r1))
-		pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
-		pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, h, INF))
+		var sorted: Array = holes.duplicate()
+		sorted.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+		var cursor := x0
+		for hole: Array in sorted:
+			var hx: float = hole[0]
+			var h: float = hole[1]
+			if hx - h > cursor:
+				pieces.append(_slab_points(k, cursor, hx - h, r0, r1))
+			pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
+			pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, h, INF))
+			cursor = hx + h
+		if x1 > cursor:
+			pieces.append(_slab_points(k, cursor, x1, r0, r1))
 	for i in pieces.size():
-		var piece := ship.make_panel(panel_name if hole == null else panel_name + "abcd"[i], pieces[i], color, layers)
+		var piece := ship.make_panel(panel_name if holes == null else panel_name + char(97 + i), pieces[i], color, layers)
 		section.add_child(piece)
 		if outward != Vector3.ZERO:
 			ship.add_room_bound(room, piece, outward)

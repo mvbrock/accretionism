@@ -60,3 +60,22 @@ func test_no_ceiling() -> void:
 	assert_true(section.has_node("Floor"), "has a floor")
 	assert_true(not section.has_node("Ceiling"), "no ceiling")
 	assert_true(not section.has_node("WallLeft"), "no wall")
+
+
+func test_several_holes_in_one_section() -> void:
+	var hull := RingHull.new()
+	hull.ceiling_height = 0.0
+	hull.walls = false
+	hull.floor_corner_radius = 10.0
+	hull.half_width = 30.0
+	hull.center_x = 0.0
+	var hole_xs := [-21.5, 2.5, 26.5]
+	for x in hole_xs:
+		hull.add_floor_hole(6, x, 0.85)
+	await _build(hull)
+	var down := RingGeometry.section_down(6)
+	for x in hole_xs:
+		var through := _ray(Vector3(x, 0, 0) + down * (hull.floor_apothem() - 1.0), Vector3(x, 0, 0) + down * (hull.floor_apothem() + 1.0))
+		assert_true(through.is_empty(), "ray passes through the hole at x = %s" % x)
+	var beside := _ray(Vector3(-10, 0, 0) + down * (hull.floor_apothem() - 1.0), Vector3(-10, 0, 0) + down * (hull.floor_apothem() + 1.0))
+	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Floor"), "ray between the holes hits the floor")
