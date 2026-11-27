@@ -269,11 +269,13 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │  CO₂ —                           total 3.1 kW                         │
 │                        │  passengers 0                                                         │
 │                        │  light ○                                                              │
-│                        │                                                                       │
-│ > door open hatch      │  LOG                                                                 │
-│ hatch: opening (6 s)   │  00:41:52  hatch opened; cargo exposed to vacuum                     │
-│ > _                    │  00:41:52  pressure-control: not feeding cargo (exposed)             │
-│                        │                                                                      │
+│ > door open hatch      │                                                                       │
+│ sent to kestrel; ...   │  LOG                                                                 │
+│ uplink: door open h... │  00:41:52  hatch opened; cargo exposed to vacuum                     │
+│ ███████░░░ 3:12 left   │  00:41:52  pressure-control: not feeding cargo (exposed)             │
+│ downlink: waiting      │                                                                      │
+│ ░░░░░░░░░░             │                                                                      │
+│ > _                    │                                                                      │
 └────────────────────────┴──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -289,7 +291,7 @@ The sketch isn't to scale: the console takes the left 40% of the window, on a da
 - **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—". While the computer reboots or is in FAULT the dashboard is frozen and room clicks do nothing.
 - **Systems, breakers and tanks** panels, as above. Breakers list in one column so the four panels fit one row with four rooms.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
-- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
+- **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. Between them sit two progress bars, `uplink` and `downlink`, each with a label: idle, or the command with its time left (`uplink: door open hatch — 3:12 left`). While the uplink runs the downlink reads `waiting`; while the reply comes back the uplink stays full and reads `sent`. Both read idle when disconnected. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
 
 All text is 19 px, matching `prototypes/transit`, and the UI scales with the display's HiDPI factor.
 

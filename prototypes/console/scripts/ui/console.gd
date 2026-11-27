@@ -1,6 +1,6 @@
 class_name Console
 extends VBoxContainer
-## The command line: scrollback above one input line. Up and down recall
+## The command line: scrollback, the link's progress bars, then one input line. Up and down recall
 ## earlier lines.
 
 signal line_submitted(line: String)
@@ -9,6 +9,7 @@ const MAX_LINES := 200
 
 var input: LineEdit
 var scrollback: RichTextLabel
+var link_status: LinkStatus
 
 var _history: Array[String] = []
 ## Index into _history while recalling; _history.size() means a fresh line.
@@ -22,6 +23,8 @@ func _init() -> void:
 	scrollback.custom_minimum_size = Vector2(0, 90)
 	scrollback.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(scrollback)
+	link_status = LinkStatus.new()
+	add_child(link_status)
 	input = LineEdit.new()
 	input.keep_editing_on_text_submit = true
 	input.placeholder_text = "type 'help' for commands"

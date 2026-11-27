@@ -32,7 +32,8 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 Connected, these go to that ship. A command takes the ship's `transmission_s` (8 minutes unless its file says
 otherwise) to arrive and runs then; its reply takes as long to come back. The console prints
 `sent to <ship>; reply in <round trip>` when it sends, and the reply when it lands. One command is in flight
-at a time, and `disconnect` waits for the reply. `ships`, `disconnect` and `help` answer at once:
+at a time, and `disconnect` waits for the reply. Two bars under the scrollback show the command's
+progress: `uplink` while it travels to the ship (with the time left), `downlink` while the reply comes back. `ships`, `disconnect` and `help` answer at once:
 
 | Command | Effect |
 |---|---|

@@ -496,3 +496,41 @@ func test_bad_data_file_runs_no_sim() -> void:
 	var main := _main_with_broken_data()
 	assert_true(not main.is_processing(), "the frame loop is off")
 	main._input(_key(KEY_SPACE))
+
+
+func _status(main: Main) -> LinkStatus:
+	return main.console.link_status
+
+
+func test_link_bars_are_idle_when_disconnected_and_when_nothing_is_in_flight() -> void:
+	var main := _disconnected_main()
+	assert_true(_status(main).uplink_label.text == "uplink: idle", "got '%s'" % _status(main).uplink_label.text)
+	assert_true(_status(main).downlink_label.text == "downlink: idle", "got '%s'" % _status(main).downlink_label.text)
+	assert_true(_status(main).uplink_bar.value == 0.0 and _status(main).downlink_bar.value == 0.0, "both empty")
+	assert_true(_status(main).visible, "shown while disconnected")
+	_send(main, "ships connect kestrel")
+	assert_true(_status(main).uplink_label.text == "uplink: idle", "idle when connected too")
+
+
+func test_link_bars_follow_the_uplink_then_the_downlink() -> void:
+	var main := _main()
+	main.ship.transmission_s = 100.0
+	main.clock.paused = false
+	main.console.line_submitted.emit("door open hatch")
+	main._process(0.0)
+	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — 1:40 left", "got '%s'" % _status(main).uplink_label.text)
+	assert_true(_status(main).downlink_label.text == "downlink: waiting", "got '%s'" % _status(main).downlink_label.text)
+	main._process(25.0)
+	assert_true(absf(_status(main).uplink_bar.value - 0.25) < 0.001, "uplink a quarter done, got %s" % _status(main).uplink_bar.value)
+	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — 1:15 left", "got '%s'" % _status(main).uplink_label.text)
+	assert_true(_status(main).downlink_bar.value == 0.0, "downlink not started")
+	main._process(75.0)
+	assert_true(_status(main).uplink_bar.value == 1.0, "uplink stays full")
+	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — sent", "got '%s'" % _status(main).uplink_label.text)
+	assert_true(_status(main).downlink_label.text == "downlink: door open hatch — 1:40 left", "got '%s'" % _status(main).downlink_label.text)
+	main._process(50.0)
+	assert_true(absf(_status(main).downlink_bar.value - 0.5) < 0.001, "downlink half done, got %s" % _status(main).downlink_bar.value)
+	main._process(50.0)
+	assert_true(_status(main).uplink_label.text == "uplink: idle", "idle after the reply")
+	assert_true(_status(main).downlink_label.text == "downlink: idle", "idle after the reply")
+	assert_true(_status(main).uplink_bar.value == 0.0, "bars empty again")
