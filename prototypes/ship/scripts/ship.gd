@@ -11,6 +11,8 @@ const OCCLUDER_LAYER := 2
 const FLOOR_LAYER := 4
 const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 
+var _crate_material: StandardMaterial3D
+
 
 ## Whether the player may walk with gravity aboard this ship (false: it only floats).
 func has_gravity() -> bool:
@@ -62,6 +64,35 @@ func make_panel(panel_name: String, points: PackedVector3Array, color: Color, la
 
 	if layers & OCCLUDER_LAYER:
 		body.set_meta("fade_mesh", mesh)
+	return body
+
+
+## A crate `size` metres on a side, placed by `at`. It sits on the world layer only, so the
+## player bumps into it but a floating player measures its height from the floor beneath.
+func make_crate(crate_name: String, size: float, at: Transform3D) -> StaticBody3D:
+	if _crate_material == null:
+		_crate_material = StandardMaterial3D.new()
+		_crate_material.albedo_color = CRATE_COLOR
+		_crate_material.roughness = 0.9
+	var body := StaticBody3D.new()
+	body.name = crate_name
+	body.collision_layer = WORLD_LAYER
+	body.collision_mask = 0
+	body.set_meta("size", size)
+	body.transform = at
+
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE * size
+	shape.shape = box
+	body.add_child(shape)
+
+	var mesh := MeshInstance3D.new()
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3.ONE * size
+	mesh.mesh = box_mesh
+	mesh.material_override = _crate_material
+	body.add_child(mesh)
 	return body
 
 

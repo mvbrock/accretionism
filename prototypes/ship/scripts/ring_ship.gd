@@ -89,9 +89,6 @@ func _build_crates() -> Node3D:
 	crates.name = "Crates"
 	var rng := RandomNumberGenerator.new()
 	rng.seed = CRATE_SEED
-	var material := StandardMaterial3D.new()
-	material.albedo_color = CRATE_COLOR
-	material.roughness = 0.9
 	var count := 0
 	for k in RingGeometry.SECTIONS:
 		var placed := 0
@@ -102,36 +99,16 @@ func _build_crates() -> Node3D:
 			var yaw := rng.randf_range(0.0, TAU)
 			if k == 0 and absf(offset) < 3.0:
 				continue  # keep the spawn point clear
-			crates.add_child(_crate(k, x, offset, size, yaw, material, count))
+			crates.add_child(_crate(k, x, offset, size, yaw, count))
 			placed += 1
 			count += 1
 	return crates
 
 
-func _crate(k: int, x: float, offset: float, size: float, yaw: float,
-		material: StandardMaterial3D, index: int) -> StaticBody3D:
+func _crate(k: int, x: float, offset: float, size: float, yaw: float, index: int) -> StaticBody3D:
 	var down := RingGeometry.section_down(k)
 	var up := -down
-	var body := StaticBody3D.new()
-	body.name = "Crate%d" % index
-	body.collision_layer = WORLD_LAYER
-	body.collision_mask = 0
-	body.set_meta("size", size)
 	var basis := Basis(Vector3.RIGHT, up, Vector3.RIGHT.cross(up)).rotated(up, yaw)
 	var origin := Vector3(x, 0, 0) + RingGeometry.section_tangent(k) * offset \
 			+ down * (RingGeometry.floor_apothem() - size / 2.0)
-	body.transform = Transform3D(basis, origin)
-
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3.ONE * size
-	shape.shape = box
-	body.add_child(shape)
-
-	var mesh := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3.ONE * size
-	mesh.mesh = box_mesh
-	mesh.material_override = material
-	body.add_child(mesh)
-	return body
+	return make_crate("Crate%d" % index, size, Transform3D(basis, origin))

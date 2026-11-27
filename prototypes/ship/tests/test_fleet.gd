@@ -33,7 +33,7 @@ func _setup() -> void:
 	fleet.player = player
 	fleet.rig = rig
 	fleet.fader = fader
-	own(fleet)  # last: its _ready boards the player, which needs the player's _ready first
+	own(fleet)
 	await physics_frames(3)
 
 
@@ -107,3 +107,32 @@ func test_emits_ship_changed() -> void:
 	fleet.ship_changed.connect(func(ship: Ship) -> void: received.append(ship))
 	fleet.next_ship()
 	assert_true(received.size() == 1 and received[0] == skiff, "ship_changed carried the skiff")
+
+
+func test_boards_when_placed_before_the_player() -> void:
+	var main := Node3D.new()
+	var early_fleet := Fleet.new()
+	var early_ring := RingShip.new()
+	early_fleet.add_child(early_ring)
+	main.add_child(early_fleet)
+	var early_player: Player = load("res://scenes/player.tscn").instantiate()
+	early_player.drive_by_code = true
+	main.add_child(early_player)
+	var early_rig := CameraRig.new()
+	var camera := Camera3D.new()
+	camera.name = "Camera"
+	early_rig.add_child(camera)
+	early_rig.target = early_player
+	main.add_child(early_rig)
+	var early_fader := OcclusionFader.new()
+	early_fader.camera = camera
+	early_fader.target = early_player
+	main.add_child(early_fader)
+	early_fleet.player = early_player
+	early_fleet.rig = early_rig
+	early_fleet.fader = early_fader
+	own(main)
+	await physics_frames(3)
+	assert_true(early_fleet.active == early_ring, "the ring is active")
+	assert_true(early_player.ship == early_ring, "the player boarded the ring")
+	assert_near(early_player.global_position.distance_to(early_ring.spawn_point()), 0.0, 0.1, "player at the ring's spawn")

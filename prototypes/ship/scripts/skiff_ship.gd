@@ -127,27 +127,7 @@ func _build_bulkhead(bulkhead_name: String, z: float) -> Node3D:
 func _build_crates() -> Node3D:
 	var crates := Node3D.new()
 	crates.name = "Crates"
-	var material := StandardMaterial3D.new()
-	material.albedo_color = CRATE_COLOR
-	material.roughness = 0.9
 	for x in [-2.5, 2.5]:
-		var body := StaticBody3D.new()
-		body.name = "Crate%d" % crates.get_child_count()
-		body.collision_layer = WORLD_LAYER
-		body.collision_mask = 0
-		body.position = Vector3(x, 0.5, 9)
-
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3.ONE
-		shape.shape = box
-		body.add_child(shape)
-
-		var mesh := MeshInstance3D.new()
-		var box_mesh := BoxMesh.new()
-		box_mesh.size = Vector3.ONE
-		mesh.mesh = box_mesh
-		mesh.material_override = material
-		body.add_child(mesh)
-		crates.add_child(body)
+		var at := Transform3D(Basis.IDENTITY, Vector3(x, 0.5, 9))
+		crates.add_child(make_crate("Crate%d" % crates.get_child_count(), 1.0, at))
 	return crates

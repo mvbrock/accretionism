@@ -18,6 +18,10 @@ func _ready() -> void:
 	add_child(Ship.make_environment())
 	for ship in ships():
 		_set_active(ship, false)
+	# Boarding uses the player's and rig's own nodes, so wait for them wherever they sit in the tree.
+	for node: Node in [player, rig]:
+		if not node.is_node_ready():
+			await node.ready
 	switch_to(ships()[0])
 
 
