@@ -61,14 +61,17 @@ func up_at(p: Vector3) -> Vector3:
 	return RingGeometry.up_at(p)
 
 
-## 0 in the hub box and the bottom half of a ladder pipe; PI * t in the top half, where t runs from 0 at the hub
-## ceiling's outer face to 1 at the top ring's floor; the player's angle around the axis in the rings.
+## 0 in the hub box and the bottom half of a ladder pipe; PI * t in the top half, where t runs from 0 one body
+## height above the hub ceiling's outer face to 1 at the top ring's floor; the player's angle around the axis in the
+## rings. A climber flipping at the hub ceiling moves its feet up by a body height, so the turn starts where its feet
+## land and the camera doesn't jump at the flip.
 func camera_roll_at(p: Vector3) -> float:
 	if _hub_index_at(p) != -1:
 		return 0.0
 	if _spoke_at(p) != -1:
-		var hub_top := HUB_HALF_SIZE + SLAB
-		return PI * clampf((p.y - hub_top) / (RingGeometry.floor_apothem() - hub_top), 0.0, 1.0)
+		var turn_start := HUB_HALF_SIZE + SLAB + Player.BODY_HEIGHT
+		var turn_end := RingGeometry.floor_apothem() - FOOT_LIFT
+		return PI * clampf((p.y - turn_start) / (turn_end - turn_start), 0.0, 1.0)
 	return RingGeometry.angle_of(p)
 
 
@@ -195,8 +198,9 @@ func _build_hub_room(i: int) -> void:
 	var hole := Vector2(RING_CENTERS[i] + LADDER_X, 0)
 	var fill := room_color(i, RING_CENTERS.size())
 	var trim := trim_color(i, RING_CENTERS.size())
+	# The floor is an occluder too, so it fades for a climber below it in the bottom spoke.
 	add_holed_slab(room, "Floor", Vector3(x0, -h - SLAB, -h - SLAB), Vector3(x1, -h, h + SLAB), hole, PIPE_OUTER, fill,
-			WORLD_LAYER | FLOOR_LAYER)
+			WORLD_LAYER | FLOOR_LAYER | OCCLUDER_LAYER)
 	for panel in add_holed_slab(room, "Ceiling", Vector3(x0, h, -h - SLAB), Vector3(x1, h + SLAB, h + SLAB), hole, PIPE_OUTER,
 			trim, WALL_LAYERS):
 		add_room_bound(room.name, panel, Vector3.UP)

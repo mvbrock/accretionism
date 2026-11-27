@@ -57,7 +57,7 @@ func test_hub_nodes() -> void:
 	var ship := await _make_ship()
 	for i in 3:
 		var room := "Hub%d" % i
-		assert_true((ship.get_node("%s/Floora" % room) as StaticBody3D).collision_layer == (Ship.WORLD_LAYER | Ship.FLOOR_LAYER), "%s's floor is a floor" % room)
+		assert_true((ship.get_node("%s/Floora" % room) as StaticBody3D).collision_layer == (Ship.WORLD_LAYER | Ship.FLOOR_LAYER | Ship.OCCLUDER_LAYER), "%s's floor is a floor and an occluder" % room)
 		for panel_name in ["Ceilinga", "WallLeft", "WallRight"]:
 			var panel: StaticBody3D = ship.get_node("%s/%s" % [room, panel_name])
 			assert_true(panel.collision_layer == (Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER), "%s/%s is an occluder" % [room, panel_name])
@@ -87,10 +87,31 @@ func test_camera_roll_through_the_top_spoke() -> void:
 	var hub_top := WheelShip.HUB_HALF_SIZE + WheelShip.SLAB
 	assert_near(ship.camera_roll_at(Vector3(x, -20, 0)), 0.0, 0.001, "no roll in the bottom spoke")
 	assert_near(ship.camera_roll_at(Vector3(x, hub_top - 0.01, 0)), 0.0, 0.001, "no roll inside the hub")
-	assert_near(ship.camera_roll_at(Vector3(x, (hub_top + apothem) / 2.0, 0)), PI / 2.0, 0.05, "a quarter turn halfway up the top spoke")
+	# Upright feet reach the hub ceiling's top; the flip moves them up a body height. The camera reads 0 at both.
+	var turn_start := hub_top + Player.BODY_HEIGHT
+	assert_near(ship.camera_roll_at(Vector3(x, hub_top + 0.01, 0)), 0.0, 0.001, "no roll where upright feet flip")
+	assert_near(ship.camera_roll_at(Vector3(x, turn_start, 0)), 0.0, 0.001, "no roll where the flipped feet land")
+	assert_near(ship.camera_roll_at(Vector3(x, (turn_start + apothem) / 2.0, 0)), PI / 2.0, 0.05, "a quarter turn halfway up the turn")
 	assert_near(ship.camera_roll_at(Vector3(x, apothem - 0.05, 0)), PI, 0.05, "a half turn at the top ring's floor")
 	assert_true(ship.up_at(Vector3(x, 10, 0)).is_equal_approx(Vector3.DOWN), "up is toward the axis in the top spoke")
 	assert_true(ship.up_at(Vector3(x, -10, 0)).is_equal_approx(Vector3.UP), "up is toward the axis in the bottom spoke")
+
+
+func test_hub_floor_fades_for_a_climber_below_it() -> void:
+	var ship := await _make_ship()
+	var target := Node3D.new()
+	target.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	own(target)
+	target.global_position = Vector3(WheelShip.RING_CENTERS[1] + WheelShip.LADDER_X, -7.0, 0)
+	var rig := own_rig(target, ship)
+	var fader := own_fader(rig, target, ship)
+	await physics_frames(2)
+	rig.snap()
+	var hub_floor_faded := false
+	for mesh in fader.find_occluders():
+		if str(ship.get_path_to(mesh)).begins_with("Hub1/Floor"):
+			hub_floor_faded = true
+	assert_true(hub_floor_faded, "the hub floor between the camera and a climber in the bottom spoke fades")
 
 
 func test_doorway_between_hub_rooms() -> void:
