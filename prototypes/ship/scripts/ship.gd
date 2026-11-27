@@ -11,6 +11,11 @@ const OCCLUDER_LAYER := 2
 const FLOOR_LAYER := 4
 
 
+## Whether the player may walk with gravity aboard this ship (false: it only floats).
+func has_gravity() -> bool:
+	return true
+
+
 ## Which way is up for something standing at `p`.
 func up_at(_p: Vector3) -> Vector3:
 	return Vector3.UP
@@ -57,6 +62,17 @@ func make_panel(panel_name: String, points: PackedVector3Array, color: Color, la
 	if layers & OCCLUDER_LAYER:
 		body.set_meta("fade_mesh", mesh)
 	return body
+
+
+## The 8 corners of the axis-aligned box from `lo` to `hi`, in `prism_mesh` index order
+## (index = x*4 + y*2 + z, where 0 picks the lo coordinate and 1 the hi one).
+static func box_points(lo: Vector3, hi: Vector3) -> PackedVector3Array:
+	var points := PackedVector3Array()
+	for x in [lo.x, hi.x]:
+		for y in [lo.y, hi.y]:
+			for z in [lo.z, hi.z]:
+				points.append(Vector3(x, y, z))
+	return points
 
 
 ## Flat-shaded mesh for a prism with 8 corners (index = a*4 + b*2 + c).
