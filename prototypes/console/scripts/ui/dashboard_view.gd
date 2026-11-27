@@ -13,9 +13,11 @@ const GREEN := Color("5fd068")
 const AMBER := Color("f0b030")
 const RED := Color("ee5050")
 const BAR_CELLS := 8
-## The 3D view takes this share of the height left after the clock bar and panels; the log the rest.
-const SHIP_VIEW_SHARE := 2.0
-const LOG_SHARE := 1.0
+## The height left after the clock bar is split in these shares between the 3D view, the panels
+## (which scroll when long) and the log, so the view keeps about half however long the panels are.
+const SHIP_VIEW_SHARE := 1.2
+const PANELS_SHARE := 0.8
+const LOG_SHARE := 0.5
 const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]
 
 var clock_bar: HBoxContainer
@@ -43,7 +45,14 @@ func _init() -> void:
 	clock_bar = _build_clock_bar()
 	add_child(clock_bar)
 	panels = _build_panels()
-	add_child(panels)
+	var panels_scroll := ScrollContainer.new()
+	panels_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panels_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	panels_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panels_scroll.size_flags_stretch_ratio = PANELS_SHARE
+	panels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panels_scroll.add_child(panels)
+	add_child(panels_scroll)
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
 	_log.scroll_following = true

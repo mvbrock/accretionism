@@ -126,8 +126,12 @@ func test_room_at_finds_the_room_under_a_point() -> void:
 	for room_id in ["main", "cargo"]:
 		var point := view.screen_point(ship.room(room_id).position)
 		assert_true(view.room_at(point) == room_id, "%s's centre picks %s, got '%s'" % [room_id, room_id, view.room_at(point)])
-	var behind := view.screen_point(ship.room("cockpit").position)
-	assert_true(view.room_at(behind) == "main", "from the start view main stands in front of the cockpit's centre, so it wins, got '%s'" % view.room_at(behind))
+	var cockpit := view.screen_point(ship.room("cockpit").position)
+	assert_true(view.room_at(cockpit) == "cockpit", "a name drawn on top of main still picks its own room, got '%s'" % view.room_at(cockpit))
+	var cargo := ship.room("cargo")
+	var box_only := view.screen_point(cargo.position + Vector3(0, -1.0, 1.5))
+	assert_true(view.name_at(box_only) == "", "precondition: no name under the box-only point")
+	assert_true(view.room_at(box_only) == "cargo", "a point on cargo away from its name picks cargo, got '%s'" % view.room_at(box_only))
 	assert_true(view.room_at(Vector2(2, 2)) == "", "a corner of empty space picks nothing")
 
 
@@ -182,4 +186,39 @@ func test_the_view_frames_every_standard_ship() -> void:
 				var point := room.position + room.orientation * (room.size * 0.5 * offset)
 				assert_true(not view.camera.is_position_behind(point) and rect.has_point(view.screen_point(point)),
 						"%s: %s corner %d is on screen, got %s" % [ship_name, room.id, corner, view.screen_point(point)])
+		teardown()
+
+
+func test_picking_skips_a_room_that_contains_the_camera() -> void:
+	var ship := ShipFixture.make()
+	var view := await _view(ship)
+	view.camera.global_position = ship.room("cargo").position
+	view.camera.look_at(ship.room("main").position)
+	assert_true(view.room_at(VIEW_SIZE / 2) != "cargo", "a room the camera is inside is not picked, got '%s'" % view.room_at(VIEW_SIZE / 2))
+
+
+func test_names_are_about_the_label_size_on_screen() -> void:
+	var ship := ShipFixture.make()
+	var view := await _view(ship)
+	var label := view.room_name("cargo")
+	var on_screen := label.pixel_size * label.font_size * VIEW_SIZE.y / (2.0 * tan(deg_to_rad(view.camera.fov) / 2.0))
+	assert_near(on_screen, ShipView3D.LABEL_EM_PX, 0.5, "label em height in control px")
+
+
+func test_the_ship_fills_the_view() -> void:
+	var fleet := Fleet.standard()
+	for ship_name in fleet.ships:
+		var ship: Ship = fleet.ships[ship_name]
+		var view := await _view(ship)
+		var low := Vector2(INF, INF)
+		var high := Vector2(-INF, -INF)
+		for room in ship.rooms:
+			for corner in 8:
+				var offset := Vector3(1 if corner & 1 else -1, 1 if corner & 2 else -1, 1 if corner & 4 else -1)
+				var p := view.screen_point(room.position + room.orientation * (room.size * 0.5 * offset))
+				low = low.min(p)
+				high = high.max(p)
+		var span := high - low
+		assert_true(span.x >= 0.75 * VIEW_SIZE.x or span.y >= 0.75 * VIEW_SIZE.y,
+				"%s fills the view, span %s of %s" % [ship_name, span, VIEW_SIZE])
 		teardown()

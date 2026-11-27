@@ -518,3 +518,14 @@ func test_a_long_line_does_not_widen_the_console() -> void:
 	await tree.process_frame
 	var width := main.console.get_combined_minimum_size().x
 	assert_true(width < 300.0, "the console's minimum width stays small, got %s" % width)
+
+
+func test_the_view_keeps_half_the_dashboard_under_a_tall_breaker_list() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	dashboard.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	dashboard.size = Vector2(900, 900)
+	dashboard.show_ship(WheelShip.new())
+	await tree.process_frame
+	await tree.process_frame
+	assert_true(dashboard.ship_view.size.y >= 0.45 * dashboard.size.y, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, dashboard.size.y])
