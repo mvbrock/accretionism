@@ -14,8 +14,6 @@ const FLOAT_SHARPNESS := 3.0
 ## How quickly the body tips between upright and horizontal.
 const TIP_SHARPNESS := 6.0
 
-## Metres per second along a ladder.
-const CLIMB_SPEED := 1.5
 ## How close to a landing's exit the player must stand to grab the ladder.
 const REACH := 1.2
 ## How close along the ladder to a landing the player must be to let go there.
@@ -26,6 +24,8 @@ const LANDING_SNAP := 0.5
 @export var walk_speed := 3.0
 @export var gravity := 9.8
 @export var turn_speed := 12.0
+## Metres per second along a ladder.
+@export var climb_speed := 1.5
 
 ## Relative to the facing: x = strafe (D = +1), y = forward (W = +1).
 var move_input := Vector2.ZERO
@@ -38,6 +38,9 @@ var drive_by_code := false
 ## The view the mouse points through.
 var aim_camera: Camera3D
 
+## What G asks for; gravity applies only where the ship has it at the body's position.
+var wants_gravity := true
+## Whether gravity applies here now: `wants_gravity` and the ship has it at the body's position.
 var gravity_enabled := true
 
 ## The ladder held, or null while walking or floating.
@@ -101,16 +104,23 @@ func aim_through(camera: Camera3D, screen_point: Vector2) -> void:
 		aim_at(hit)
 
 
-## Floating mode has no floor, so Godot doesn't snap the body back down to it.
+## Records what the player wants; it applies where the ship has gravity at the body's position.
 func set_gravity_enabled(enabled: bool) -> void:
-	gravity_enabled = enabled
+	wants_gravity = enabled
+	_apply_gravity()
+
+
+## Applies `wants_gravity and ship.has_gravity_at(position)`: switches the motion mode and clears drift.
+## Floating mode has no floor, so Godot doesn't snap the body back down to it.
+func _apply_gravity() -> void:
+	gravity_enabled = wants_gravity and ship.has_gravity_at(global_position)
 	_drift = Vector2.ZERO
-	motion_mode = MOTION_MODE_GROUNDED if enabled else MOTION_MODE_FLOATING
+	motion_mode = MOTION_MODE_GROUNDED if gravity_enabled else MOTION_MODE_FLOATING
 
 
 ## Where the player is now, as a ship would remember it.
 func pose() -> PlayerPose:
-	var now := PlayerPose.new(global_position, heading, gravity_enabled)
+	var now := PlayerPose.new(global_position, heading, wants_gravity)
 	now.ladder = climbing
 	now.climb_s = climb_s
 	return now
@@ -125,7 +135,7 @@ func board(new_ship: Ship, at: PlayerPose) -> void:
 	heading = at.heading
 	aim_heading = Vector2.ZERO
 	velocity = Vector3.ZERO
-	set_gravity_enabled(at.gravity and new_ship.has_gravity())
+	set_gravity_enabled(at.gravity)
 	if at.ladder != null:
 		_hold_ladder(at.ladder, at.climb_s)
 	_set_tip(_wanted_tip())
@@ -153,8 +163,8 @@ func interact_hint() -> String:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		interact()
-	elif event.is_action_pressed("toggle_gravity") and climbing == null and ship != null and ship.has_gravity():
-		set_gravity_enabled(not gravity_enabled)
+	elif event.is_action_pressed("toggle_gravity") and climbing == null and ship != null and ship.has_gravity_at(global_position):
+		set_gravity_enabled(not wants_gravity)
 
 
 ## The ladder with a landing in reach of the spot on the floor under the body, so a floating
@@ -206,6 +216,7 @@ func _let_go_at_landing() -> void:
 	heading = _heading_toward(-landing.facing)
 	aim_heading = Vector2.ZERO
 	_stop()
+	_apply_gravity()
 	_orient(ship.up_at(global_position))
 	reset_physics_interpolation()
 
@@ -223,7 +234,7 @@ func _heading_toward(direction: Vector3) -> Vector2:
 
 ## Climbing: W/S slide along the ladder; the body is placed on it, with no walking or drift.
 func _climb(delta: float) -> void:
-	climb_s = clampf(climb_s + move_input.y * CLIMB_SPEED * delta, 0.0, climbing.length)
+	climb_s = clampf(climb_s + move_input.y * climb_speed * delta, 0.0, climbing.length)
 	global_position = climbing.point_at(climb_s)
 	_orient(ship.up_at(global_position))
 	_set_tip(_wanted_tip())
@@ -239,6 +250,8 @@ func _physics_process(delta: float) -> void:
 	if climbing != null:
 		_climb(delta)
 		return
+	if (wants_gravity and ship.has_gravity_at(global_position)) != gravity_enabled:
+		_apply_gravity()
 	_turn_toward_aim(delta)
 
 	var up := ship.up_at(global_position)

@@ -31,6 +31,11 @@ func has_gravity() -> bool:
 	return true
 
 
+## Whether gravity acts at `p`; a ship whose gravity varies by position overrides this.
+func has_gravity_at(_p: Vector3) -> bool:
+	return has_gravity()
+
+
 ## Which way is up for something standing at `p`.
 func up_at(_p: Vector3) -> Vector3:
 	return Vector3.UP

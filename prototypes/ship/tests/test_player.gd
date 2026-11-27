@@ -452,3 +452,55 @@ func test_let_go_clears_aim() -> void:
 	player.interact()
 	await physics_frames(30)
 	assert_true(player.heading.y > 0.9, "still faces away from the pipe (heading %s)" % player.heading)
+
+
+## A ship with gravity only below y = 10.
+class SplitShip extends Ship:
+	func has_gravity_at(p: Vector3) -> bool:
+		return p.y < 10.0
+
+
+## A player boarded on a SplitShip at `at`, wanting gravity.
+func _on_split_ship(at: Vector3) -> Player:
+	var ship: Ship = own(SplitShip.new())
+	var player := own_player(ship)
+	await physics_frames(2)
+	player.board(ship, PlayerPose.new(at, Vector2(0, 1), true))
+	return player
+
+
+## Puts the body at `at` at rest and lets two frames pass.
+func _move_to(player: Player, at: Vector3) -> void:
+	player.global_position = at
+	player.velocity = Vector3.ZERO
+	await physics_frames(2)
+
+
+func test_gravity_follows_position() -> void:
+	var player := await _on_split_ship(Vector3(0, 20, 0))
+	assert_true(not player.gravity_enabled, "no gravity up high")
+	await _move_to(player, Vector3.ZERO)
+	assert_true(player.gravity_enabled, "gravity once low")
+
+
+func test_g_ignored_where_no_gravity() -> void:
+	var player := await _on_split_ship(Vector3(0, 20, 0))
+	Player.ensure_input_actions()
+	var event := InputEventAction.new()
+	event.action = "toggle_gravity"
+	event.pressed = true
+	player._unhandled_input(event)
+	assert_true(player.wants_gravity, "G changes nothing where there is no gravity")
+
+
+func test_wants_gravity_survives_zero_g() -> void:
+	var player := await _on_split_ship(Vector3.ZERO)
+	player.set_gravity_enabled(false)
+	await _move_to(player, Vector3(0, 20, 0))
+	await _move_to(player, Vector3.ZERO)
+	assert_true(not player.gravity_enabled, "still floating after passing through zero-g")
+
+
+func test_pose_stores_wants() -> void:
+	var player := await _on_split_ship(Vector3(0, 20, 0))
+	assert_true(player.pose().gravity, "pose keeps what the player wants")
