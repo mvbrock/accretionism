@@ -19,7 +19,7 @@ Space pauses every ship unless the command line has focus, connected or not; the
 
 ## Commands
 
-Commands and IDs are case-insensitive. Every command prints one line, except `help`. A ship command prints `sent to <ship>; reply in <round trip>` at once and its reply when it lands, as `reply to '<line>': <reply>`.
+Commands and IDs are case-insensitive. A ship command prints `sent to <ship>; reply in <round trip>` at once, then its one-line reply when it lands, as `reply to '<line>': <reply>`; `help` prints one line per command.
 
 The console starts disconnected. Connect to a ship to see its dashboard and command it:
 
@@ -73,7 +73,7 @@ time for a command or reply to cross the link to that ship. Add a room or a door
   across the transmission delay and its reply back.
 - `scripts/dashboard_model.gd` turns a `Ship` into the strings and levels the screen shows.
 - `scripts/ui/` is a thin layer built in code: `Main` runs the clock and the command line,
-  `DashboardView` draws the model, `Console` is the input and scrollback (the left column).
+  `DashboardView` draws the model, `Console` is the input and scrollback (the left column), with `LinkStatus`'s uplink and downlink bars between them.
 
 ## Tests
 

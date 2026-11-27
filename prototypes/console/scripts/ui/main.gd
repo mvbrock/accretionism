@@ -243,7 +243,7 @@ func _toggle_pause() -> void:
 
 
 func _next_speed() -> void:
-	clock.speed_index = (clock.speed_index + 1) % SimClock.SPEEDS.size()
+	clock.speed_index = (clock.speed_index + 1) % SimClock.speed_count()
 	refresh()
 
 

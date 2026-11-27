@@ -210,6 +210,7 @@ func fault_system(id: String) -> bool:
 ## call, even if that call uses a different step size. `step_s` must be a whole multiple of
 ## STEP_S. Returns the steps run.
 func advance(sim_seconds: float, step_s := STEP_S) -> int:
+	assert(step_s > 0.0 and is_equal_approx(step_s / STEP_S, roundf(step_s / STEP_S)), "step_s %s is not a whole multiple of STEP_S" % step_s)
 	_pending_s += maxf(sim_seconds, 0.0)
 	var steps := int(floor(_pending_s / step_s + _STEP_EPSILON))
 	_pending_s -= steps * step_s
@@ -220,6 +221,7 @@ func advance(sim_seconds: float, step_s := STEP_S) -> int:
 
 ## Runs one step of `dt` sim seconds, a whole multiple of STEP_S.
 func step(dt := STEP_S) -> void:
+	assert(is_equal_approx(dt / STEP_S, roundf(dt / STEP_S)), "step dt %s is not a multiple of STEP_S" % dt)
 	for id in power.roll_random_trips(dt):
 		events.add(time_s, "%s: breaker tripped" % id, EventLog.Level.WARNING)
 	for id in SYSTEM_IDS:

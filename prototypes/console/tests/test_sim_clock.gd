@@ -30,3 +30,10 @@ func test_step_follows_speed() -> void:
 func test_starts_at_real_time() -> void:
 	var clock := SimClock.new()
 	assert_near(clock.tick(0.5), 0.5, 1e-9, "1x of 0.5 s")
+
+func test_every_step_is_a_whole_multiple_of_the_ship_step() -> void:
+	var clock := SimClock.new()
+	for i in SimClock.speed_count():
+		clock.speed_index = i
+		var multiple := clock.step_s() / Ship.STEP_S
+		assert_near(multiple, roundf(multiple), 1e-9, "step at speed %d" % i)

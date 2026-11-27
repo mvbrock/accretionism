@@ -429,7 +429,7 @@ Write each room's `start` out in full. The `"..."` above only shortens the plan.
 **Interfaces:**
 - Consumes: the `Ship` command API (Tasks 6–7)
 - Produces:
-  - `SimClock.SPEEDS = [1.0, 60.0, 3600.0]`, `paused: bool`, `speed_index: int` (starts at 0), `tick(real_delta: float) -> float` (sim seconds to advance, 0 when paused), `label() -> String` (`"▶ 10×"` or `"❚❚ Paused"`)
+  - `SimClock.SPEEDS = [1.0, 10.0, 100.0]`, `paused: bool`, `speed_index: int` (starts at 0), `tick(real_delta: float) -> float` (sim seconds to advance, 0 when paused), `label() -> String` (`"▶ 10×"` or `"❚❚ Paused"`)
   - `static CommandInterpreter.run(ship: Ship, line: String) -> String`. It lower-cases the line, splits on whitespace, and returns `""` for a blank line. For any other line, it logs `"> <line as typed>"` and then the response to `ship.events`, and returns the response.
 
 **Responses**, exactly (`<s>` is `ceil(seconds_to_finish)`):

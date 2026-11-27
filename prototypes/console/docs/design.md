@@ -235,19 +235,24 @@ A ship command is transmitted. It reaches the ship after the ship's `transmissio
 | `debug trip <breaker ID>` | Trip a breaker. *Added, for testing and demos* |
 | `debug fault <system>` | Put a system in FAULT. *Added, for testing and demos* |
 
-Sample responses:
+Sample responses (each reply lands one round trip after its `sent to` line; the unknown command is answered at once):
 
 ```
 > door open hatch
-hatch: opening (6 s)
+sent to kestrel; reply in 16:00
+reply to 'door open hatch': hatch: opening (6 s)
 > door open hatch
-hatch: already open
+sent to kestrel; reply in 16:00
+reply to 'door open hatch': hatch: already open
 > door open d1
-d1: no power (breaker tripped)
+sent to kestrel; reply in 16:00
+reply to 'door open d1': d1: no power (breaker tripped)
 > hvac restart
-hvac: rebooting (8 s)
+sent to kestrel; reply in 16:00
+reply to 'hvac restart': hvac: rebooting (8 s)
 > hvac restart
-hvac: no power; reset breaker 'hvac' first
+sent to kestrel; reply in 16:00
+reply to 'hvac restart': hvac: no power; reset breaker 'hvac' first
 > door shut d1
 unknown command 'door shut'. Type 'help' for commands
 ```
