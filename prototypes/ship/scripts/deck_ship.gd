@@ -11,13 +11,7 @@ const SLAB := 0.4
 const PITCH := HEIGHT + SLAB
 ## (x, z) of the pipe's axis.
 const PIPE_CENTER := Vector2(3.5, 3.5)
-const PIPE_INNER := 0.7
-const PIPE_WALL := 0.15
-## The pipe's outer half-width.
-const PIPE_OUTER := PIPE_INNER + PIPE_WALL
 const DOOR_HEIGHT := 2.6
-const RUNG_SPACING := 0.35
-const RUNG_COLOR := Color(0.55, 0.55, 0.58)
 const WALL := WORLD_LAYER | OCCLUDER_LAYER
 const SOLID_FLOOR := WORLD_LAYER | FLOOR_LAYER | OCCLUDER_LAYER
 
@@ -25,7 +19,8 @@ const SOLID_FLOOR := WORLD_LAYER | FLOOR_LAYER | OCCLUDER_LAYER
 func _ready() -> void:
 	for i in deck_count:
 		add_child(_build_deck(i))
-	_add_rungs()
+	add_rungs(_pipe_frame(), 0.05, _ladder_length() + 0.05,
+			func(y: float) -> Node3D: return get_node("Deck%d" % deck_at(Vector3(0, y, 0))))
 	ladders.append(_build_ladder())
 
 
@@ -86,7 +81,8 @@ func _build_deck(i: int) -> Node3D:
 				trim, WALL))
 		add_room_bound(room, deck.get_node("Roof"), Vector3.UP)
 
-	_add_pipe_segment(deck, i)
+	add_pipe_segment(deck, _pipe_frame(), base, base + (HEIGHT if i == deck_count - 1 else PITCH), DOOR_HEIGHT,
+			false, trim, "Pipe")
 	deck.add_child(make_light(Vector3(0, top - 0.6, 0), 14.0))
 	deck.add_child(make_crate("Crate0", 1.0, Transform3D(Basis.IDENTITY, Vector3(-4.5, base + 0.5, 3.5))))
 	deck.add_child(make_crate("Crate1", 1.0, Transform3D(Basis.IDENTITY, Vector3(-3.5, base + 0.5, -4.5))))
@@ -116,59 +112,9 @@ func _add_slab(parent: Node3D, prefix: String, y0: float, color: Color, layers: 
 	return panels
 
 
-## Deck i's shaft walls and doorway blocker.
-func _add_pipe_segment(deck: Node3D, i: int) -> void:
-	var o := PIPE_OUTER
-	var cx := PIPE_CENTER.x
-	var cz := PIPE_CENTER.y
-	var y0 := i * PITCH
-	var y1 := y0 + (HEIGHT if i == deck_count - 1 else PITCH)
-	var door_top := y0 + DOOR_HEIGHT
-	var trim := trim_color(i, deck_count)
-	# [name, lo, hi, outward]. The side walls span the -Z wall's corners, so it is only a lintel over the doorway.
-	var pieces := [
-		["PipeLeft", Vector3(cx - o, y0, cz - o), Vector3(cx - PIPE_INNER, y1, cz + o), Vector3.LEFT],
-		["PipeRight", Vector3(cx + PIPE_INNER, y0, cz - o), Vector3(cx + o, y1, cz + o), Vector3.RIGHT],
-		["PipeAft", Vector3(cx - PIPE_INNER, y0, cz + PIPE_INNER), Vector3(cx + PIPE_INNER, y1, cz + o), Vector3.BACK],
-		["PipeLintel", Vector3(cx - PIPE_INNER, door_top, cz - o), Vector3(cx + PIPE_INNER, y1, cz - PIPE_INNER), Vector3.FORWARD],
-	]
-	for piece in pieces:
-		var panel := make_panel(piece[0], box_points(piece[1], piece[2]), trim, WALL)
-		deck.add_child(panel)
-		add_room_bound("Pipe", panel, piece[3])
-	deck.add_child(_build_hatch(y0, door_top))
-
-
-## The ladder's rungs, each under the deck whose height span holds it.
-func _add_rungs() -> void:
-	var rungs := int(floor(_ladder_length() / RUNG_SPACING)) + 1
-	var rung_material := StandardMaterial3D.new()
-	rung_material.albedo_color = RUNG_COLOR
-	for k in rungs:
-		var rung := MeshInstance3D.new()
-		rung.name = "Rung%d" % k
-		var box := BoxMesh.new()
-		box.size = Vector3(2.0 * PIPE_INNER - 0.2, 0.04, 0.04)
-		rung.mesh = box
-		rung.material_override = rung_material
-		var y := 0.05 + k * RUNG_SPACING
-		rung.position = Vector3(PIPE_CENTER.x, y, PIPE_CENTER.y + PIPE_INNER - 0.06)
-		get_node("Deck%d" % deck_at(Vector3(0, y, 0))).add_child(rung)
-
-
-## An invisible blocker filling a pipe doorway, on the hatch layer only.
-func _build_hatch(y0: float, door_top: float) -> StaticBody3D:
-	var hatch := StaticBody3D.new()
-	hatch.name = "Hatch"
-	hatch.collision_layer = HATCH_LAYER
-	hatch.collision_mask = 0
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(2.0 * PIPE_INNER, door_top - y0, PIPE_WALL)
-	shape.shape = box
-	hatch.add_child(shape)
-	hatch.position = Vector3(PIPE_CENTER.x, (y0 + door_top) / 2.0, PIPE_CENTER.y - PIPE_INNER - PIPE_WALL / 2.0)
-	return hatch
+## The pipe's frame: its axis is world Y through PIPE_CENTER, the doorway toward -Z.
+func _pipe_frame() -> Transform3D:
+	return Transform3D(Basis.IDENTITY, Vector3(PIPE_CENTER.x, 0, PIPE_CENTER.y))
 
 
 func _ladder_length() -> float:

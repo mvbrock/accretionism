@@ -12,6 +12,12 @@ const FLOOR_LAYER := 4
 ## Invisible blockers that keep the player out of a pipe doorway; only a ladder lets it through.
 const HATCH_LAYER := 8
 const CRATE_COLOR := Color(0.62, 0.45, 0.28)
+## Ladder pipes: the open half-width, the wall thickness and the outer half-width.
+const PIPE_INNER := 0.7
+const PIPE_WALL := 0.15
+const PIPE_OUTER := PIPE_INNER + PIPE_WALL
+const RUNG_SPACING := 0.35
+const RUNG_COLOR := Color(0.55, 0.55, 0.58)
 
 ## The ladder pipes aboard this ship.
 var ladders: Array[Ladder] = []
@@ -108,6 +114,70 @@ static func room_color(i: int, count: int) -> Color:
 ## The paler wall color matching `room_color(i, count)`.
 static func trim_color(i: int, count: int) -> Color:
 	return Color.from_hsv(float(i) / count, 0.25, 0.75)
+
+
+## One segment of a ladder pipe. Its axis runs along `frame.basis.y` from `frame.origin`; it spans `from`..`to` along
+## the axis. `door_height > 0` opens a doorway on the frame's −Z side from `from` to `from + door_height`, filled by a
+## hatch blocker. `capped` closes the `to` end. Pieces go under `parent` (PipeLeft, PipeRight, PipeAft, and PipeLintel
+## or PipeFore, Hatch, PipeCap) and register as bounds of `room`.
+func add_pipe_segment(parent: Node3D, frame: Transform3D, from: float, to: float, door_height: float,
+		capped: bool, color: Color, room: String) -> void:
+	var o := PIPE_OUTER
+	var i := PIPE_INNER
+	var layers := WORLD_LAYER | OCCLUDER_LAYER
+	# [name, lo, hi, local outward]. The side walls span the -Z wall's corners, so it is only a lintel over the doorway.
+	var pieces := [
+		["PipeLeft", Vector3(-o, from, -o), Vector3(-i, to, o), Vector3.LEFT],
+		["PipeRight", Vector3(i, from, -o), Vector3(o, to, o), Vector3.RIGHT],
+		["PipeAft", Vector3(-i, from, i), Vector3(i, to, o), Vector3.BACK],
+	]
+	if door_height > 0.0:
+		pieces.append(["PipeLintel", Vector3(-i, from + door_height, -o), Vector3(i, to, -i), Vector3.FORWARD])
+	else:
+		pieces.append(["PipeFore", Vector3(-i, from, -o), Vector3(i, to, -i), Vector3.FORWARD])
+	if capped:
+		pieces.append(["PipeCap", Vector3(-o, to, -o), Vector3(o, to + PIPE_WALL, o), Vector3.UP])
+	for piece in pieces:
+		var points := PackedVector3Array()
+		for point in box_points(piece[1], piece[2]):
+			points.append(frame * point)
+		var panel := make_panel(piece[0], points, color, layers)
+		parent.add_child(panel)
+		add_room_bound(room, panel, (frame.basis * piece[3]).normalized())
+	if door_height > 0.0:
+		parent.add_child(_make_hatch(frame, from, door_height))
+
+
+## An invisible blocker filling a pipe doorway, on the hatch layer only.
+func _make_hatch(frame: Transform3D, from: float, door_height: float) -> StaticBody3D:
+	var hatch := StaticBody3D.new()
+	hatch.name = "Hatch"
+	hatch.collision_layer = HATCH_LAYER
+	hatch.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(2.0 * PIPE_INNER, door_height, PIPE_WALL)
+	shape.shape = box
+	hatch.add_child(shape)
+	var center := Vector3(0, from + door_height / 2.0, -PIPE_INNER - PIPE_WALL / 2.0)
+	hatch.transform = Transform3D(frame.basis, frame * center)
+	return hatch
+
+
+## Rungs on the frame's +Z wall every RUNG_SPACING from `from` to `to`, each added to `parent_for.call(s)`.
+func add_rungs(frame: Transform3D, from: float, to: float, parent_for: Callable) -> void:
+	var rung_material := StandardMaterial3D.new()
+	rung_material.albedo_color = RUNG_COLOR
+	for k in int(floor((to - from) / RUNG_SPACING)) + 1:
+		var s := from + k * RUNG_SPACING
+		var rung := MeshInstance3D.new()
+		rung.name = "Rung%d" % k
+		var box := BoxMesh.new()
+		box.size = Vector3(2.0 * PIPE_INNER - 0.2, 0.04, 0.04)
+		rung.mesh = box
+		rung.material_override = rung_material
+		rung.transform = Transform3D(frame.basis, frame * Vector3(0, s, PIPE_INNER - 0.06))
+		parent_for.call(s).add_child(rung)
 
 
 ## A shadow-casting omni light named "Light" at `at`, reaching `light_range` metres.
