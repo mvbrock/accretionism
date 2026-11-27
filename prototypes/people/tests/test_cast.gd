@@ -2,7 +2,7 @@ extends TestCase
 
 
 func _loaded_parties() -> Array[Party]:
-	return CastLoader.load(World.build())
+	return CastLoader.load()
 
 
 func _passenger_by_id(parties: Array[Party], id: String) -> Passenger:
@@ -111,7 +111,7 @@ func test_parties_wait_at_their_start_body() -> void:
 		assert_true(party.state == Party.State.HELD and party.route.is_empty(), "held with no route")
 		assert_true(party.aboard == null, "not aboard")
 		for member in party.members:
-			assert_true(member.party == party, "member points back to the party")
+			assert_true(member.party_id == party.id, "member records its party id")
 
 
 func test_inverse_relationships_added() -> void:

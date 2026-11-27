@@ -9,7 +9,7 @@ const INVERSE_KIND := {
 
 
 ## Every party waits at its starting body with no route.
-static func load(_fleet: Fleet) -> Array[Party]:
+static func load() -> Array[Party]:
 	var passengers := _passengers()
 	_link_relationships(passengers)
 	var parties: Array[Party] = []
@@ -49,7 +49,7 @@ static func _party(index: int, entry: Dictionary, passengers: Dictionary[String,
 	party.place = party.origin
 	for member_id in entry.members:
 		var member := passengers[member_id]
-		member.party = party
+		member.party_id = party.id
 		party.members.append(member)
 	return party
 
