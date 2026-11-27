@@ -6,13 +6,11 @@ extends RefCounted
 ## layout.
 ##
 ## Every curve is CURVE_POINTS points running from where the ship came from to
-## where it is headed. A trip leaves its origin and reaches its destination at
-## one of SWIMLANES points spaced evenly round each body and cycler, chosen by
-## the trip's turn there, so ships sent together keep apart. `split` is the first point ahead of the ship's marker:
+## where it is headed. `split` is the first point ahead of the ship's marker:
 ## points[0, split) are behind it (drawn solid) and points[split, end] ahead
 ## of it (drawn dotted), with the marker on the segment between the two.
 
-const CURVE_POINTS := 129
+const CURVE_POINTS := 33
 
 ## Everything below is in a 1600 x 900 design space, scaled uniformly to fit.
 const DESIGN_SIZE := Vector2(1600, 900)
@@ -24,28 +22,6 @@ const BODY_CENTERS := {
 }
 const BODY_RADII := {Orbits.Body.EARTH: 40.0, Orbits.Body.MOON: 16.0, Orbits.Body.MARS: 36.0}
 
-const SWIMLANES := 16
-## A cycler's swimlanes sit on a circle this far from its square's center.
-const CYCLER_SWIMLANE_RADIUS := 10.0
-## A trip's path joins its route this many points in, and leaves it as many
-## points from the end.
-@warning_ignore("integer_division")
-const ROUTE_JOIN := (CURVE_POINTS - 1) / 4
-## A path whose swimlane faces more than this far from where it joins its
-## route first follows a ring round the planet or cycler, SWIMLANE_RING_GAP
-## past the body's edge (for a planet, outside the parked ring), then leaves the
-## ring ARC_LEAVE short of facing the join, so it never cuts through the body.
-const FACING_LIMIT := PI / 2.0
-const ARC_LEAVE := PI / 3.0
-const SWIMLANE_RING_GAP := 30.0
-const CYCLER_SWIMLANE_RING_GAP := 12.0
-## The curve onto the ring reaches it up to this far round from the swimlane.
-const ARC_ENTER := PI / 3.0
-## Ring arcs are drawn in steps of at most this angle.
-const ARC_STEP := PI / 36.0
-## The handles of those joins: this share of the distance they span, at most HANDLE_MAX.
-const HANDLE_SHARE := 0.5
-const HANDLE_MAX := 120.0
 ## A trip to or from a cycler bows to the left of its direction of travel (so
 ## toward Mars it arcs above, like the body routes), its control point this
 ## fraction of the trip's length off the straight line. Its midpoint then sits
@@ -177,116 +153,15 @@ static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, outw
 	var is_turned_back := t.origin_name == Fleet.target_name(destination)
 	if is_turned_back and origin is Cycler:
 		return _loop(square_at[origin], CYCLER_LOOP_ROOT, PI / 2.0, CYCLER_LOOP_REACH)
-	var route: PackedVector2Array
-	var is_body_route := not (origin is Cycler or destination is Cycler)
-	if is_body_route:
-		if is_turned_back:
-			return _route_points(origin, destination, outward)
-		route = _route_points(origin, destination, outward)
-	else:
-		var start := _node_center(origin, square_at)
-		var end := _node_center(destination, square_at)
+	if origin is Cycler or destination is Cycler:
+		var start: Vector2 = square_at[origin] if origin is Cycler else BODY_CENTERS[origin]
+		var end: Vector2 = square_at[destination] if destination is Cycler else BODY_CENTERS[destination]
 		if not origin is Cycler:
-			start = _edge_facing(origin, _bow_control(start, end))
+			start = _edge_facing(origin, _bow_control(BODY_CENTERS[origin], end))
 		if not destination is Cycler:
-			end = _edge_facing(destination, _bow_control(start, end))
-		route = _bowed(start, end)
-	var last := route.size() - 1
-	var leave := _swimlane(origin, t.origin_turn, is_body_route, route[ROUTE_JOIN], square_at)
-	var reach := _swimlane(destination, t.target_turn, is_body_route, route[last - ROUTE_JOIN], square_at)
-	return _join_swimlanes(route, leave, reach)
-
-
-static func _node_center(node: Variant, square_at: Dictionary) -> Vector2:
-	return square_at[node] if node is Cycler else BODY_CENTERS[node]
-
-
-## {pos, out} of the swimlane a trip with this `turn` at `node` uses: its point
-## and the outward direction there. A body route at Earth or Mars uses only
-## the swimlanes on the side of the band its route runs (`joins_at` is where it
-## joins the route) and clear of the lanes fanning into the planet, so it never
-## crosses a lane; every other trip uses all of them.
-static func _swimlane(node: Variant, turn: int, is_body_route: bool, joins_at: Vector2, square_at: Dictionary) -> Dictionary:
-	var usable: Array[int] = []
-	for i in SWIMLANES:
-		if not is_body_route or not node in [_EARTH, _MARS] or _clear_of_lanes(node, i, joins_at):
-			usable.append(i)
-	var out := Vector2.from_angle(usable[turn % usable.size()] * TAU / SWIMLANES)
-	var radius: float = CYCLER_SWIMLANE_RADIUS if node is Cycler else BODY_RADII[node]
-	var gap := CYCLER_SWIMLANE_RING_GAP if node is Cycler else SWIMLANE_RING_GAP
-	var center := _node_center(node, square_at)
-	return {pos = center + out * radius, out = out, center = center, ring = radius + gap}
-
-
-static func _clear_of_lanes(planet: Orbits.Body, swimlane: int, joins_at: Vector2) -> bool:
-	var out := Vector2.from_angle(swimlane * TAU / SWIMLANES)
-	var toward_band := Vector2.RIGHT if planet == _EARTH else Vector2.LEFT
-	# The outermost lane's end, plus half a swimlane's spacing so none sits right beside it.
-	var fan_half_angle: float = 2.5 * LANE_END_SPACING / BODY_RADII[planet] + PI / SWIMLANES
-	var beside_the_fan := absf(out.angle_to(toward_band)) > fan_half_angle
-	var on_the_route_side := out.y * (joins_at.y - BAND_Y) > 0.0
-	return beside_the_fan and on_the_route_side
-
-
-## `route` with its first and last ROUTE_JOIN segments replaced by paths from
-## `leave` and to `reach`, each resampled to ROUTE_JOIN segments, so the
-## route's own middle keeps its place in the list.
-static func _join_swimlanes(route: PackedVector2Array, leave: Dictionary, reach: Dictionary) -> PackedVector2Array:
-	var last := route.size() - 1
-	var along_in := (route[ROUTE_JOIN + 1] - route[ROUTE_JOIN - 1]).normalized()
-	var along_out := (route[last - ROUTE_JOIN + 1] - route[last - ROUTE_JOIN - 1]).normalized()
-	var points := _resampled(_from_swimlane(leave, route[ROUTE_JOIN], along_in), ROUTE_JOIN + 1)
-	points.append_array(route.slice(ROUTE_JOIN + 1, last - ROUTE_JOIN))
-	var tail := _resampled(_from_swimlane(reach, route[last - ROUTE_JOIN], -along_out), ROUTE_JOIN + 1)
-	tail.reverse()
-	points.append_array(tail)
-	return points
-
-
-## From `swimlane` (as _swimlane returns it) to `join`, arriving along `along`.
-## It leaves heading straight out; from the far side it follows the ring round first.
-static func _from_swimlane(swimlane: Dictionary, join: Vector2, along: Vector2) -> PackedVector2Array:
-	var start: Vector2 = swimlane.pos
-	var center: Vector2 = swimlane.center
-	var ring: float = swimlane.ring
-	var start_angle: float = swimlane.out.angle()
-	var turn := wrapf((join - center).angle() - start_angle, -PI, PI)
-	if absf(turn) <= FACING_LIMIT:
-		var handle := minf(start.distance_to(join) * HANDLE_SHARE, HANDLE_MAX)
-		return _cubic(start, start + swimlane.out * handle, join - along * handle, join)
-	var way := signf(turn)
-	var enter_angle := start_angle + way * minf(ARC_ENTER, absf(turn) - ARC_LEAVE)
-	var leave_angle := start_angle + turn - way * ARC_LEAVE
-	var ring_point := func(angle: float) -> Vector2: return center + Vector2.from_angle(angle) * ring
-	var tangent := func(angle: float) -> Vector2: return Vector2.from_angle(angle + way * PI / 2.0)
-	var onto_ring_handle := ring - start.distance_to(center)
-	var points := _cubic(start, start + swimlane.out * onto_ring_handle,
-		ring_point.call(enter_angle) - tangent.call(enter_angle) * onto_ring_handle, ring_point.call(enter_angle))
-	var steps := maxi(1, ceili(absf(leave_angle - enter_angle) / ARC_STEP))
-	for i in range(1, steps + 1):
-		points.append(ring_point.call(lerpf(enter_angle, leave_angle, float(i) / steps)))
-	var off: Vector2 = ring_point.call(leave_angle)
-	var handle := minf(off.distance_to(join) * HANDLE_SHARE, HANDLE_MAX)
-	points.append_array(_cubic(off, off + tangent.call(leave_angle) * handle, join - along * handle, join).slice(1))
-	return points
-
-
-## `count` points evenly spaced by distance along `polyline`, keeping its ends.
-static func _resampled(polyline: PackedVector2Array, count: int) -> PackedVector2Array:
-	var lengths := PackedFloat32Array([0.0])
-	for i in range(1, polyline.size()):
-		lengths.append(lengths[i - 1] + polyline[i - 1].distance_to(polyline[i]))
-	var total := lengths[lengths.size() - 1]
-	var points := PackedVector2Array()
-	var segment := 1
-	for i in count:
-		var at := total * i / (count - 1)
-		while segment < polyline.size() - 1 and lengths[segment] < at:
-			segment += 1
-		var span := lengths[segment] - lengths[segment - 1]
-		var u := 0.0 if span == 0.0 else (at - lengths[segment - 1]) / span
-		points.append(polyline[segment - 1].lerp(polyline[segment], clampf(u, 0.0, 1.0)))
-	return points
+			end = _edge_facing(destination, _bow_control(start, BODY_CENTERS[destination]))
+		return _bowed(start, end)
+	return _route_points(origin, destination, outward)
 
 
 ## A route between bodies, or a loop back to the same body, `outward` further
@@ -514,10 +389,10 @@ static func _bezier(start: Vector2, control: Vector2, end: Vector2) -> PackedVec
 	return points
 
 
-static func _cubic(start: Vector2, first: Vector2, second: Vector2, end: Vector2, count := CURVE_POINTS) -> PackedVector2Array:
+static func _cubic(start: Vector2, first: Vector2, second: Vector2, end: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()
-	for i in count:
-		var u := float(i) / (count - 1)
+	for i in CURVE_POINTS:
+		var u := float(i) / (CURVE_POINTS - 1)
 		var v := 1.0 - u
 		points.append(start * v * v * v + first * 3.0 * v * v * u + second * 3.0 * v * u * u + end * u * u * u)
 	return points

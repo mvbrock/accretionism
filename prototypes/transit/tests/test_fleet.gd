@@ -227,33 +227,3 @@ func test_redirect_from_local_leg_to_mars_flies_the_sun_frame_at_full_speed() ->
 	assert_near(transport.leg_km, SPEED * (transport.t_arrive - transport.t0), 1.0, "Mars leg flies at 50 km/s")
 	assert_near(transport.depart_point.distance_to(position_before), 0.0, POSITION_TOLERANCE_KM,
 		"departs from the ship's Sun-frame position")
-
-
-func test_departures_take_turns_at_both_ends() -> void:
-	var fleet := _fleet_with_cyclers()
-	var to_mars: Array[Transport] = []
-	for i in 3:
-		to_mars.append(_parked(fleet, "Earth %d" % i, EARTH))
-		fleet.depart(to_mars[i], MARS)
-	assert_true(to_mars.map(func(t: Transport) -> int: return t.origin_turn) == [0, 1, 2], "each launch from Earth takes the next turn")
-	assert_true(to_mars.map(func(t: Transport) -> int: return t.target_turn) == [0, 1, 2], "each trip to Mars takes the next turn there")
-	var from_moon := _parked(fleet, "Moon 0", MOON)
-	fleet.depart(from_moon, MARS)
-	assert_true(from_moon.origin_turn == 0, "the Moon counts its own launches")
-	assert_true(from_moon.target_turn == 3, "Mars counts arrivals from anywhere")
-	var from_cycler := _docked(fleet, "Docked 0", fleet.cyclers[0])
-	fleet.depart(from_cycler, EARTH)
-	assert_true(from_cycler.origin_turn == 0, "a cycler counts its own launches")
-	assert_true(from_cycler.target_turn == 3, "Earth's launches and arrivals share one count, so they never meet in a swimlane")
-
-
-func test_a_redirect_keeps_its_origin_turn_and_takes_a_new_target_turn() -> void:
-	var fleet := _fleet_with_cyclers()
-	var first := _parked(fleet, "First", EARTH)
-	fleet.depart(first, MOON)
-	var t := _parked(fleet, "Redirected", EARTH)
-	fleet.depart(t, MARS)
-	fleet.advance_to(0.1)
-	fleet.depart(t, MOON)
-	assert_true(t.origin_turn == 1, "keeps its launch turn at Earth (got %d)" % t.origin_turn)
-	assert_true(t.target_turn == 1, "takes the Moon's next arrival turn (got %d)" % t.target_turn)

@@ -24,10 +24,6 @@ var depart_point: Vector2
 var t0: float
 var t_arrive: float
 var intercept_point: Vector2
-## This trip's turn among launches from its origin and arrivals at its
-## target, counted per place. The diagram turns each into a swimlane.
-var origin_turn: int
-var target_turn: int
 ## Length of the current straight-line leg.
 var leg_km: float
 ## Distance flown on earlier legs of a redirected trip.

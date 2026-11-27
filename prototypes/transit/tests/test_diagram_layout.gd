@@ -4,7 +4,7 @@ const EARTH := Orbits.Body.EARTH
 const MOON := Orbits.Body.MOON
 const MARS := Orbits.Body.MARS
 const SIZE := Vector2(1600, 900)
-const MIDPOINT := (DiagramLayout.CURVE_POINTS - 1) / 2
+const MIDPOINT := 16
 
 
 ## Six cyclers (Aldrin I..VI, phases 0..650 step 130, alternating UP/DOWN) and no transports.
@@ -91,7 +91,7 @@ func test_every_curve_has_33_points_and_six_lanes_never_meet() -> void:
 	var layout := DiagramLayout.build(fleet, SIZE)
 	assert_true(layout.lanes.size() == 6, "one lane per cycler, got %d" % layout.lanes.size())
 	for lane in layout.lanes:
-		assert_true(lane.points.size() == DiagramLayout.CURVE_POINTS, "CURVE_POINTS points per lane")
+		assert_true(lane.points.size() == DiagramLayout.CURVE_POINTS, "33 points per lane")
 	for i in layout.lanes.size():
 		for j in range(i + 1, layout.lanes.size()):
 			var closest := INF
@@ -111,11 +111,11 @@ func test_cycler_moves_across_lane() -> void:
 	var lane: Dictionary = _entry_for(layout.lanes, "cycler", up)
 	var square: Vector2 = _entry_for(layout.cyclers, "cycler", up).pos
 	var earth := _body_center(layout, EARTH)
-	assert_true(lane.points[0].distance_to(earth) < lane.points[-1].distance_to(earth),
+	assert_true(lane.points[0].distance_to(earth) < lane.points[32].distance_to(earth),
 		"the lane runs from the planet last passed, Earth")
 	assert_true(square.distance_to(_point_at_fraction(lane.points, 0.25)) < 2.0,
 		"a quarter of the way from Earth along the lane, got %s" % square)
-	assert_near(lane.split, (DiagramLayout.CURVE_POINTS - 1) / 4.0, 1.0, "solid ends about a quarter of the way along")
+	assert_near(lane.split, 8.0, 1.0, "solid ends about a quarter of the way along")
 
 	var down := fleet.cyclers[1] # DOWN, short leg Mars -> Earth over [130, 276]
 	fleet.advance_to(150.0)
@@ -205,75 +205,6 @@ func test_cycler_trips_curve_more_than_the_lanes() -> void:
 	assert_true(chord.x > 0.0 and chord.cross(trip[MIDPOINT] - trip[0]) < 0.0, "heading toward Mars, it bows up, as body routes to Mars do")
 
 
-## The swimlane `point` sits on, as a multiple of a swimlane's angle around `center`, or -1 if it sits between two.
-func _swimlane_at(center: Vector2, point: Vector2) -> int:
-	var steps := (point - center).angle() / (TAU / DiagramLayout.SWIMLANES)
-	return posmod(roundi(steps), DiagramLayout.SWIMLANES) if absf(steps - roundf(steps)) < 0.01 else -1
-
-
-func test_ships_sent_together_start_and_end_in_their_own_swimlanes() -> void:
-	for destination in [MARS, MOON]:
-		var fleet := _fleet()
-		var trips := _depart_many(fleet, EARTH, destination, 2)
-		var layout := DiagramLayout.build(fleet, SIZE)
-		var earth := _body_center(layout, EARTH)
-		var there := _body_center(layout, destination)
-		var a: PackedVector2Array = _entry_for(layout.trips, "transport", trips[0]).points
-		var b: PackedVector2Array = _entry_for(layout.trips, "transport", trips[1]).points
-		var what := "Earth -> %s" % Orbits.body_name(destination)
-		for p in [a[0], b[0]]:
-			assert_near(p.distance_to(earth), DiagramLayout.BODY_RADII[EARTH], 0.01, "%s: starts on Earth's edge" % what)
-			assert_true(_swimlane_at(earth, p) != -1, "%s: starts on a swimlane" % what)
-		for p in [a[-1], b[-1]]:
-			assert_true(_swimlane_at(there, p) != -1, "%s: ends on a swimlane" % what)
-		assert_true(_swimlane_at(earth, a[0]) != _swimlane_at(earth, b[0]), "%s: they leave from different swimlanes" % what)
-		assert_true(_swimlane_at(there, a[-1]) != _swimlane_at(there, b[-1]), "%s: they arrive in different swimlanes" % what)
-
-
-func test_cycler_trips_rotate_through_all_16_swimlanes() -> void:
-	var fleet := _fleet()
-	fleet.advance_to(50.0)
-	var cycler: Cycler = fleet.cyclers[0]
-	var trips: Array[Transport] = []
-	for i in DiagramLayout.SWIMLANES:
-		var t := _parked(fleet, "To cycler %d" % i, EARTH)
-		fleet.depart(t, cycler)
-		trips.append(t)
-	var layout := DiagramLayout.build(fleet, SIZE)
-	var earth := _body_center(layout, EARTH)
-	var square: Vector2 = _entry_for(layout.cyclers, "cycler", cycler).pos
-	var starts := {}
-	var ends := {}
-	for t in trips:
-		var points: PackedVector2Array = _entry_for(layout.trips, "transport", t).points
-		starts[_swimlane_at(earth, points[0])] = true
-		ends[_swimlane_at(square, points[-1])] = true
-	assert_true(starts.size() == 16 and not starts.has(-1), "16 trips leave Earth from 16 swimlanes (got %s)" % [starts.keys()])
-	assert_true(ends.size() == 16 and not ends.has(-1), "and reach the cycler in 16 swimlanes (got %s)" % [ends.keys()])
-
-
-func test_no_path_cuts_through_a_planet() -> void:
-	var fleet := _fleet()
-	fleet.advance_to(50.0)
-	var trips: Array[Transport] = []
-	for route in BODY_ROUTES:
-		trips.append_array(_depart_many(fleet, route[0], route[1], DiagramLayout.SWIMLANES))
-	for body in [EARTH, MOON, MARS]:
-		for i in DiagramLayout.SWIMLANES:
-			var t := _parked(fleet, "%s to cycler %d" % [Orbits.body_name(body), i], body)
-			fleet.depart(t, fleet.cyclers[i % fleet.cyclers.size()])
-			trips.append(t)
-	var layout := DiagramLayout.build(fleet, SIZE)
-	for t in trips:
-		var points: PackedVector2Array = _entry_for(layout.trips, "transport", t).points
-		for body in layout.bodies:
-			for i in range(1, points.size()):
-				var nearest := Geometry2D.get_closest_point_to_segment(body.center, points[i - 1], points[i])
-				if nearest.distance_to(body.center) < body.radius - 0.5:
-					assert_true(false, "%s cuts through %s between %s and %s" % [t.name, Orbits.body_name(body.body), points[i - 1], points[i]])
-					break
-
-
 func test_triangle_at_progress() -> void:
 	var fleet := _fleet()
 	var transport := _parked(fleet, "Kestrel", EARTH)
@@ -281,7 +212,7 @@ func test_triangle_at_progress() -> void:
 	fleet.advance_to(transport.t0 + 0.37 * (transport.t_arrive - transport.t0))
 	var trip: Dictionary = DiagramLayout.build(fleet, SIZE).trips[0]
 	var points: PackedVector2Array = trip.points
-	assert_true(points.size() == DiagramLayout.CURVE_POINTS, "CURVE_POINTS points per trip")
+	assert_true(points.size() == DiagramLayout.CURVE_POINTS, "33 points per trip")
 	var expected := _point_at_fraction(points, fleet.progress(transport))
 	assert_true(trip.tri_pos.distance_to(expected) < 2.0, "triangle at 37%% by arc length (%s vs %s)" % [trip.tri_pos, expected])
 
@@ -472,7 +403,7 @@ func test_body_routes_never_cross_lanes() -> void:
 	var fleet := _fleet()
 	var trips: Array[Transport] = []
 	for route in BODY_ROUTES:
-		trips.append_array(_depart_many(fleet, route[0], route[1], DiagramLayout.SWIMLANES))
+		trips.append_array(_depart_many(fleet, route[0], route[1], 3))
 	_assert_no_lane_crossings(fleet, trips)
 	for body in [EARTH, MOON, MARS]:
 		var turning_fleet := _fleet()
