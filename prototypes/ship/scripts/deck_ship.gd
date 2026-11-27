@@ -40,8 +40,6 @@ func room_at(p: Vector3) -> String:
 	return "Deck%d" % clampi(floori(p.y / PITCH), 0, deck_count - 1)
 
 
-
-
 func _build_deck(i: int) -> Node3D:
 	var deck := Node3D.new()
 	deck.name = "Deck%d" % i
