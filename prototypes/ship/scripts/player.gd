@@ -18,6 +18,8 @@ const TIP_SHARPNESS := 6.0
 const REACH := 1.2
 ## How close along the ladder to a landing the player must be to let go there.
 const LANDING_SNAP := 0.5
+## The capsule's height. An upside-down climber's feet hang this much further along the ladder than an upright one's.
+const BODY_HEIGHT := 1.8
 
 ## The ship the body walks on; it answers which way is up.
 @export var ship: Ship
@@ -45,8 +47,12 @@ var gravity_enabled := true
 
 ## The ladder held, or null while walking or floating.
 var climbing: Ladder = null
-## Distance along `climbing` the feet are at; `pose()` saves it to resume the climb.
+## Distance along `climbing` the body hangs from: the feet when upright, the head when upside down. `pose()` saves it
+## to resume the climb.
 var climb_s := 0.0
+## The 3D direction the climber faces, from the landing it grabbed at; its heading is recomputed from it each frame, so
+## a flip keeps it facing the rungs.
+var _climb_facing := Vector3.BACK
 
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
 var heading := Vector2(0, 1)
@@ -137,9 +143,10 @@ func board(new_ship: Ship, at: PlayerPose) -> void:
 	velocity = Vector3.ZERO
 	set_gravity_enabled(at.gravity)
 	if at.ladder != null:
-		_hold_ladder(at.ladder, at.climb_s)
+		_hold_ladder(at.ladder, at.climb_s, _facing_toward(heading, ship.up_at(global_position)))
+	else:
+		_orient(ship.up_at(global_position))
 	_set_tip(_wanted_tip())
-	_orient(ship.up_at(global_position))
 	reset_physics_interpolation()
 
 
@@ -192,16 +199,15 @@ func _grab_nearby_ladder() -> void:
 	if ladder == null:
 		return
 	var landing := ladder.landings[ladder.landing_near(_reach_point(), REACH)]
-	_hold_ladder(ladder, landing.s)
-	heading = _heading_toward(landing.facing)
-	_orient(ship.up_at(global_position))
+	_hold_ladder(ladder, landing.s, landing.facing)
 
 
-## Holds `ladder` with the feet `s` metres along it, at rest.
-func _hold_ladder(ladder: Ladder, s: float) -> void:
+## Holds `ladder` `s` metres along it, facing `facing`, at rest.
+func _hold_ladder(ladder: Ladder, s: float, facing: Vector3) -> void:
 	climbing = ladder
 	climb_s = s
-	global_position = ladder.point_at(s)
+	_climb_facing = facing
+	_place_on_ladder()
 	_stop()
 	reset_physics_interpolation()
 
@@ -213,7 +219,7 @@ func _let_go_at_landing() -> void:
 	var landing := climbing.landings[i]
 	climbing = null
 	global_position = landing.exit
-	heading = _heading_toward(-landing.facing)
+	heading = _heading_toward(-landing.facing, ship.up_at(global_position))
 	aim_heading = Vector2.ZERO
 	_stop()
 	_apply_gravity()
@@ -227,17 +233,35 @@ func _stop() -> void:
 	_drift = Vector2.ZERO
 
 
-## The ship-relative 2D heading that faces the 3D direction `direction`.
-func _heading_toward(direction: Vector3) -> Vector2:
-	return Vector2(direction.dot(Vector3.RIGHT), direction.dot(_around())).normalized()
+## The ship-relative 2D heading that faces the 3D direction `direction`, where `up` is up.
+func _heading_toward(direction: Vector3, up: Vector3) -> Vector2:
+	return Vector2(direction.dot(Vector3.RIGHT), direction.dot(up.cross(Vector3.RIGHT))).normalized()
 
 
-## Climbing: W/S slide along the ladder; the body is placed on it, with no walking or drift.
+## The 3D direction a ship-relative `facing` heading points, where `up` is up.
+func _facing_toward(facing: Vector2, up: Vector3) -> Vector3:
+	return Vector3.RIGHT * facing.x + up.cross(Vector3.RIGHT) * facing.y
+
+
+## Climbing: W/S slide along the ladder, W toward its far end however the body is turned; the body is placed on it, with
+## no walking or drift.
 func _climb(delta: float) -> void:
 	climb_s = clampf(climb_s + move_input.y * climb_speed * delta, 0.0, climbing.length)
-	global_position = climbing.point_at(climb_s)
-	_orient(ship.up_at(global_position))
+	_place_on_ladder()
 	_set_tip(_wanted_tip())
+
+
+## Puts the body on the ladder at `climb_s`, facing `_climb_facing`. The feet are at `point_at(climb_s)` when the up at
+## the body's current position points along the axis, and BODY_HEIGHT further along it when it points against it. Up
+## is read before the body moves, so a flip leaves its middle where it was and the next frame's up decides again.
+func _place_on_ladder() -> void:
+	var up := ship.up_at(global_position)
+	var feet := climbing.point_at(climb_s)
+	if up.dot(climbing.axis) < 0.0:
+		feet += climbing.axis * BODY_HEIGHT
+	global_position = feet
+	heading = _heading_toward(_climb_facing, up)
+	_orient(up)
 
 
 func _physics_process(delta: float) -> void:

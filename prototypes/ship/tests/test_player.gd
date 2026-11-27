@@ -504,3 +504,98 @@ func test_wants_gravity_survives_zero_g() -> void:
 func test_pose_stores_wants() -> void:
 	var player := await _on_split_ship(Vector3(0, 20, 0))
 	assert_true(player.pose().gravity, "pose keeps what the player wants")
+
+
+## A ship whose up flips at y = 10, with one ladder through the flip and no geometry.
+class FlipShip extends Ship:
+	func _init() -> void:
+		var ladder := Ladder.new(Vector3(0, 0.05, 0), Vector3.UP, 20.0)
+		ladder.add_landing(0.0, Vector3(0, 0.05, -1.55), Vector3.BACK)
+		ladder.add_landing(20.0, Vector3(0, 21.85, -1.55), Vector3.BACK)
+		ladders.append(ladder)
+
+
+	func up_at(p: Vector3) -> Vector3:
+		return Vector3.UP if p.y < 10.0 else Vector3.DOWN
+
+
+## A player on a FlipShip, holding its ladder after grabbing at landing `landing`, climbing at 10 m/s.
+func _on_flip_ladder(landing: int) -> Player:
+	var ship: Ship = own(FlipShip.new())
+	var player := own_player(ship)
+	await physics_frames(2)
+	player.climb_speed = 10.0
+	player.board(ship, PlayerPose.new(ship.ladders[0].landings[landing].exit, Vector2(0, 1), true))
+	player.interact()
+	return player
+
+
+## The middle of the body, which a flip must not move.
+func _body_centre(player: Player) -> Vector3:
+	return player.global_position + player.global_basis.y * 0.9
+
+
+## Holds W until the body's up points down, and returns the largest step its centre took in a frame.
+func _climb_through_the_flip(player: Player) -> float:
+	player.move_input = Vector2(0, 1)
+	var largest_step := 0.0
+	var centre := _body_centre(player)
+	var frames := 0
+	while player.global_basis.y.y > 0.0 and frames < 600:
+		await tree.physics_frame
+		frames += 1
+		largest_step = maxf(largest_step, _body_centre(player).distance_to(centre))
+		centre = _body_centre(player)
+	assert_true(player.global_basis.y.y < 0.0, "flipped within %d frames" % frames)
+	return largest_step
+
+
+func test_upright_climber_feet_on_the_ladder() -> void:
+	var player := await _on_flip_ladder(0)
+	assert_true(player.climbing != null, "grabbed the ladder")
+	assert_true(player.global_position.distance_to(Vector3(0, 0.05, 0)) < 0.01, "feet at the foot of the ladder (%s)" % player.global_position)
+
+
+func test_climber_flips_without_moving_its_body() -> void:
+	var player := await _on_flip_ladder(0)
+	var largest_step := await _climb_through_the_flip(player)
+	assert_true(largest_step < player.climb_speed / 60.0 + 0.05, "body centre never jumped (largest step %.3f)" % largest_step)
+
+
+func test_w_keeps_climbing_after_the_flip() -> void:
+	var player := await _on_flip_ladder(0)
+	await _climb_through_the_flip(player)
+	var before := player.global_position.y
+	await physics_frames(30)
+	assert_true(player.global_position.y > before, "feet rise after the flip (%.2f to %.2f)" % [before, player.global_position.y])
+
+
+func test_climber_faces_the_rungs_after_the_flip() -> void:
+	var player := await _on_flip_ladder(0)
+	await _climb_through_the_flip(player)
+	await physics_frames(2)
+	var facing := -player.global_basis.z
+	assert_true(facing.dot(Vector3.BACK) > 0.9, "still faces the rungs (%s)" % facing)
+
+
+func test_climbing_back_down_flips_back_once() -> void:
+	var player := await _on_flip_ladder(1)
+	player.move_input = Vector2(0, -1)
+	var flips := 0
+	var was_upside_down: bool = player.global_basis.y.y < 0.0
+	var frames := 0
+	while player.climb_s > 0.0 and frames < 600:
+		await tree.physics_frame
+		frames += 1
+		var upside_down: bool = player.global_basis.y.y < 0.0
+		if upside_down != was_upside_down:
+			flips += 1
+		was_upside_down = upside_down
+	assert_true(player.climb_s == 0.0, "reached the bottom in %d frames" % frames)
+	assert_true(flips == 1, "flipped back exactly once (%d flips)" % flips)
+
+
+func test_grab_at_an_upside_down_landing() -> void:
+	var player := await _on_flip_ladder(1)
+	assert_true(player.global_position.distance_to(Vector3(0, 21.85, 0)) < 0.01, "feet hang from the top (%s)" % player.global_position)
+	assert_near(player.climb_s, 20.0, 0.01, "at the top of the ladder")
