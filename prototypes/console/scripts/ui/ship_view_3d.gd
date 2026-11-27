@@ -24,7 +24,7 @@ const LABEL_OUTLINE_SIZE := 12
 const START_YAW_DEG := 45.0
 const START_PITCH_DEG := 35.0
 const PITCH_LIMIT_DEG := 85.0
-## The share of the view's half-width and half-height the ship's farthest corner may reach.
+## The share of the view's limiting dimension, width or height, the ship's projected corners span.
 const FRAME_FILL := 0.9
 const ORBIT_RAD_PER_PX := 0.01
 const ZOOM_STEP := 1.15
@@ -47,8 +47,14 @@ var _doors := {}
 var _room_list: Array[Room] = []
 var _yaw := deg_to_rad(START_YAW_DEG)
 var _pitch := deg_to_rad(START_PITCH_DEG)
-var _framed_distance := 1.0
+var _framed_size := 1.0
+## How far the camera sits from the focus: outside every room, so no room contains it.
 var _distance := 1.0
+## Room ids, the first to claim screen space first: largest room, then id.
+var _name_order: Array[String] = []
+var _selected_room := ""
+## The view the name visibility was last worked out for, to skip a repeat.
+var _names_for := []
 ## Every room corner in ship space.
 var _corners := PackedVector3Array()
 ## Once the user orbits or zooms, a resize no longer re-frames the ship.
@@ -76,15 +82,16 @@ func _init(ship: Ship) -> void:
 	for opening in ship.openings:
 		_build_door(ship, opening)
 	camera = Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	viewport.add_child(camera)
 	_frame(ship)
-	_size_labels()
 	gui_input.connect(_on_gui_input)
 	resized.connect(_on_resized)
 
 
 ## Recolours the rooms and doors for the ship's state now; `selected_room` is drawn brighter.
 func show_ship(ship: Ship, selected_room: String) -> void:
+	_selected_room = selected_room
 	for room in _room_list:
 		var color := DashboardView.status_color(DashboardModel.room_level(ship, room.id))
 		var selected := room.id == selected_room
@@ -96,6 +103,7 @@ func show_ship(ship: Ship, selected_room: String) -> void:
 			label.modulate = color
 	for opening in ship.openings:
 		_set_color(_doors[opening.id].material, _door_color(opening, ship.power.is_powered(opening.id)))
+	_update_names()
 
 
 func room_box(room_id: String) -> MeshInstance3D:
@@ -133,19 +141,22 @@ func screen_point(ship_point: Vector3) -> Vector2:
 func name_at(point: Vector2) -> String:
 	var nearest := INF
 	var found := ""
-	var font := ThemeDB.fallback_font
 	for room in _room_list:
-		if camera.is_position_behind(room.position):
+		if not _rooms[room.id].label.visible:
 			continue
-		var text: String = _rooms[room.id].label.text
-		var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_SIZE).x * LABEL_EM_PX / LABEL_FONT_SIZE
-		var rect := Rect2(Vector2.ZERO, Vector2(width, LABEL_EM_PX))
-		rect.position = screen_point(room.position) - rect.size * 0.5
 		var distance := camera.global_position.distance_to(room.position)
-		if rect.has_point(point) and distance < nearest:
+		if name_rect(room.id).has_point(point) and distance < nearest:
 			nearest = distance
 			found = room.id
 	return found
+
+
+## Where the room's name is drawn, in this control's own coordinates.
+func name_rect(room_id: String) -> Rect2:
+	var entry: Dictionary = _rooms[room_id]
+	var rect := Rect2(Vector2.ZERO, entry.name_size)
+	rect.position = screen_point(entry.room.position) - rect.size * 0.5
+	return rect
 
 
 func room_at(point: Vector2) -> String:
@@ -190,14 +201,14 @@ func _build_room(room: Room) -> void:
 	label.text = room.id.to_upper()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
-	label.fixed_size = true
 	label.font_size = LABEL_FONT_SIZE
+	label.pixel_size = 0.01
 	label.outline_size = LABEL_OUTLINE_SIZE
 	label.outline_modulate = Color.BLACK
 	label.render_priority = 1
 	label.outline_render_priority = 0
 	holder.add_child(label)
-	_rooms[room.id] = {"box": box, "fill": fill, "edge": edge, "label": label}
+	_rooms[room.id] = {"box": box, "fill": fill, "edge": edge, "label": label, "room": room, "name_size": _name_size(label.text)}
 
 
 ## A thin panel the opening's size, centred on it and lying in the face of its first room. Width
@@ -266,8 +277,8 @@ func _door_color(opening: Opening, powered: bool) -> Color:
 	return DOOR_MOVING
 
 
-## Aims at the middle of the ship as it appears from the start angle, from the nearest distance at which every room corner
-## stays inside FRAME_FILL of both the horizontal and the vertical field of view.
+## Aims at the middle of the ship as it appears from the start angle, and sizes the view so the
+## ship fills FRAME_FILL of its limiting dimension.
 func _frame(ship: Ship) -> void:
 	_corners.clear()
 	var bounds := AABB(ship.rooms[0].position, Vector3.ZERO)
@@ -279,79 +290,101 @@ func _frame(ship: Ship) -> void:
 			bounds = bounds.expand(point)
 	_bounds_center = bounds.get_center()
 	var radius := maxf(bounds.size.length() * 0.5, 1.0)
-	camera.near = radius * 0.01
-	camera.far = radius * 4.0 * MAX_ZOOM
+	# The focus moves by at most the radius when it is centred, so this clears every room.
+	_distance = radius * 3.0
+	camera.near = radius
+	camera.far = radius * 5.0
+	_name_order.clear()
+	for room in ship.rooms:
+		_name_order.append(room.id)
+	_name_order.sort_custom(func(a: String, b: String) -> bool:
+		var volume_a: float = _volume(ship.room(a))
+		var volume_b: float = _volume(ship.room(b))
+		return a < b if is_equal_approx(volume_a, volume_b) else volume_a > volume_b)
 	_reframe()
 
 
+func _volume(room: Room) -> float:
+	return room.size.x * room.size.y * room.size.z
+
+
+## Centres the focus on the ship as seen from the start angle and sets the orthographic size.
 func _reframe() -> void:
 	var basis := Basis.from_euler(Vector3(-_pitch, _yaw, 0.0))
-	var tan_v := tan(deg_to_rad(camera.fov) * 0.5)
-	var aspect := size.x / size.y if size.x > 0.0 and size.y > 0.0 else 2.0
-	var tans := Vector2(tan_v * aspect, tan_v)
-	focus = _bounds_center
-	# A distance at which every corner is inside the fill however the perspective falls.
-	var safe := 1.0
-	for point in _corners:
-		var local := basis.inverse() * (point - focus)
-		safe = maxf(safe, local.z + absf(local.x) / (tans.x * FRAME_FILL))
-		safe = maxf(safe, local.z + absf(local.y) / (tans.y * FRAME_FILL))
-	_framed_distance = safe
-	# Perspective makes the near corners reach farther than the far ones, so centre the corners'
-	# projection and pull the camera in until the farthest reaches FRAME_FILL, a few times over.
-	for pass_index in 4:
-		var rect := _projected_corners(basis, _framed_distance, tans)
-		var shift := rect.get_center() * tans * _framed_distance
-		focus += basis * Vector3(shift.x, shift.y, 0.0)
-		var low := 0.0
-		var high := safe
-		for step in 24:
-			var middle := (low + high) * 0.5
-			var reach := _projected_corners(basis, middle, tans)
-			var fits := middle > 0.0 and maxf(maxf(-reach.position.x, reach.end.x), maxf(-reach.position.y, reach.end.y)) <= FRAME_FILL
-			if fits:
-				high = middle
-			else:
-				low = middle
-		_framed_distance = high
-	_distance = _framed_distance
-	_place_camera()
-
-
-## The corners' bounds on the screen from `distance` away at the current focus, with the view's
-## edges at -1 and 1 on each axis; a corner behind the camera counts as far off screen.
-func _projected_corners(basis: Basis, distance: float, tans: Vector2) -> Rect2:
 	var inverse := basis.inverse()
 	var low := Vector2(INF, INF)
 	var high := Vector2(-INF, -INF)
 	for point in _corners:
-		var local := inverse * (point - focus)
-		var depth := distance - local.z
-		var ndc := Vector2(local.x, local.y) / (maxf(depth, 1e-4) * tans)
-		low = low.min(ndc)
-		high = high.max(ndc)
-	return Rect2(low, high - low)
+		var local := inverse * (point - _bounds_center)
+		low = low.min(Vector2(local.x, local.y))
+		high = high.max(Vector2(local.x, local.y))
+	var centre := (low + high) * 0.5
+	focus = _bounds_center + basis * Vector3(centre.x, centre.y, 0.0)
+	var aspect := size.x / size.y if size.x > 0.0 and size.y > 0.0 else 2.0
+	var extent := high - low
+	_framed_size = maxf(maxf(extent.y, extent.x / aspect) / FRAME_FILL, 1.0)
+	camera.size = _framed_size
+	_place_camera()
+	_size_labels()
 
 
 func _on_resized() -> void:
-	_size_labels()
 	if not _user_moved:
 		_reframe()
+	else:
+		_size_labels()
 
 
-## Sets each name's world size so it is LABEL_EM_PX tall on screen: with fixed_size a label spans
-## font size x pixel size / (2 tan(fov / 2)) of the view's height.
+## How big a name is on screen, in control pixels: LABEL_EM_PX tall.
+func _name_size(text: String) -> Vector2:
+	var width := ThemeDB.fallback_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_SIZE).x
+	return Vector2(width * LABEL_EM_PX / LABEL_FONT_SIZE, LABEL_EM_PX)
+
+
+## Sets each name's world size so it is LABEL_EM_PX tall on screen: a viewport pixel spans
+## camera.size / view height world units.
 func _size_labels() -> void:
 	if size.y <= 0.0:
 		return
-	var pixel_size := LABEL_EM_PX * 2.0 * tan(deg_to_rad(camera.fov) * 0.5) / (LABEL_FONT_SIZE * size.y)
+	var pixel_size := LABEL_EM_PX * camera.size / (LABEL_FONT_SIZE * size.y)
 	for entry in _rooms.values():
 		entry.label.pixel_size = pixel_size
+	_update_names()
+
+
+## Hides each name that overlaps one with priority: the selected room's, then the larger room's.
+## Does nothing when the camera, size and selection are as last time.
+func _update_names() -> void:
+	if not camera.is_inside_tree():
+		return
+	var key := [camera.global_transform, camera.size, size, _selected_room]
+	if key == _names_for:
+		return
+	_names_for = key
+	var placed: Array[Rect2] = []
+	if _rooms.has(_selected_room):
+		_place_name(_selected_room, placed)
+	for room_id in _name_order:
+		if room_id != _selected_room:
+			_place_name(room_id, placed)
+
+
+func _place_name(room_id: String, placed: Array[Rect2]) -> void:
+	var rect := name_rect(room_id)
+	var clear := true
+	for other in placed:
+		if other.intersects(rect):
+			clear = false
+			break
+	_rooms[room_id].label.visible = clear
+	if clear:
+		placed.append(rect)
 
 
 func _place_camera() -> void:
 	var offset := Basis.from_euler(Vector3(-_pitch, _yaw, 0.0)) * Vector3(0.0, 0.0, _distance)
 	camera.transform = Transform3D(Basis.IDENTITY, focus + offset).looking_at(focus, Vector3.UP)
+	_update_names()
 
 
 func _on_gui_input(event: InputEvent) -> void:
@@ -389,8 +422,8 @@ func _on_gui_input(event: InputEvent) -> void:
 
 func _zoom(factor: float) -> void:
 	_user_moved = true
-	_distance = clampf(_distance * factor, _framed_distance * MIN_ZOOM, _framed_distance * MAX_ZOOM)
-	_place_camera()
+	camera.size = clampf(camera.size * factor, _framed_size * MIN_ZOOM, _framed_size * MAX_ZOOM)
+	_size_labels()
 
 
 ## How many control pixels one viewport pixel spans; zero before layout.
