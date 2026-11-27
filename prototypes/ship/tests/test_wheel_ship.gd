@@ -62,10 +62,11 @@ func test_hub_far_side_fades() -> void:
 	var ship := await _make_ship()
 	var faded := ship.room_fade_meshes(Vector3(0, -8, 0), Vector3(-0.58, -0.58, -0.58))
 	var top := 0
+	var under_player := ship.get_node("Hub/Section0")
 	for mesh in faded:
-		var y := mesh.mesh.get_aabb().get_center().y
-		assert_true(y >= -5.0, "a hub panel at y = %.2f fades" % y)
-		if y > 0.0:
+		# Section 10's lower strips face the camera and do fade, so the floor the player floats over is what must stay.
+		assert_true(mesh.get_parent().get_parent() != under_player, "%s is under the player and stays" % mesh.get_parent().name)
+		if mesh.mesh.get_aabb().get_center().y > 0.0:
 			top += 1
 	assert_true(top > 0, "hub panels on the far side fade")
 
