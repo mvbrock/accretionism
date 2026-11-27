@@ -23,7 +23,7 @@ No player character, passenger movement or walking. No power generation, batteri
 | Tech | Godot 4.7, GDScript, in `prototypes/console` (same setup as `prototypes/ship` and `prototypes/transit`) |
 | Model | Logistical. Each room is one well-mixed volume of ideal gas, and the sim advances it 0.1 s at a time, or 5 s at a time at 1 hour/s |
 | Ships | Each ship type is a class that subclasses `Ship`: `RingShip`, `SkiffShip`, `TugShip`, `FreighterShip` and `WheelShip` (see Ship layout) |
-| Rooms | A box with a size, a position and an orientation. At most six doors per room, one per face |
+| Rooms | A box with a size, a position and an orientation. At most six doors and hatches per room, on any of its faces; two may share a face |
 | Openings | A door joins two rooms; a hatch joins a room to outside. A hatch is any opening whose id starts with `hatch` |
 | Life support reach | Each system reaches every room through its own ducts, so it works with every door closed |
 | Venting | Gas leaves through an open hatch. It reaches the hatch from other rooms only through open doors |
@@ -57,7 +57,7 @@ The tug and freighter share one class, `DeckShip`, which takes the deck count. A
 
 **Naming.** A door is named for the two rooms it joins, `<room>-<room>`. Ring segments are `<prefix><k>`: `s` for the ring ship and `a`, `b` and `c` for the wheel's rings. Hatches start with `hatch`.
 
-**Six doors per room.** A room is a box, so it can have a door in each of its six faces: at most six doors per room, and a ship that gives a room more is an error. The Wheel's hub has exactly six, one to each of its six spokes. The ladder pipe is one segment per deck so that no pipe room needs more than three.
+**Six doors per room.** A room has at most six doors and hatches together, on any of its faces; two may share a face, and a ship that gives a room more is an error. A door sits on a face of each room it joins. The Wheel's hub has exactly six, one to each of its six spokes: three in its floor and three in its ceiling. The ladder pipe is one segment per deck so that no pipe room needs more than three.
 
 **Hatches.** A hatch is any opening to outside. The ring has two; every other ship has one. A hatch has its own breaker and motor, and opening one closes every door.
 
@@ -75,7 +75,7 @@ Every door and hatch starts closed, every light starts on, and every system star
 
 **Scale.** Door strength scales with the door's area: conductance, mixing and heat conductance are 10 m³/s, 0.5 m³/s and 100 W/K for a 1 × 2 m door, times the door's area over 2 m². A hatch is not scaled. Tank capacity and starting level, and pressure control's feed rate, scale with the ship's volume over 82 m³ (never below 1); the HVAC's gain and limit scale with each room's volume over 40 m³ (never below 1).
 
-**Adding a ship type.** Subclass `Ship`. Override `_build()` and call `add_room(id, size_m, position, orientation, crew)`, `add_door(id, room_a, face_a, room_b, face_b, size_m, at)` and `add_hatch(id, room, face)`; a door can name a room added later. Override `_param_overrides()` to return the params that differ from `Ship.default_params()` as a partial Dictionary. Add the type to `Fleet.standard()`.
+**Adding a ship type.** Subclass `Ship`. Override `_build()` and call `add_room(id, size_m, position, orientation, passengers)`, `add_door(id, room_a, face_a, room_b, face_b, size_m, at)` and `add_hatch(id, room, face)`; a door can name a room added later. Override `_param_overrides()` to return the params that differ from `Ship.default_params()` as a partial Dictionary. Add the type to `Fleet.standard()`.
 
 ## Atmosphere model
 
@@ -167,7 +167,7 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 
 - Passengers don't use N₂, so the N₂ tank only drains after a vent.
 - While the recycler keeps up, the O₂ tank loses only the gap between O₂ breathed and CO₂ exhaled: about 7 mol a day for two passengers, so it lasts more than a year.
-- With the recycler down, the O₂ tank drains at the full rate the passengers breathe, about 52 mol a day, so it empties in about 58 days. CO₂ reaches danger long before that.
+- With the recycler down, the O₂ tank drains at the full rate the passengers breathe, about 52 mol a day, so it empties in about 58 days at the 82 m³ reference size (the tank scales with the ship's volume, so the skiff's takes about 540 days). CO₂ reaches danger long before that.
 - A tank never fills past its capacity. The recycler's O₂ is discarded when the tank is full.
 - The two tanks hold enough to refill the whole ship about three times. Capacity grows with the ship's volume over 82 m³.
 
@@ -213,7 +213,7 @@ Each room has one light with a switch that is on or off. A light shines only whe
 | `air-recycler` | CO₂ recycler | 800 W while scrubbing, 50 W idle |
 | — | computer, not on the breaker panel | 150 W |
 
-The breaker IDs are the names in the first column. Breakers come from the ship's rooms and openings: a room adds its `light-<room id>` breaker and a door or hatch adds a breaker with its own id, alongside the three fixed system breakers. The skiff has nine breakers and the Wheel about ninety. Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
+The breaker IDs are the names in the first column. Breakers come from the ship's rooms and openings: a room adds its `light-<room id>` breaker and a door or hatch adds a breaker with its own id, alongside the three fixed system breakers. The skiff has nine breakers and the Wheel 95 (43 lights, 48 doors, 1 hatch and 3 systems). Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
 
 A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows breaker states and draws (see Screen), and the whole ship's total.
 
@@ -257,9 +257,9 @@ A ship command is transmitted. It reaches the ship after the ship's `transmissio
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands, with the ship's door and room ids in place of `<door id>` and `<room id>`. *Added* |
-| `debug trip <breaker ID>` | Trip a breaker. *Added, for testing and demos* |
-| `debug fault <system>` | Put a system in FAULT. *Added, for testing and demos* |
+| `help` | List the commands, with the ship's door and room ids in place of `<door id>` and `<room id>` |
+| `debug trip <breaker ID>` | Trip a breaker, for testing and demos |
+| `debug fault <system>` | Put a system in FAULT, for testing and demos |
 
 Sample responses (each reply lands one round trip after its `sent to` line; the unknown command is answered at once):
 
@@ -295,15 +295,15 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │                                                                      │
 │                        │  HOLD          SYSTEMS           BREAKERS           TANKS            │
 │                        │  0.4 kPa       pressure-control  light-hold   ■ 40 W  O₂ ██████░░ 78 %│
-│                        │  18.9 °C       hvac         RUN  hatch        ■ 5 W   N₂ ███████░ 91 %│
-│                        │  O₂ —          air-recycler BOOT cabin-hold   ■ 5 W                   │
+│                        │  18.9 °C       hvac         RUN  cabin-hold   ■ 5 W   N₂ ███████░ 91 %│
+│                        │  O₂ —          air-recycler BOOT hatch        ■ 5 W                   │
 │                        │  N₂ —          computer     RUN  pressure-control ■ 300 W             │
 │                        │  CO₂ —                           hvac ■ 200 W  air-recycler ■ 50 W    │
 │                        │  passengers 0                    light-cabin □ TRIP                   │
 │ > door open hatch      │  light ○                         total 3.1 kW                         │
 │ sent to skiff; ...     │                                                                      │
 │ uplink: ... — 3:12 left│  LOG                                                                 │
-│ ███████░░░             │  00:41:52  hatch opened; hold exposed to vacuum                      │
+│ ███████░░░             │  00:41:52  hold: exposed to vacuum                                  │
 │ downlink: waiting      │  00:41:52  pressure-control: not feeding hold (exposed)              │
 │ ░░░░░░░░░░             │                                                                      │
 │ > _                    │                                                                      │

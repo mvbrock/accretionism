@@ -520,7 +520,7 @@ func test_a_long_line_does_not_widen_the_console() -> void:
 	assert_true(width < 300.0, "the console's minimum width stays small, got %s" % width)
 
 
-func test_the_view_keeps_half_the_dashboard_under_a_tall_breaker_list() -> void:
+func test_the_view_keeps_half_the_dashboard_on_the_wheel() -> void:
 	var dashboard := DashboardView.new()
 	own(dashboard)
 	dashboard.set_anchors_preset(Control.PRESET_TOP_LEFT)

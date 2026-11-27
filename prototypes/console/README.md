@@ -32,14 +32,14 @@ The fleet is one of each type, named for it:
 | `freighter` | as the tug with 4 decks and 4 segments | 7 | `hatch` in `deck1` |
 | `wheel` | 3 rings of 12 segments (`a0` to `a11`, `b0` to `b11`, `c0` to `c11`), 6 spokes (`spokea0`, `spokea6`, and so on) and the `hub` | 48 | `hatch` in `b3` |
 
-A door is named for the two rooms it joins, `<room>-<room>`. Each room has at most six doors, one for each
-face of the box (the Wheel's hub has exactly six). A hatch is any opening to outside; its id starts with
+A door is named for the two rooms it joins, `<room>-<room>`. Each room has at most six doors and hatches, on any
+of its faces (two may share a face); the Wheel's hub has exactly six. A hatch is any opening to outside; its id starts with
 `hatch`. Opening a hatch closes every door, so only the hatch's room vents; the other rooms vent only through
 doors that stay open.
 
 Door strength scales with the door's area, and the tanks, pressure control and HVAC scale with the ship's and
 room's volume, so a big ship keeps its air as a small one does. Every ship runs on the one clock, connected or
-not. Each room has one light and each door and hatch one breaker, so the Wheel has about ninety breakers; a big
+not. Each room has one light and each door and hatch one breaker, so the Wheel has 95 breakers; a big
 ship sees more random trips.
 
 ## Commands
