@@ -155,7 +155,7 @@ func test_main_advances_with_the_clock_step() -> void:
 	main.clock.speed_index = 2
 	main._process(0.5 / 3600.0)
 	assert_near(main.fleet.ships.kestrel.time_s, 0.0, 1e-9,
-			"half a sim second is less than the 1 s step at 1 hour/s")
+			"half a sim second is less than the step at 1 hour/s")
 
 
 func test_dashboard_log_has_no_command_line() -> void:

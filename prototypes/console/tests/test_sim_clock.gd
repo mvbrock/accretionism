@@ -25,7 +25,7 @@ func test_step_follows_speed() -> void:
 	for i in 3:
 		clock.speed_index = i
 		steps.append(clock.step_s())
-	assert_true(steps == ([0.1, 0.1, 1.0] as Array[float]), "steps, got %s" % [steps])
+	assert_true(steps == ([0.1, 0.1, 5.0] as Array[float]), "steps, got %s" % [steps])
 
 func test_starts_at_real_time() -> void:
 	var clock := SimClock.new()

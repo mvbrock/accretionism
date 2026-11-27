@@ -64,16 +64,16 @@ func test_ring_hatches_are_in_s0s_and_s6s_outer_floors() -> void:
 	_check_hatches(_ring(), {"hatch0": ["s0", Room.Face.MINUS_Y], "hatch6": ["s6", Room.Face.MINUS_Y]})
 
 func test_ring_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_ring())
+	var problems := ShipChecks.steady_state_problems(_ring(), SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_ring_hatches_expose_their_segment_and_the_rest_seals() -> void:
 	for hatch_id in ["hatch0", "hatch6"]:
-		var problems := ShipChecks.hatch_seal_problems(_ring(), hatch_id)
+		var problems := ShipChecks.hatch_seal_problems(_ring(), hatch_id, SimClock.step_sizes().back())
 		assert_true(problems.is_empty(), "%s: %s" % [hatch_id, problems])
 
-func test_ring_venting_is_stable_at_both_step_sizes() -> void:
-	for step_s in [0.1, 1.0]:
+func test_ring_venting_is_stable_at_every_clock_step() -> void:
+	for step_s in SimClock.step_sizes():
 		var problems := ShipChecks.venting_problems(_ring(), "hatch0", step_s, 120.0)
 		assert_true(problems.is_empty(), "step %s: %s" % [step_s, problems])
 
@@ -129,14 +129,14 @@ func test_wheel_hatch_is_in_b3s_outer_floor() -> void:
 	_check_hatches(_wheel(), {"hatch": ["b3", Room.Face.MINUS_Y]})
 
 func test_wheel_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_wheel())
+	var problems := ShipChecks.steady_state_problems(_wheel(), SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_wheel_hatch_exposes_b3_and_the_rest_seals() -> void:
-	var problems := ShipChecks.hatch_seal_problems(_wheel(), "hatch")
+	var problems := ShipChecks.hatch_seal_problems(_wheel(), "hatch", SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "seal: %s" % [problems])
 
-func test_wheel_venting_is_stable_at_both_step_sizes() -> void:
-	for step_s in [0.1, 1.0]:
+func test_wheel_venting_is_stable_at_every_clock_step() -> void:
+	for step_s in SimClock.step_sizes():
 		var problems := ShipChecks.venting_problems(_wheel(), "hatch", step_s, 120.0)
 		assert_true(problems.is_empty(), "step %s: %s" % [step_s, problems])

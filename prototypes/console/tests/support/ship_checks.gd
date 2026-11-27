@@ -92,10 +92,10 @@ static func open_all_doors(ship: Ship) -> void:
 	ship.advance(_DOOR_SETTLE_S)
 
 
-## Doors open, hatches shut, one day at the 1 s step: every room must stay inside the nominal bands.
-static func steady_state_problems(ship: Ship) -> Array[String]:
+## Doors open, hatches shut, one day at `step_s`: every room must stay inside the nominal bands.
+static func steady_state_problems(ship: Ship, step_s: float) -> Array[String]:
 	open_all_doors(ship)
-	ship.advance(STEADY_STATE_S, 1.0)
+	ship.advance(STEADY_STATE_S, step_s)
 	var problems: Array[String] = []
 	for opening in ship.openings:
 		var wanted := Opening.State.CLOSED if opening.is_hatch() else Opening.State.OPEN
@@ -139,10 +139,10 @@ static func venting_problems(ship: Ship, hatch_id: String, step_s: float, second
 
 ## Opens every door and the hatch, then reports unless only the hatch's room is exposed and every
 ## door has closed.
-static func hatch_seal_problems(ship: Ship, hatch_id: String) -> Array[String]:
+static func hatch_seal_problems(ship: Ship, hatch_id: String, step_s := Ship.STEP_S) -> Array[String]:
 	open_all_doors(ship)
 	ship.set_opening(hatch_id, true)
-	ship.advance(_HATCH_SETTLE_S)
+	ship.advance(_HATCH_SETTLE_S, step_s)
 	var hatch_room := ship.opening(hatch_id).room_a
 	var problems: Array[String] = []
 	for room in ship.rooms:

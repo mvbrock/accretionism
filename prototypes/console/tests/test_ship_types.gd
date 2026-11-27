@@ -71,15 +71,15 @@ func test_skiff_doorways_are_2_by_3_2_at_floor_level() -> void:
 	assert_true(door.position.is_equal_approx(Vector3(0, 1.6, -6)), "position %s" % door.position)
 
 func test_skiff_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_skiff())
+	var problems := ShipChecks.steady_state_problems(_skiff(), SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_skiff_hatch_exposes_the_hold_and_the_rest_seals() -> void:
-	var problems := ShipChecks.hatch_seal_problems(_skiff(), "hatch")
+	var problems := ShipChecks.hatch_seal_problems(_skiff(), "hatch", SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "seal: %s" % [problems])
 
-func test_skiff_venting_is_stable_at_both_step_sizes() -> void:
-	for step_s in [0.1, 1.0]:
+func test_skiff_venting_is_stable_at_every_clock_step() -> void:
+	for step_s in SimClock.step_sizes():
 		var problems := ShipChecks.venting_problems(_skiff(), "hatch", step_s, 120.0)
 		assert_true(problems.is_empty(), "step %s: %s" % [step_s, problems])
 
@@ -98,15 +98,15 @@ func test_tug_hatch_is_in_the_bottom_decks_floor() -> void:
 	_check_hatch(_tug(), "deck1", Room.Face.MINUS_Y)
 
 func test_tug_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_tug())
+	var problems := ShipChecks.steady_state_problems(_tug(), SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_tug_hatch_exposes_deck1_and_the_rest_seals() -> void:
-	var problems := ShipChecks.hatch_seal_problems(_tug(), "hatch")
+	var problems := ShipChecks.hatch_seal_problems(_tug(), "hatch", SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "seal: %s" % [problems])
 
-func test_tug_venting_is_stable_at_both_step_sizes() -> void:
-	for step_s in [0.1, 1.0]:
+func test_tug_venting_is_stable_at_every_clock_step() -> void:
+	for step_s in SimClock.step_sizes():
 		var problems := ShipChecks.venting_problems(_tug(), "hatch", step_s, 120.0)
 		assert_true(problems.is_empty(), "step %s: %s" % [step_s, problems])
 
@@ -123,15 +123,15 @@ func test_freighter_hatch_is_in_the_bottom_decks_floor() -> void:
 	_check_hatch(_freighter(), "deck1", Room.Face.MINUS_Y)
 
 func test_freighter_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_freighter())
+	var problems := ShipChecks.steady_state_problems(_freighter(), SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_freighter_hatch_exposes_deck1_and_the_rest_seals() -> void:
-	var problems := ShipChecks.hatch_seal_problems(_freighter(), "hatch")
+	var problems := ShipChecks.hatch_seal_problems(_freighter(), "hatch", SimClock.step_sizes().back())
 	assert_true(problems.is_empty(), "seal: %s" % [problems])
 
-func test_freighter_venting_is_stable_at_both_step_sizes() -> void:
-	for step_s in [0.1, 1.0]:
+func test_freighter_venting_is_stable_at_every_clock_step() -> void:
+	for step_s in SimClock.step_sizes():
 		var problems := ShipChecks.venting_problems(_freighter(), "hatch", step_s, 120.0)
 		assert_true(problems.is_empty(), "step %s: %s" % [step_s, problems])
 
