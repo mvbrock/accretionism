@@ -27,7 +27,7 @@ const BODY_HEIGHT := 1.8
 @export var gravity := 9.8
 @export var turn_speed := 12.0
 ## Metres per second along a ladder.
-@export var climb_speed := 1.5
+@export var climb_speed := 3.0
 
 ## Relative to the facing: x = strafe (D = +1), y = forward (W = +1).
 var move_input := Vector2.ZERO

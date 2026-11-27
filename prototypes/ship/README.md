@@ -29,7 +29,7 @@ There are five ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold)
 |---|---|---|---|
 | Player | `walk_speed` | 3.0 m/s | Walking pace (a real walk is about 1.4 m/s) |
 | Player | `turn_speed` | 12 | How quickly the capsule turns to face the cursor |
-| Player | `climb_speed` | 1.5 m/s | How fast W/S move along a ladder (a Wheel ladder is 94.7 m long) |
+| Player | `climb_speed` | 3.0 m/s | How fast W/S move along a ladder (a Wheel ladder is 94.7 m long) |
 | CameraRig | `ortho_size` | 24 m | How much of the ship fits on screen |
 | CameraRig | `follow_sharpness` | 10 | How tightly the camera tracks the player |
 | OcclusionFader | `faded_alpha` | 0.15 | How see-through blocking walls and ceilings get |
