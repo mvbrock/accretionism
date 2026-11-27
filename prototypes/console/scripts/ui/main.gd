@@ -92,7 +92,7 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 	return Vector2i(wanted * fit)
 
 
-## The one place that reads the computer's state. Running: redraw. Booting: the
+## The one place that reads the computer's state. The link bars update first, always. Running: redraw. Booting: the
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
 ## Disconnected: no dashboard, only NO SHIP CONNECTED.
 func refresh() -> void:

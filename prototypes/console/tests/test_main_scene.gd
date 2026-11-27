@@ -521,7 +521,7 @@ func test_link_bars_follow_the_uplink_then_the_downlink() -> void:
 	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — 1:40 left", "got '%s'" % _status(main).uplink_label.text)
 	assert_true(_status(main).downlink_label.text == "downlink: waiting", "got '%s'" % _status(main).downlink_label.text)
 	main._process(25.0)
-	assert_true(absf(_status(main).uplink_bar.value - 0.25) < 0.001, "uplink a quarter done, got %s" % _status(main).uplink_bar.value)
+	assert_near(_status(main).uplink_bar.value, 0.25, 0.001, "uplink a quarter done")
 	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — 1:15 left", "got '%s'" % _status(main).uplink_label.text)
 	assert_true(_status(main).downlink_bar.value == 0.0, "downlink not started")
 	main._process(75.0)
@@ -529,8 +529,18 @@ func test_link_bars_follow_the_uplink_then_the_downlink() -> void:
 	assert_true(_status(main).uplink_label.text == "uplink: door open hatch — sent", "got '%s'" % _status(main).uplink_label.text)
 	assert_true(_status(main).downlink_label.text == "downlink: door open hatch — 1:40 left", "got '%s'" % _status(main).downlink_label.text)
 	main._process(50.0)
-	assert_true(absf(_status(main).downlink_bar.value - 0.5) < 0.001, "downlink half done, got %s" % _status(main).downlink_bar.value)
+	assert_near(_status(main).downlink_bar.value, 0.5, 0.001, "downlink half done")
 	main._process(50.0)
 	assert_true(_status(main).uplink_label.text == "uplink: idle", "idle after the reply")
 	assert_true(_status(main).downlink_label.text == "downlink: idle", "idle after the reply")
 	assert_true(_status(main).uplink_bar.value == 0.0, "bars empty again")
+
+
+func test_a_long_line_does_not_widen_the_console() -> void:
+	var main := _main()
+	main.ship.transmission_s = 100.0
+	main.console.line_submitted.emit("door open " + "x".repeat(300))
+	main._process(0.0)
+	await tree.process_frame
+	var width := main.console.get_combined_minimum_size().x
+	assert_true(width < 300.0, "the console's minimum width stays small, got %s" % width)

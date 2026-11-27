@@ -4,6 +4,7 @@ extends VBoxContainer
 ## ship, the downlink as the reply travels back. Both read idle when nothing is in flight.
 
 const BAR_HEIGHT_PX := 8
+const TRACK_COLOR := Color(1, 1, 1, 0.18)
 
 var uplink_label: Label
 var uplink_bar: ProgressBar
@@ -44,6 +45,7 @@ static func downlink_text(uplink_active: bool, downlink_active: bool, line: Stri
 
 func _add_label() -> Label:
 	var label := Label.new()
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
 	return label
 
@@ -54,5 +56,13 @@ func _add_bar() -> ProgressBar:
 	bar.max_value = 1.0
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(0, BAR_HEIGHT_PX)
+	bar.add_theme_stylebox_override("background", _flat(TRACK_COLOR))
+	bar.add_theme_stylebox_override("fill", _flat(DashboardView.GREEN))
 	add_child(bar)
 	return bar
+
+
+func _flat(color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	return style

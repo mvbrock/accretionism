@@ -271,8 +271,8 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │  light ○                                                              │
 │ > door open hatch      │                                                                       │
 │ sent to kestrel; ...   │  LOG                                                                 │
-│ uplink: door open h... │  00:41:52  hatch opened; cargo exposed to vacuum                     │
-│ ███████░░░ 3:12 left   │  00:41:52  pressure-control: not feeding cargo (exposed)             │
+│ uplink: ... — 3:12 left│  00:41:52  hatch opened; cargo exposed to vacuum                     │
+│ ███████░░░             │  00:41:52  pressure-control: not feeding cargo (exposed)             │
 │ downlink: waiting      │                                                                      │
 │ ░░░░░░░░░░             │                                                                      │
 │ > _                    │                                                                      │
