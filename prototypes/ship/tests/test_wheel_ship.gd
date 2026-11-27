@@ -207,15 +207,23 @@ func _ring_with_ladder(ring: int) -> Array:
 
 func test_cutaway() -> void:
 	var ship := await _make_ship()
-	var expected := _ring_with_ladder(2) + ["Hub2", "Bulkhead2", "HubEndAft"]
+	var expected := _ring_with_ladder(2) + ["Hub2", "HubEndAft"]
 	expected.sort()
-	assert_true(_cutaway_names(ship, ship.spawn_point()) == expected, "ring 1 hides ring 2, its ladder, Hub2, bulkhead 2 and the aft end")
+	assert_true(_cutaway_names(ship, ship.spawn_point()) == expected, "ring 1 hides ring 2, its ladder, Hub2 and the aft end")
 	expected = _ring_with_ladder(1) + _ring_with_ladder(2) + ["Hub1", "Hub2", "Bulkhead2", "HubEndAft"]
 	expected.sort()
 	var in_hub0 := _cutaway_names(ship, Vector3(-24, -3, 0))
 	assert_true(in_hub0 == expected, "Hub0 hides rings 1 and 2, their ladders, Hub1, Hub2, bulkhead 2 and the aft end, not bulkhead 1 (got %s)" % [in_hub0])
-	assert_true(_cutaway_names(ship, Vector3(24, -3, 0)).is_empty(), "Hub2 hides no bulkhead or end wall")
-	assert_true(_cutaway_names(ship, Vector3(24, -47, 0)) == ["HubEndAft"], "ring 2 hides only the aft end wall beyond it")
+	assert_true(_cutaway_names(ship, Vector3(24, -3, 0)).is_empty(), "Hub2 hides nothing")
+	assert_true(_cutaway_names(ship, Vector3(24, -47, 0)).is_empty(), "ring 2 hides nothing")
+
+
+func test_cutaway_keeps_the_players_own_slice() -> void:
+	var ship := await _make_ship()
+	# In the left half of Hub1, ring 1 lies wholly toward +X of the player, but its ladder runs through this room.
+	var names := _cutaway_names(ship, Vector3(-9, -3, 2.5))
+	for kept in _ring_with_ladder(1) + ["Hub1", "Bulkhead2"]:
+		assert_true(kept not in names, "%s stays visible from the left half of Hub1 (got %s)" % [kept, names])
 
 
 func test_every_hub_landing_is_lit() -> void:

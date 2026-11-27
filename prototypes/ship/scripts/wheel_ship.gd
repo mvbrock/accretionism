@@ -97,25 +97,28 @@ func room_at(p: Vector3) -> String:
 	return ""
 
 
-## Every ring, with its ladder pipe, every hub room, and every bulkhead and the aft end wall wholly on the camera's
-## side (+X) of `p`: they would cover the view of the player. A player in a hub room keeps that room's own +X bulkhead,
-## which fades as the room's bound.
+## Everything in the ring slices on the camera's side (+X) of the player's slice: those rings with their ladder pipes
+## and hub rooms, the bulkheads between them and the aft end wall. They would cover the view of the player. The
+## player's own slice is never cut, so its ring, ladder and hub room stay wherever in the slice the player is.
 func cutaway_nodes(p: Vector3) -> Array[Node3D]:
 	var nodes: Array[Node3D] = []
-	var hub := _hub_index_at(p)
-	var boundary := p.x if hub == -1 else _room_max_x(hub)
-	for i in range(1, RING_CENTERS.size()):
-		if _room_max_x(i - 1) > boundary:
-			nodes.append(get_node("Bulkhead%d" % i))
-	if _room_max_x(RING_CENTERS.size() - 1) > boundary:
+	var here := _slice_at(p)
+	for i in range(here + 1, RING_CENTERS.size()):
+		nodes.append(get_node("Ring%d" % i))
+		nodes.append(get_node(_spoke_name(i)))
+		nodes.append(get_node(_hub_name(i)))
+	# Bulkhead j stands between hub rooms j - 1 and j; the one at the far side of the player's own room stays (it fades).
+	for j in range(here + 2, RING_CENTERS.size()):
+		nodes.append(get_node("Bulkhead%d" % j))
+	if here < RING_CENTERS.size() - 1:
 		nodes.append(get_node("HubEndAft"))
-	for ring in RING_CENTERS.size():
-		if RING_CENTERS[ring] - RingGeometry.HALF_WIDTH - SLAB > p.x:
-			nodes.append(get_node("Ring%d" % ring))
-			nodes.append(get_node(_spoke_name(ring)))
-		if RING_CENTERS[ring] - ROOM_LENGTH / 2.0 > p.x:
-			nodes.append(get_node(_hub_name(ring)))
 	return nodes
+
+
+## Which ring's slice of the ship `p` is in: the span of that ring's hub room along X, clamped to the ship.
+static func _slice_at(p: Vector3) -> int:
+	var first_edge: float = RING_CENTERS[0] - ROOM_LENGTH / 2.0
+	return clampi(floori((p.x - first_edge) / ROOM_LENGTH), 0, RING_CENTERS.size() - 1)
 
 
 ## The frame of ring `ring`'s ladder pipe from the bottom: origin on the ring's floor, +Y up the pipe, the doorway toward −Z.
@@ -141,10 +144,6 @@ static func _hub_name(i: int) -> String:
 
 static func _spoke_name(ring: int) -> String:
 	return "Spoke%d" % ring
-
-
-static func _room_max_x(i: int) -> float:
-	return RING_CENTERS[i] + ROOM_LENGTH / 2.0
 
 
 ## The index of the hub room box containing `p` (the room and its slabs), or -1.
