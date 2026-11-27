@@ -268,3 +268,16 @@ func test_no_two_visible_names_overlap_on_the_wheel() -> void:
 	view.show_ship(ship, hidden)
 	assert_true(view.room_name(hidden).visible, "selecting a hidden room shows its name")
 	assert_true(view.name_at(view.screen_point(ship.room(hidden).position)) == hidden, "and it takes the click")
+
+
+func test_a_name_rect_covers_the_whole_drawn_name_outline_included() -> void:
+	var ship := WheelShip.new()
+	var view := await _view(ship)
+	var label := view.room_name("a4")
+	var to_px := float(ShipView3D.LABEL_EM_PX) / label.font_size
+	var font := ThemeDB.fallback_font
+	var drawn := Vector2(font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.font_size).x,
+			font.get_height(label.font_size)) + Vector2.ONE * 2.0 * label.outline_size
+	var rect := view.name_rect("a4")
+	assert_true(rect.size.x >= drawn.x * to_px - 0.01 and rect.size.y >= drawn.y * to_px - 0.01,
+			"rect %s covers the drawn name %s" % [rect.size, drawn * to_px])

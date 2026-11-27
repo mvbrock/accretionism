@@ -335,10 +335,13 @@ func _on_resized() -> void:
 		_size_labels()
 
 
-## How big a name is on screen, in control pixels: LABEL_EM_PX tall.
+## How big a name is drawn on screen, in control pixels: its full line height and the outline round
+## it, not just the capitals, so names that would touch are told apart.
 func _name_size(text: String) -> Vector2:
-	var width := ThemeDB.fallback_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_SIZE).x
-	return Vector2(width * LABEL_EM_PX / LABEL_FONT_SIZE, LABEL_EM_PX)
+	var font := ThemeDB.fallback_font
+	var drawn := Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_SIZE).x,
+			font.get_height(LABEL_FONT_SIZE)) + Vector2.ONE * 2.0 * LABEL_OUTLINE_SIZE
+	return drawn * LABEL_EM_PX / LABEL_FONT_SIZE
 
 
 ## Sets each name's world size so it is LABEL_EM_PX tall on screen: a viewport pixel spans
@@ -357,7 +360,7 @@ func _size_labels() -> void:
 func _update_names() -> void:
 	if not camera.is_inside_tree():
 		return
-	var key := [camera.global_transform, camera.size, size, _selected_room]
+	var key := [camera.global_transform, camera.size, size, viewport.size, _selected_room]
 	if key == _names_for:
 		return
 	_names_for = key
