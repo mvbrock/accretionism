@@ -23,12 +23,27 @@ var _plans: Dictionary[Transport, Plan] = {}
 func _init(fleet: Fleet, schedule: Schedule) -> void:
 	_fleet = fleet
 	_schedule = schedule
+	var ships_started_at := {}
 	for ship in fleet.transports:
 		var plan := Plan.new()
 		plan.location = ship.host if ship.state == Transport.State.DOCKED else ship.body
-		plan.free_day = fleet.day
+		var service := fleet.service_of[ship]
+		var home_key := "%s %s" % [service, Fleet.target_name(plan.location)]
+		var place_in_line: int = ships_started_at.get(home_key, 0)
+		ships_started_at[home_key] = place_in_line + 1
+		plan.free_day = fleet.day + place_in_line * _first_departure_stagger(service)
 		plan.flybys_handled_to = fleet.day
 		_plans[ship] = plan
+
+
+## Ships of one service at the same body leave this many days apart at the start.
+func _first_departure_stagger(service: String) -> float:
+	match service:
+		"shuttle":
+			return Config.SHUTTLE_STAGGER_DAYS
+		"express":
+			return Config.EXPRESS_STAGGER_DAYS
+	return 0.0
 
 
 ## Plans each service's trips that depart on or before `day`.

@@ -48,6 +48,19 @@ func test_shuttle_alternates_with_turnaround() -> void:
 		assert_true(ship_trips[i].kind == "service", "service kind")
 
 
+func test_shuttles_at_one_body_never_share_a_departure_time() -> void:
+	var planned := _planned()
+	var seen := {}
+	for ship in _ships_of(planned.fleet, "shuttle"):
+		for trip: Trip in planned.schedule.trips_of(ship):
+			var key := "%s %s" % [Fleet.target_name(trip.from), snappedf(trip.depart_day, 1e-6)]
+			assert_true(not seen.has(key), "%s shares a departure from %s" % [ship.name, key])
+			seen[key] = true
+	var second_express: Transport = _ships_of(planned.fleet, "express")[1]
+	var first_days: float = planned.schedule.trips_of(second_express)[0].depart_day
+	assert_near(first_days, Config.WARMUP_START + Config.EXPRESS_STAGGER_DAYS, 1e-9, "second express is staggered")
+
+
 func test_express_alternates_earth_mars() -> void:
 	var planned := _planned()
 	for ship in _ships_of(planned.fleet, "express"):
