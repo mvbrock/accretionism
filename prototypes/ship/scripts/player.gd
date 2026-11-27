@@ -42,8 +42,8 @@ var gravity_enabled := true
 
 ## The ladder held, or null while walking or floating.
 var climbing: Ladder = null
-## Distance along `climbing` the feet are at.
-var _climb_s := 0.0
+## Distance along `climbing` the feet are at; the Fleet saves it to resume the climb.
+var climb_s := 0.0
 
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
 var heading := Vector2(0, 1)
@@ -136,7 +136,7 @@ func interact() -> void:
 func interact_hint() -> String:
 	if climbing == null:
 		return "E: climb" if _ladder_in_reach() != null else ""
-	if climbing.landing_at(_climb_s, LANDING_SNAP) != -1:
+	if climbing.landing_at(climb_s, LANDING_SNAP) != -1:
 		return "W/S: climb   E: let go"
 	return "W/S: climb"
 
@@ -148,36 +148,54 @@ func _unhandled_input(event: InputEvent) -> void:
 		set_gravity_enabled(not gravity_enabled)
 
 
+## The ladder with a landing in reach of the spot on the floor under the body, so a floating
+## player can grab too.
 func _ladder_in_reach() -> Ladder:
 	if ship == null:
 		return null
+	var reach_point := _reach_point()
 	for ladder in ship.ladders:
-		if ladder.landing_near(global_position, REACH) != -1:
+		if ladder.landing_near(reach_point, REACH) != -1:
 			return ladder
 	return null
+
+
+## Where reach is measured from: the body's origin, or the floor point under it when floating.
+func _reach_point() -> Vector3:
+	if gravity_enabled:
+		return global_position
+	var up := ship.up_at(global_position)
+	return global_position - up * _height_above_floor(up)
 
 
 func _grab_nearby_ladder() -> void:
 	var ladder := _ladder_in_reach()
 	if ladder == null:
 		return
-	var landing := ladder.landings[ladder.landing_near(global_position, REACH)]
-	climbing = ladder
-	_climb_s = landing.s
-	global_position = ladder.point_at(_climb_s)
+	var landing := ladder.landings[ladder.landing_near(_reach_point(), REACH)]
+	hold_ladder(ladder, landing.s)
 	heading = _heading_toward(landing.facing)
+	_orient(ship.up_at(global_position))
+
+
+## Holds `ladder` with the feet `s` metres along it, at rest.
+func hold_ladder(ladder: Ladder, s: float) -> void:
+	climbing = ladder
+	climb_s = s
+	global_position = ladder.point_at(s)
 	_stop()
 	reset_physics_interpolation()
 
 
 func _let_go_at_landing() -> void:
-	var i := climbing.landing_at(_climb_s, LANDING_SNAP)
+	var i := climbing.landing_at(climb_s, LANDING_SNAP)
 	if i == -1:
 		return
 	var landing := climbing.landings[i]
 	climbing = null
 	global_position = landing.exit
 	heading = _heading_toward(-landing.facing)
+	aim_heading = Vector2.ZERO
 	_stop()
 	reset_physics_interpolation()
 
@@ -196,8 +214,8 @@ func _heading_toward(direction: Vector3) -> Vector2:
 
 ## Climbing: W/S slide along the ladder; the body is placed on it, with no walking or drift.
 func _climb(delta: float) -> void:
-	_climb_s = clampf(_climb_s + move_input.y * CLIMB_SPEED * delta, 0.0, climbing.length)
-	global_position = climbing.point_at(_climb_s)
+	climb_s = clampf(climb_s + move_input.y * CLIMB_SPEED * delta, 0.0, climbing.length)
+	global_position = climbing.point_at(climb_s)
 	_orient(ship.up_at(global_position))
 	_pivot.rotation.x = _wanted_tip()
 	_shape.transform = _pivot.transform

@@ -403,3 +403,24 @@ func test_walking_into_doorway_is_blocked() -> void:
 	await physics_frames(90)
 	var limit := DeckShip.PIPE_CENTER.y - DeckShip.PIPE_INNER - DeckShip.PIPE_WALL
 	assert_true(player.global_position.z < limit, "never enters the shaft (z %.3f)" % player.global_position.z)
+
+
+func test_floating_player_can_grab() -> void:
+	var player := await _at_ladder()
+	player.set_gravity_enabled(false)
+	await physics_frames(180)
+	player.interact()
+	assert_true(player.climbing != null, "grabbed while floating")
+	await physics_frames(2)
+	assert_near(player.global_position.x, 3.5, 0.05, "on the pipe axis (x)")
+	assert_near(player.global_position.z, 3.5, 0.05, "on the pipe axis (z)")
+	assert_near(player.get_node("Pivot").rotation.x, 0.0, 0.01, "upright on the ladder")
+
+
+func test_let_go_clears_aim() -> void:
+	var player := await _at_ladder()
+	player.interact()
+	player.aim_heading = Vector2(0, -1)
+	player.interact()
+	await physics_frames(30)
+	assert_true(player.heading.y > 0.9, "still faces away from the pipe (heading %s)" % player.heading)

@@ -139,3 +139,48 @@ func test_boards_when_placed_before_the_player() -> void:
 	assert_true(early_fleet.active == early_ring, "the ring is active")
 	assert_true(early_player.ship == early_ring, "the player boarded the ring")
 	assert_near(early_player.global_position.distance_to(early_ring.spawn_point()), 0.0, 0.1, "player at the ring's spawn")
+
+
+func test_returns_to_ladder_mid_climb() -> void:
+	player = own_player()
+	rig = own_rig(player)
+	fader = own_fader(rig, player)
+	fleet = Fleet.new()
+	ring = RingShip.new()
+	var deck_ship := DeckShip.new()
+	deck_ship.deck_count = 2
+	fleet.add_child(ring)
+	fleet.add_child(deck_ship)
+	fleet.player = player
+	fleet.rig = rig
+	fleet.fader = fader
+	own(fleet)
+	await physics_frames(3)
+	fleet.switch_to(deck_ship)
+	var ladder := deck_ship.ladders[0]
+	player.board(deck_ship, ladder.landings[0].exit, Vector2(0, -1), true)
+	await physics_frames(2)
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y <= 2.0 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	var climb_s := player.climb_s
+	fleet.next_ship()
+	await physics_frames(5)
+	fleet.next_ship()
+	assert_true(player.climbing == ladder, "back on the deck ship's ladder")
+	assert_near(player.climb_s, climb_s, 0.01, "same height on the ladder")
+	assert_near(player.global_position.x, 3.5, 0.05, "on the pipe axis (x)")
+	assert_near(player.global_position.z, 3.5, 0.05, "on the pipe axis (z)")
+	player.move_input = Vector2(0, 1)
+	frames = 0
+	while player.global_position.y <= DeckShip.PITCH - 0.2 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	player.interact()
+	assert_true(player.climbing == null, "let go at the top")
+	assert_true(player.global_position.distance_to(ladder.landings[1].exit) < 0.1, "stands at landing 1's exit")
