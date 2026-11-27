@@ -53,6 +53,10 @@ var climb_s := 0.0
 ## The 3D direction the climber faces, from the landing it grabbed at; its heading is recomputed from it each frame, so
 ## a flip keeps it facing the rungs.
 var _climb_facing := Vector3.BACK
+## The sign of `move_input.y` the current climb key press started with, or 0 while no key is held.
+var _held_sign := 0.0
+## Which way along the ladder axis the held climb key moves `climb_s` (+1 or -1), or 0 while none is held.
+var _climb_dir := 0.0
 
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
 var heading := Vector2(0, 1)
@@ -207,6 +211,8 @@ func _hold_ladder(ladder: Ladder, s: float, facing: Vector3) -> void:
 	climbing = ladder
 	climb_s = s
 	_climb_facing = facing
+	_held_sign = 0.0
+	_climb_dir = 0.0
 	_place_on_ladder()
 	_stop()
 	reset_physics_interpolation()
@@ -243,12 +249,24 @@ func _facing_toward(facing: Vector2, up: Vector3) -> Vector3:
 	return Vector3.RIGHT * facing.x + up.cross(Vector3.RIGHT) * facing.y
 
 
-## Climbing: W/S slide along the ladder, W toward its far end however the body is turned; the body is placed on it, with
-## no walking or drift.
+## Climbing: W climbs toward the top of the screen and S toward the bottom, and a held key keeps the direction it
+## started with. The direction is latched when `move_input.y` goes from 0 to nonzero or changes sign, and cleared
+## when it returns to 0. The body is placed on the ladder, with no walking or drift.
 func _climb(delta: float) -> void:
-	climb_s = clampf(climb_s + move_input.y * climb_speed * delta, 0.0, climbing.length)
+	var pressed := signf(move_input.y)
+	if pressed != _held_sign:
+		_held_sign = pressed
+		_climb_dir = pressed * _screen_up_along_ladder()
+	climb_s = clampf(climb_s + _climb_dir * absf(move_input.y) * climb_speed * delta, 0.0, climbing.length)
 	_place_on_ladder()
 	_set_tip(_wanted_tip())
+
+
+## +1 when the top of the screen lies along the ladder's axis, -1 when it lies against it; +1 with no camera.
+func _screen_up_along_ladder() -> float:
+	if aim_camera == null:
+		return 1.0
+	return 1.0 if climbing.axis.dot(aim_camera.global_basis.y) >= 0.0 else -1.0
 
 
 ## Puts the body on the ladder at `climb_s`, facing `_climb_facing`. The feet are at `point_at(climb_s)` when the up at

@@ -519,6 +519,10 @@ class FlipShip extends Ship:
 		return Vector3.UP if p.y < 10.0 else Vector3.DOWN
 
 
+	func camera_roll_at(p: Vector3) -> float:
+		return PI if p.y >= 10.0 else 0.0
+
+
 ## A player on a FlipShip, holding its ladder after grabbing at landing `landing`, climbing at 10 m/s.
 func _on_flip_ladder(landing: int) -> Player:
 	var ship: Ship = own(FlipShip.new())
@@ -599,3 +603,37 @@ func test_grab_at_an_upside_down_landing() -> void:
 	var player := await _on_flip_ladder(1)
 	assert_true(player.global_position.distance_to(Vector3(0, 21.85, 0)) < 0.01, "feet hang from the top (%s)" % player.global_position)
 	assert_near(player.climb_s, 20.0, 0.01, "at the top of the ladder")
+
+
+## Gives `player` a camera rig and snaps it to where the player is.
+func _watch_with_camera(player: Player) -> CameraRig:
+	var rig := own_rig(player, player.ship)
+	await physics_frames(1)
+	player.aim_camera = rig.get_node("Camera")
+	rig.snap()
+	return rig
+
+
+func test_w_climbs_toward_screen_top_at_an_upside_down_landing() -> void:
+	var player := await _on_flip_ladder(1)
+	await _watch_with_camera(player)
+	player.move_input = Vector2(0, 1)
+	await physics_frames(30)
+	assert_true(player.climb_s < 20.0, "W climbs toward the screen top, down the axis (climb_s %.2f)" % player.climb_s)
+
+
+func test_held_w_keeps_its_direction_through_the_flip() -> void:
+	var player := await _on_flip_ladder(0)
+	var rig := await _watch_with_camera(player)
+	player.move_input = Vector2(0, 1)
+	var previous := player.climb_s
+	var frames := 0
+	var went_back := false
+	while player.climb_s < 19.0 and frames < 600:
+		await tree.physics_frame
+		rig.update_rig(1.0 / 60.0)
+		frames += 1
+		went_back = went_back or player.climb_s < previous
+		previous = player.climb_s
+	assert_true(player.climb_s >= 19.0, "reached the top in %d frames" % frames)
+	assert_true(not went_back, "climb_s never decreased while W was held")
