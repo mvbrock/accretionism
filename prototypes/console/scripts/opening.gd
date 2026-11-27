@@ -9,7 +9,7 @@ enum CommandResult { STARTED, ALREADY, NO_POWER }
 const OUTSIDE := "outside"
 ## Every hatch's id starts with this.
 const HATCH_PREFIX := "hatch"
-## The id of the one hatch on a ship that has just one (and what ShipLoader requires).
+## The id of the one hatch on a ship that has just one.
 const HATCH_ID := HATCH_PREFIX
 const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
 

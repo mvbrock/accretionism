@@ -10,6 +10,7 @@ func _main(ship_name := "kestrel") -> Main:
 
 func _disconnected_main() -> Main:
 	var main: Main = load("res://scenes/main.tscn").instantiate()
+	main.fleet = ShipFixture.make_fleet()
 	own(main)
 	main.set_process(false)
 	for ship in main.fleet.ships.values():
@@ -21,25 +22,6 @@ func _disconnected_main() -> Main:
 func _send(main: Main, line: String) -> void:
 	main.console.line_submitted.emit(line)
 	main._process(0.0)
-
-
-## Writes `data` as the only ship file in a fresh user:// folder and returns the folder.
-func _ships_dir_with(file_name: String, data: Dictionary) -> String:
-	var dir := "user://test_ships"
-	_remove_dir(dir)
-	DirAccess.make_dir_recursive_absolute(dir)
-	var file := FileAccess.open(dir.path_join(file_name), FileAccess.WRITE)
-	file.store_string(JSON.stringify(data))
-	file.close()
-	return dir
-
-
-func _remove_dir(dir: String) -> void:
-	if not DirAccess.dir_exists_absolute(dir):
-		return
-	for file in DirAccess.get_files_at(dir):
-		DirAccess.remove_absolute(dir.path_join(file))
-	DirAccess.remove_absolute(dir)
 
 
 func test_starts_disconnected() -> void:
@@ -281,11 +263,21 @@ func test_clicking_while_the_computer_is_down_does_nothing() -> void:
 	assert_true(main.dashboard.room_heading.text == "MAIN", "the panel shows MAIN")
 
 
-func test_capture_selects_cargo() -> void:
-	var main := _main()
+func test_the_main_scene_starts_with_the_standard_fleet() -> void:
+	var main: Main = load("res://scenes/main.tscn").instantiate()
+	own(main)
+	assert_true(main.fleet.names() == Fleet.standard().names(), "got %s" % main.fleet.names())
+
+
+func test_capture_opens_the_skiffs_hold() -> void:
+	var main: Main = load("res://scenes/main.tscn").instantiate()
+	own(main)
+	main.set_process(false)
 	Main.CaptureScript.new(main, "user://capture_test")
 	main.refresh()
-	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
+	assert_true(main.link.ship_name == "skiff", "got '%s'" % main.link.ship_name)
+	assert_true(main.ship.opening("hatch").state != Opening.State.CLOSED, "the hatch is opening")
+	assert_true(main.dashboard.room_heading.text == "HOLD", "got '%s'" % main.dashboard.room_heading.text)
 
 
 func _fits(main: Main) -> void:
@@ -454,48 +446,6 @@ func test_clock_bar_button_text() -> void:
 	main.clock.paused = true
 	main.refresh()
 	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)
-
-
-func _main_with_broken_data() -> Main:
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ShipFixture.KESTREL_PATH))
-	data.rooms[0].volume_m3 = 0
-	var dir := _ships_dir_with("broken.json", data)
-	expect_error("Bad ship data: room 'cockpit' has volume")
-	var main: Main = load("res://scenes/main.tscn").instantiate()
-	main.ships_dir = dir
-	own(main)
-	_remove_dir(dir)
-	return main
-
-
-func test_bad_data_file_shows_its_problem() -> void:
-	var main := _main_with_broken_data()
-	assert_true(main.ship == null, "no ship is built")
-	assert_true(main.error_label != null, "the message label exists")
-	if main.error_label == null:
-		return
-	assert_true(main.error_label.visible, "the message is up")
-	assert_true(main.error_label.text.begins_with("Could not load user://test_ships/broken.json: "),
-			"names the file, got '%s'" % main.error_label.text)
-	assert_true(main.error_label.text == "Could not load user://test_ships/broken.json: room 'cockpit' has volume 0.0 m3, which must be above 0",
-			"names the file and the bare problem, got '%s'" % main.error_label.text)
-
-
-func test_missing_ships_folder_names_its_path() -> void:
-	var main: Main = load("res://scenes/main.tscn").instantiate()
-	main.ships_dir = "user://missing_ships"
-	own(main)
-	assert_true(main.error_label != null, "the message label exists")
-	if main.error_label == null:
-		return
-	assert_true(main.error_label.text == "Could not load user://missing_ships: folder is missing",
-			"got '%s'" % main.error_label.text)
-
-
-func test_bad_data_file_runs_no_sim() -> void:
-	var main := _main_with_broken_data()
-	assert_true(not main.is_processing(), "the frame loop is off")
-	main._input(_key(KEY_SPACE))
 
 
 func _status(main: Main) -> LinkStatus:

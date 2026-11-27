@@ -4,14 +4,12 @@ extends Control
 ## disconnected; the dashboard shows the ship it connects to. Every ship runs on
 ## the one clock. Space pauses unless the command line has focus; Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (runs at 1 min/s, connects to
-## the first ship, opens the hatch and selects cargo, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
+## the skiff, opens the hatch and selects the hold, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
-const SHIPS_DIR := "res://data/ships"
 const GREETING := "Not connected. Type 'ships list' to see the ships, 'ships connect <ship name>' to connect."
 const NO_SHIP_TEXT := "NO SHIP CONNECTED"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
-const ERROR_MARGIN_PX := 24
 const WINDOW_MARGIN_PX := 12
 ## The console column and the dashboard split the width in this ratio.
 const CONSOLE_SHARE := 40.0
@@ -19,8 +17,7 @@ const DASHBOARD_SHARE := 60.0
 const CONSOLE_PANEL_COLOR := Color("26282c")
 const CONSOLE_PADDING_PX := 8
 
-## Overridable so a test can load a different folder.
-var ships_dir := SHIPS_DIR
+## The standard fleet unless a test gives it another before it enters the tree.
 var fleet: Fleet
 var link: ShipLink
 ## The connected ship, or null.
@@ -35,17 +32,14 @@ var stage: Control
 var no_ship_label: Label
 var overlay: Label
 var stale_label: Label
-var error_label: Label
 
 var _capture: CaptureScript
 
 
 func _ready() -> void:
 	_match_display_scale()
-	fleet = Fleet.load_dir(ships_dir)
 	if fleet == null:
-		_show_load_error()
-		return
+		fleet = Fleet.standard()
 	link = ShipLink.new(fleet)
 	_build_ui()
 	console.line_submitted.connect(run_line)
@@ -59,19 +53,6 @@ func _ready() -> void:
 			_capture = CaptureScript.new(self, args[i + 1])
 		else:
 			push_error("--capture needs a directory: godot --path . -- --capture <dir>")
-
-
-## No sim runs without a ship; Esc still quits.
-func _show_load_error() -> void:
-	set_process(false)
-	error_label = _make_banner("Could not load " + Fleet.last_problem,
-			Control.PRESET_FULL_RECT, 24)
-	error_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, ERROR_MARGIN_PX)
-	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	error_label.visible = true
-	add_child(error_label)
-	if OS.get_cmdline_user_args().has("--capture"):
-		get_tree().quit(1)
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
@@ -134,7 +115,7 @@ func _input(event: InputEvent) -> void:
 	if event.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
 		get_tree().quit()
-	elif event.keycode == KEY_SPACE and fleet != null and not console.input.has_focus():
+	elif event.keycode == KEY_SPACE and not console.input.has_focus():
 		_toggle_pause()
 		get_viewport().set_input_as_handled()
 
@@ -270,9 +251,9 @@ class CaptureScript:
 		DirAccess.make_dir_recursive_absolute(dir)
 		main.clock.speed_index = SPEED_INDEX
 		main.clock.paused = false
-		main.run_line("ships connect " + main.fleet.names()[0])
+		main.run_line("ships connect skiff")
 		CommandInterpreter.run(main.ship, "door open hatch")
-		main.dashboard.select_room("cargo")
+		main.dashboard.select_room("hold")
 
 	## Sim seconds to run this frame, never past the current stop.
 	func limit(sim_seconds: float) -> float:
