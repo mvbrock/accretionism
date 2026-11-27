@@ -10,7 +10,7 @@ const RAY_LENGTH := 80.0
 
 @export var camera: Camera3D
 @export var target: Node3D
-@export var ship: ShipBuilder
+@export var ship: Ship
 @export var faded_alpha := 0.15
 @export var fade_speed := 8.0
 
@@ -66,7 +66,7 @@ func find_occluders() -> Array[MeshInstance3D]:
 		return found
 	var forward := -camera.global_basis.z
 	if ship != null:
-		found.append_array(ship.room_fade_meshes(RingGeometry.section_of(target.global_position), forward))
+		found.append_array(ship.room_fade_meshes(target.global_position, forward))
 	var space := camera.get_world_3d().direct_space_state
 	for point in sight_points():
 		var exclude: Array[RID] = []

@@ -1,13 +1,13 @@
 extends TestCase
 
-var ship: ShipBuilder
+var ship: RingShip
 var player: Player
 var rig: CameraRig
 var fader: OcclusionFader
 
 
 func _setup(x: float = 0.0) -> void:
-	ship = own(ShipBuilder.new())
+	ship = own(RingShip.new())
 	player = load("res://scenes/player.tscn").instantiate()
 	player.drive_by_code = true
 	own(player)

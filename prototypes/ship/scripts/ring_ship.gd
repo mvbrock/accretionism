@@ -1,9 +1,7 @@
-class_name ShipBuilder
-extends Node3D
-## Builds the 12-section ring (floor, ceiling and walls per section), its lights and crates from code.
+class_name RingShip
+extends Ship
+## The 12-section ring: floor, ceiling and walls per section, with lights and crates, built from code.
 
-const WORLD_LAYER := 1
-const OCCLUDER_LAYER := 2
 const CRATES_PER_SECTION := 2
 const CRATE_SEED := 1337
 const CRATE_COLOR := Color(0.62, 0.45, 0.28)
@@ -21,17 +19,28 @@ func _ready() -> void:
 	for k in RingGeometry.SECTIONS:
 		add_child(_build_section(k))
 	add_child(_build_crates())
-	add_child(_build_environment())
+	add_child(make_environment())
 
 
 # --- sections ---------------------------------------------------------------
 
-## The meshes that hide a player standing in section k from a camera looking along `view`:
-## its ceiling and the wall on the camera's side.
-func room_fade_meshes(k: int, view: Vector3) -> Array[MeshInstance3D]:
-	var section := get_node("Section%d" % k)
+func up_at(p: Vector3) -> Vector3:
+	return RingGeometry.up_at(p)
+
+
+func camera_roll_at(p: Vector3) -> float:
+	return RingGeometry.angle_of(p)
+
+
+## The ceiling and the wall on the camera's side of the section containing `p`.
+func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
+	var section := get_node("Section%d" % RingGeometry.section_of(p))
 	var wall := "WallLeft" if view.x > 0.0 else "WallRight"
 	return [section.get_node("Ceiling/Mesh"), section.get_node(wall + "/Mesh")]
+
+
+func spawn_point() -> Vector3:
+	return RingGeometry.section_down(0) * (RingGeometry.floor_apothem() - 0.05)
 
 
 func _build_section(k: int) -> Node3D:
@@ -42,13 +51,13 @@ func _build_section(k: int) -> Node3D:
 	var floor_r := RingGeometry.floor_apothem()
 	var ceiling_r := RingGeometry.ceiling_apothem()
 
-	section.add_child(_panel("Floor", _slab_points(k, -w - t, w + t, floor_r, floor_r + t),
-			section_color(k), WORLD_LAYER))
-	section.add_child(_panel("Ceiling", _slab_points(k, -w - t, w + t, ceiling_r - t, ceiling_r),
+	section.add_child(make_panel("Floor", _slab_points(k, -w - t, w + t, floor_r, floor_r + t),
+			section_color(k), WORLD_LAYER | FLOOR_LAYER))
+	section.add_child(make_panel("Ceiling", _slab_points(k, -w - t, w + t, ceiling_r - t, ceiling_r),
 			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
-	section.add_child(_panel("WallLeft", _slab_points(k, -w - t, -w, ceiling_r, floor_r),
+	section.add_child(make_panel("WallLeft", _slab_points(k, -w - t, -w, ceiling_r, floor_r),
 			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
-	section.add_child(_panel("WallRight", _slab_points(k, w, w + t, ceiling_r, floor_r),
+	section.add_child(make_panel("WallRight", _slab_points(k, w, w + t, ceiling_r, floor_r),
 			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
 
 	var light := OmniLight3D.new()
@@ -73,66 +82,6 @@ func _slab_points(k: int, x0: float, x1: float, r0: float, r1: float) -> PackedV
 			for s in [-1.0, 1.0]:
 				points.append(Vector3(x, 0, 0) + down * r + along * (half * s))
 	return points
-
-
-func _panel(panel_name: String, points: PackedVector3Array, color: Color, layers: int) -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.name = panel_name
-	body.collision_layer = layers
-	body.collision_mask = 0
-
-	var shape := CollisionShape3D.new()
-	var convex := ConvexPolygonShape3D.new()
-	convex.points = points
-	shape.shape = convex
-	body.add_child(shape)
-
-	var mesh := MeshInstance3D.new()
-	mesh.name = "Mesh"
-	mesh.mesh = _prism_mesh(points)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.8
-	mesh.material_override = material
-	body.add_child(mesh)
-
-	if layers & OCCLUDER_LAYER:
-		body.set_meta("fade_mesh", mesh)
-	return body
-
-
-## Flat-shaded mesh for a slab from `_slab_points` (index = x*4 + r*2 + s).
-func _prism_mesh(p: PackedVector3Array) -> ArrayMesh:
-	var center := Vector3.ZERO
-	for v in p:
-		center += v
-	center /= p.size()
-	var faces := [
-		[0, 1, 3, 2], [4, 5, 7, 6],  # x0, x1
-		[0, 1, 5, 4], [2, 3, 7, 6],  # r0, r1
-		[0, 2, 6, 4], [1, 3, 7, 5],  # s-, s+
-	]
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for f in faces:
-		var a: Vector3 = p[f[0]]
-		var b: Vector3 = p[f[1]]
-		var c: Vector3 = p[f[2]]
-		var d: Vector3 = p[f[3]]
-		var face_center := (a + b + c + d) / 4.0
-		var outward := (face_center - center)
-		var normal := (b - a).cross(c - a).normalized()
-		if normal.dot(outward) < 0.0:
-			normal = -normal
-		else:
-			# Godot treats clockwise triangles (seen from outside) as front faces.
-			var tmp := b
-			b = d
-			d = tmp
-		st.set_normal(normal)
-		for v in [a, b, c, a, c, d]:
-			st.add_vertex(v)
-	return st.commit()
 
 
 # --- crates -----------------------------------------------------------------
@@ -188,19 +137,3 @@ func _crate(k: int, x: float, offset: float, size: float, yaw: float,
 	mesh.material_override = material
 	body.add_child(mesh)
 	return body
-
-
-# --- environment ------------------------------------------------------------
-
-func _build_environment() -> WorldEnvironment:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.02, 0.02, 0.04)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.75, 0.78, 0.85)
-	env.ambient_light_energy = 0.4
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	var world_env := WorldEnvironment.new()
-	world_env.name = "Environment"
-	world_env.environment = env
-	return world_env

@@ -4,7 +4,7 @@ const PLAYER_SCENE := "res://scenes/player.tscn"
 
 
 func _spawn(offset_along: float = 0.0, x: float = 0.0) -> Player:
-	own(ShipBuilder.new())
+	own(RingShip.new())
 	var player: Player = load(PLAYER_SCENE).instantiate()
 	player.drive_by_code = true
 	own(player)

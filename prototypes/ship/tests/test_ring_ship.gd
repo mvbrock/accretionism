@@ -1,8 +1,8 @@
 extends TestCase
 
 
-func _make_ship() -> ShipBuilder:
-	var ship: ShipBuilder = own(ShipBuilder.new())
+func _make_ship() -> RingShip:
+	var ship: RingShip = own(RingShip.new())
 	await physics_frames(2)
 	return ship
 
@@ -51,7 +51,7 @@ func test_ceiling_is_occluder() -> void:
 func test_section_colors_distinct() -> void:
 	var seen := {}
 	for k in RingGeometry.SECTIONS:
-		seen[ShipBuilder.section_color(k).to_html()] = true
+		seen[RingShip.section_color(k).to_html()] = true
 	assert_true(seen.size() == RingGeometry.SECTIONS, "12 distinct colors")
 
 
@@ -67,3 +67,40 @@ func test_crates_rest_on_floor() -> void:
 		query.exclude = [crate.get_rid()]
 		var hit := space.intersect_ray(query)
 		assert_true(not hit.is_empty() and hit.collider.name == "Floor", "%s rests on a floor" % crate.name)
+
+
+func test_up_at_matches_ring_geometry() -> void:
+	var ship := await _make_ship()
+	var p := RingGeometry.section_down(3) * 47.0 + Vector3(2, 0, 0)
+	assert_true(ship.up_at(p).is_equal_approx(RingGeometry.up_at(p)), "up_at delegates to RingGeometry")
+
+
+func test_camera_roll_is_angle_around_axis() -> void:
+	var ship := await _make_ship()
+	assert_near(ship.camera_roll_at(RingGeometry.section_down(4) * 47.0),
+			wrapf(RingGeometry.section_angle(4), -PI, PI), 0.001, "roll")
+
+
+func test_room_fade_meshes_by_position() -> void:
+	var ship := await _make_ship()
+	var p := RingGeometry.section_down(5) * 46.0
+	var right := ship.room_fade_meshes(p, Vector3(1, 0, 0))
+	assert_true(right == [ship.get_node("Section5/Ceiling/Mesh"), ship.get_node("Section5/WallLeft/Mesh")], "view +x fades ceiling and left wall")
+	var left := ship.room_fade_meshes(p, Vector3(-1, 0, 0))
+	assert_true(left == [ship.get_node("Section5/Ceiling/Mesh"), ship.get_node("Section5/WallRight/Mesh")], "view -x fades ceiling and right wall")
+
+
+func test_spawn_point_is_on_section_zero_floor() -> void:
+	var ship := await _make_ship()
+	var spawn := ship.spawn_point()
+	assert_true(RingGeometry.section_of(spawn) == 0, "spawn in section 0")
+	assert_near(spawn.length(), RingGeometry.floor_apothem() - 0.05, 0.01, "spawn height")
+
+
+func test_only_floors_on_floor_layer() -> void:
+	var ship := await _make_ship()
+	var down := RingGeometry.section_down(2)
+	var hit := _ray(down * 40.0, down * 49.0, Ship.FLOOR_LAYER)
+	assert_true(not hit.is_empty() and hit.collider == ship.get_node("Section2/Floor"), "floor ray hits the floor")
+	for crate: StaticBody3D in ship.get_node("Crates").get_children():
+		assert_true(crate.collision_layer & Ship.FLOOR_LAYER == 0, "%s is not on the floor layer" % crate.name)
