@@ -10,6 +10,7 @@ func _setup(x: float = 0.0) -> void:
 	ship = own(RingShip.new())
 	player = load("res://scenes/player.tscn").instantiate()
 	player.drive_by_code = true
+	player.ship = ship
 	own(player)
 	player.global_position = Vector3(x, -(RingGeometry.floor_apothem() - 0.05), 0)
 	rig = CameraRig.new()

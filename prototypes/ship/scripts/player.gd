@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## Capsule walker on the inside of the spinning ring. "Up" always points toward the spin axis.
+## Capsule walker aboard a ship. "Up" is whatever the ship says it is at the body's position.
 ## It faces the mouse; W/S move forward and back along that facing, A/D strafe.
 ## G toggles gravity. Without it the body lies horizontal and hovers at FLOAT_HEIGHT, and a
 ## key press sets a drift that carries on after release until it hits something or another key
@@ -13,6 +13,8 @@ const FLOAT_SHARPNESS := 3.0
 ## How quickly the body tips between upright and horizontal.
 const TIP_SHARPNESS := 6.0
 
+## The ship the body walks on; it answers which way is up.
+@export var ship: Ship
 @export var walk_speed := 3.0
 @export var gravity := 9.8
 @export var turn_speed := 12.0
@@ -63,7 +65,9 @@ func _ready() -> void:
 	floor_constant_speed = true
 	floor_snap_length = 0.6
 	floor_max_angle = deg_to_rad(40.0)
-	_orient(RingGeometry.up_at(global_position))
+	if ship == null:
+		return
+	_orient(ship.up_at(global_position))
 
 
 ## Aims the facing at a world point, flattened onto the floor plane.
@@ -76,7 +80,7 @@ func aim_at(point: Vector3) -> void:
 
 ## Aims at the spot under `screen_point`, on the floor-parallel plane through the body.
 func aim_through(camera: Camera3D, screen_point: Vector2) -> void:
-	var plane := Plane(RingGeometry.up_at(global_position), global_position)
+	var plane := Plane(ship.up_at(global_position), global_position)
 	var hit = plane.intersects_ray(camera.project_ray_origin(screen_point), camera.project_ray_normal(screen_point))
 	if hit != null:
 		aim_at(hit)
@@ -95,13 +99,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if ship == null:
+		return
 	if not drive_by_code:
 		move_input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
 		if aim_camera != null:
 			aim_through(aim_camera, get_viewport().get_mouse_position())
 	_turn_toward_aim(delta)
 
-	var up := RingGeometry.up_at(global_position)
+	var up := ship.up_at(global_position)
 	up_direction = up
 	var right := Vector2(_heading.y, -_heading.x)
 	var push := (_heading * move_input.y + right * move_input.x).limit_length(1.0) * walk_speed
@@ -115,7 +121,7 @@ func _physics_process(delta: float) -> void:
 
 	var vertical := velocity.dot(up)
 	if not gravity_enabled:
-		vertical = (FLOAT_HEIGHT - _height_above_floor()) * FLOAT_SHARPNESS
+		vertical = (FLOAT_HEIGHT - _height_above_floor(up)) * FLOAT_SHARPNESS
 	elif is_on_floor():
 		vertical = 0.0
 	else:
@@ -128,7 +134,7 @@ func _physics_process(delta: float) -> void:
 		# Walking uphill out of a seam points velocity "up", which disables Godot's own snap.
 		apply_floor_snap()
 
-	_orient(RingGeometry.up_at(global_position))
+	_orient(ship.up_at(global_position))
 	var tip := 0.0 if gravity_enabled else -PI / 2.0
 	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, tip, 1.0 - exp(-TIP_SHARPNESS * delta))
 	_shape.transform = _pivot.transform
@@ -136,7 +142,7 @@ func _physics_process(delta: float) -> void:
 
 ## Unit direction around the ring at the body's position (the way a heading's y points).
 func _around() -> Vector3:
-	return RingGeometry.up_at(global_position).cross(Vector3.RIGHT)
+	return ship.up_at(global_position).cross(Vector3.RIGHT)
 
 
 func _turn_toward_aim(delta: float) -> void:
@@ -149,10 +155,16 @@ func _turn_toward_aim(delta: float) -> void:
 	_heading = _heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
 
 
-## Height of the body's origin above the flat floor panel beneath it.
-func _height_above_floor() -> float:
-	var down := RingGeometry.section_down(RingGeometry.section_of(global_position))
-	return RingGeometry.floor_apothem() - global_position.dot(down)
+## Distance along `up` from the body's origin down to the floor beneath it, or FLOAT_HEIGHT
+## when there is none, so floating holds its height.
+func _height_above_floor(up: Vector3) -> float:
+	var query := PhysicsRayQueryParameters3D.create(
+			global_position + up * 0.1, global_position - up * 20.0, Ship.FLOOR_LAYER)
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return FLOAT_HEIGHT
+	return (global_position - hit.position).dot(up)
 
 
 ## Stands the body upright along `up` and faces it along `_heading`.

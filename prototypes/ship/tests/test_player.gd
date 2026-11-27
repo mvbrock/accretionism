@@ -4,9 +4,10 @@ const PLAYER_SCENE := "res://scenes/player.tscn"
 
 
 func _spawn(offset_along: float = 0.0, x: float = 0.0) -> Player:
-	own(RingShip.new())
+	var ship: Ship = own(RingShip.new())
 	var player: Player = load(PLAYER_SCENE).instantiate()
 	player.drive_by_code = true
+	player.ship = ship
 	own(player)
 	# Spawn just above the flat floor of section 0 (its surface is at y = -apothem).
 	player.global_position = Vector3(x, -(RingGeometry.floor_apothem() - 0.05), 0) \
@@ -226,3 +227,38 @@ func test_zero_g_new_direction_replaces_drift() -> void:
 	var start := RingGeometry.angle_of(player.global_position)
 	await physics_frames(30)
 	assert_true(RingGeometry.angle_of(player.global_position) < start - 0.01, "now drifting backward")
+
+
+func test_zero_g_float_height_ignores_crates() -> void:
+	var player := await _spawn()
+	await _float(player)
+	var crate := StaticBody3D.new()
+	crate.collision_layer = Ship.WORLD_LAYER
+	crate.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3.ONE
+	shape.shape = box
+	crate.add_child(shape)
+	own(crate)
+	var floor_y := -RingGeometry.floor_apothem()
+	crate.global_position = Vector3(player.global_position.x, floor_y + 0.5, player.global_position.z)
+	await physics_frames(60)
+	assert_near(_height_above_floor(player), Player.FLOAT_HEIGHT, 0.1, "float height ignores the crate")
+
+
+func test_zero_g_without_floor_below_holds_height() -> void:
+	var player := await _spawn()
+	await _float(player)
+	var before := Vector2(player.global_position.y, player.global_position.z).length()
+	player.ship.get_node("Section0/Floor").free()
+	await physics_frames(60)
+	var after := Vector2(player.global_position.y, player.global_position.z).length()
+	assert_near(after, before, 0.05, "holds its distance from the axis with no floor below")
+
+
+func test_player_without_ship_logs_nothing() -> void:
+	var player: Player = load(PLAYER_SCENE).instantiate()
+	player.drive_by_code = true
+	own(player)
+	await physics_frames(5)
