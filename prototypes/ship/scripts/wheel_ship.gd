@@ -20,8 +20,8 @@ const SLAB := RingGeometry.SLAB_THICKNESS
 const RING_HUE_STEP := 0.03
 const SPOKE_COLOR := Color(0.55, 0.57, 0.62)
 const HUB_ROOM := "Hub"
-## Hub lights sit this far from the axis, one per section.
-const HUB_LIGHT_RADIUS := 3.0
+## Each spoke has a light in the hub on its axis, this far past the collar's cap.
+const HUB_LIGHT_BEYOND_COLLAR := 1.0
 const HUB_LIGHT_RANGE := 16.0
 ## Where the end caps' wedges start, so they close the hub without a degenerate point on the axis.
 const CAP_INNER_RADIUS := 0.01
@@ -142,9 +142,6 @@ func _build_hub() -> void:
 		for panel in section.get_children():
 			if panel.name.begins_with("Floor"):
 				add_room_bound(HUB_ROOM, panel, RingGeometry.section_down(k))
-		var light := make_light(RingGeometry.section_down(k) * HUB_LIGHT_RADIUS, HUB_LIGHT_RANGE)
-		light.shadow_enabled = false
-		section.add_child(light)
 
 
 ## One wedge per section closing the hub from x0 to x1, a bound of "Hub" facing `outward`.
@@ -177,6 +174,10 @@ func _build_spoke(ring: int, k: int) -> void:
 		spoke.add_child(node)
 		add_pipe_segment(node, frame, segment[1], segment[2], segment[3], segment[4], SPOKE_COLOR, spoke.name)
 	add_rungs(frame, FOOT_LIFT, length + FOOT_LIFT, func(_s: float) -> Node3D: return spoke)
+	var light := make_light(frame * Vector3(0, length + COLLAR + HUB_LIGHT_BEYOND_COLLAR, 0), HUB_LIGHT_RANGE)
+	light.name = "SpokeLight%d_%d" % [ring, k]
+	light.shadow_enabled = false
+	get_node("Hub").add_child(light)
 	_spoke_shafts.append([spoke.name, frame.affine_inverse()])
 	ladders.append(_build_ladder(frame, length))
 

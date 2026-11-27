@@ -75,8 +75,8 @@ func test_spoke_length_and_hub_geometry() -> void:
 	var ship := await _make_ship()
 	assert_near(ship.spoke_length(), L, 0.05, "spoke length")
 	assert_true(ship.get_node("Hub/Section0/Floor").collision_layer & Ship.OCCLUDER_LAYER != 0, "hub floors can fade")
-	assert_true(ship.get_node("Hub/Section0").get_node_or_null("Light") != null, "a hub light per section")
-	assert_true(not ship.get_node("Hub/Section0/Light").shadow_enabled, "hub lights cast no shadows")
+	assert_true(ship.get_node_or_null("Hub/SpokeLight1_2") != null, "a hub light per spoke")
+	assert_true(not ship.get_node("Hub/SpokeLight1_2").shadow_enabled, "hub lights cast no shadows")
 	assert_true(ship.has_node("HubCapFore/Cap0") and ship.has_node("HubCapAft/Cap0"), "hub end caps")
 	assert_true(ship.has_node("Spoke1_2/RingSeg/PipeLeft") and ship.has_node("Spoke1_2/Shaft/PipeLeft") and ship.has_node("Spoke1_2/Collar/PipeCap"), "spoke segments")
 
@@ -144,3 +144,24 @@ func test_cutaway_hides_rings_on_the_camera_side() -> void:
 	expected = _ring_with_spokes(2)
 	expected.sort()
 	assert_true(_cutaway_names(ship, Vector3(2.5, -8, 0)) == expected, "the hub hides ring 2 and its spokes")
+
+
+func test_every_hub_landing_is_lit() -> void:
+	var ship := await _make_ship()
+	var lights := ship.find_children("*", "OmniLight3D", true, false)
+	for ladder in ship.ladders:
+		var exit := ladder.landings[1].exit
+		var nearest := INF
+		for light: OmniLight3D in lights:
+			nearest = minf(nearest, light.global_position.distance_to(exit))
+		assert_true(nearest < 8.0, "a light within 8 m of the hub landing at %s (nearest %.1f m)" % [exit, nearest])
+
+
+func test_crates_clear_of_spokes() -> void:
+	var ship := await _make_ship()
+	var crates := ship.find_children("Crate*", "StaticBody3D", true, false)
+	assert_true(crates.size() == 3 * RingGeometry.SECTIONS * WheelShip.CRATES_PER_SECTION, "all crates are placed (got %d)" % crates.size())
+	for ladder in ship.ladders:
+		for crate: Node3D in crates:
+			for spot in [ladder.landings[0].exit, ladder.start]:
+				assert_true(crate.global_position.distance_to(spot) > 2.0, "%s is %.1f m from a spoke foot at %s" % [crate.get_path(), crate.global_position.distance_to(spot), spot])

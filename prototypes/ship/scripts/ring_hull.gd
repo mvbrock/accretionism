@@ -3,6 +3,8 @@ extends RefCounted
 ## Builds a 12-section ring (RingGeometry's sections) around world X into a parent node, for a ship.
 
 const CRATE_SEED := 1337
+## Crates keep this far (across and along the panel) from a ceiling hole's center, so they stay off ladder pipes' feet.
+const CRATE_HOLE_CLEARANCE := 3.0
 
 var center_x := 0.0
 var half_width := RingGeometry.HALF_WIDTH
@@ -166,10 +168,20 @@ func _build_crates(ship: Ship) -> Node3D:
 			var yaw := rng.randf_range(0.0, TAU)
 			if k == 0 and absf(offset) < 3.0:
 				continue  # keep the spawn point clear
+			if _near_ceiling_hole(k, center_x + x, offset):
+				continue  # keep the foot of a ladder pipe clear
 			crates.add_child(_crate(ship, k, x, offset, size, yaw, count))
 			placed += 1
 			count += 1
 	return crates
+
+
+## Whether the spot at across-position `x` and `offset` along section k's panel is within CRATE_HOLE_CLEARANCE of a ceiling hole of k, across and along.
+func _near_ceiling_hole(k: int, x: float, offset: float) -> bool:
+	for hole: Array in _ceiling_holes.get(k, []):
+		if absf(x - hole[0]) < CRATE_HOLE_CLEARANCE and absf(offset) < CRATE_HOLE_CLEARANCE:
+			return true
+	return false
 
 
 func _crate(ship: Ship, k: int, x: float, offset: float, size: float, yaw: float, index: int) -> StaticBody3D:
