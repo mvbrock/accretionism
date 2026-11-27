@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ring_ship.gd" id="2_ring"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/fleet.gd" id="6_fleet"]
 [ext_resource type="Script" path="res://scripts/skiff_ship.gd" id="7_skiff"]
 [ext_resource type="Script" path="res://scripts/deck_ship.gd" id="8_tug"]
+[ext_resource type="Script" path="res://scripts/wheel_ship.gd" id="9_wheel"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -45,6 +46,9 @@ deck_count = 2
 [node name="Freighter" type="Node3D" parent="Fleet"]
 script = ExtResource("8_tug")
 deck_count = 4
+
+[node name="Wheel" type="Node3D" parent="Fleet"]
+script = ExtResource("9_wheel")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

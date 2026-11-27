@@ -13,7 +13,11 @@ var walls := true
 var crates_per_section := 0
 ## Room names are room_prefix + "Section%d".
 var room_prefix := ""
+## Whether each section gets a light. Without a ceiling the light would sit inside the floor, so a hull without one adds its own.
+var lights := true
 var light_range := 22.0
+## Collision layers of the floor panels. The ring's floors never hide the player; a floor that does adds OCCLUDER_LAYER.
+var floor_layers := Ship.WORLD_LAYER | Ship.FLOOR_LAYER
 ## Added to each section's hue fraction, so rings can differ.
 var hue_offset := 0.0
 
@@ -82,21 +86,22 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 	var trim_color := Color.from_hsv(_hue(k), 0.25, 0.75)
 
 	_add_slab(section, "Floor", k, center_x - w - t, center_x + w + t, floor_r, floor_r + t, _floor_holes.get(k),
-			room_color, Ship.WORLD_LAYER | Ship.FLOOR_LAYER, ship, room, Vector3.ZERO)
+			room_color, floor_layers, ship, room, Vector3.ZERO)
 	if ceiling_height > 0.0:
 		_add_slab(section, "Ceiling", k, center_x - w - t, center_x + w + t, ceiling_r - t, ceiling_r,
 				_ceiling_holes.get(k), trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER, ship, room,
 				-RingGeometry.section_down(k))
 	if walls:
-		section.add_child(ship.make_panel("WallLeft", _slab_points(k, center_x - w - t, center_x - w, ceiling_r, floor_r),
+		section.add_child(ship.make_panel("WallLeft", slab_points(k, center_x - w - t, center_x - w, ceiling_r, floor_r),
 				trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
-		section.add_child(ship.make_panel("WallRight", _slab_points(k, center_x + w, center_x + w + t, ceiling_r, floor_r),
+		section.add_child(ship.make_panel("WallRight", slab_points(k, center_x + w, center_x + w + t, ceiling_r, floor_r),
 				trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
 		ship.add_room_bound(room, section.get_node("WallLeft"), Vector3.LEFT)
 		ship.add_room_bound(room, section.get_node("WallRight"), Vector3.RIGHT)
 
-	var light_r := ceiling_r + 0.6 if ceiling_height > 0.0 else floor_r - 5.0
-	section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * light_r, light_range))
+	if lights:
+		var light_r := ceiling_r + 0.6 if ceiling_height > 0.0 else floor_r - 5.0
+		section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * light_r, light_range))
 	return section
 
 
@@ -108,7 +113,7 @@ func _add_slab(section: Node3D, panel_name: String, k: int, x0: float, x1: float
 		holes: Variant, color: Color, layers: int, ship: Ship, room: String, outward: Vector3) -> void:
 	var pieces: Array[PackedVector3Array] = []
 	if holes == null:
-		pieces.append(_slab_points(k, x0, x1, r0, r1))
+		pieces.append(slab_points(k, x0, x1, r0, r1))
 	else:
 		var sorted: Array = holes.duplicate()
 		sorted.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
@@ -117,12 +122,12 @@ func _add_slab(section: Node3D, panel_name: String, k: int, x0: float, x1: float
 			var hx: float = hole[0]
 			var h: float = hole[1]
 			if hx - h > cursor:
-				pieces.append(_slab_points(k, cursor, hx - h, r0, r1))
-			pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
-			pieces.append(_slab_points(k, hx - h, hx + h, r0, r1, h, INF))
+				pieces.append(slab_points(k, cursor, hx - h, r0, r1))
+			pieces.append(slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
+			pieces.append(slab_points(k, hx - h, hx + h, r0, r1, h, INF))
 			cursor = hx + h
 		if x1 > cursor:
-			pieces.append(_slab_points(k, cursor, x1, r0, r1))
+			pieces.append(slab_points(k, cursor, x1, r0, r1))
 	for i in pieces.size():
 		var piece := ship.make_panel(panel_name if holes == null else panel_name + char(97 + i), pieces[i], color, layers)
 		section.add_child(piece)
@@ -133,7 +138,7 @@ func _add_slab(section: Node3D, panel_name: String, k: int, x0: float, x1: float
 ## The 8 corners of a slab in section k spanning x ∈ [x0, x1] and radius ∈ [r0, r1].
 ## Its length along the panel scales with radius, so neighboring slabs meet exactly at the seams;
 ## `along_min` and `along_max` clamp it to a stretch of the panel, as offsets from the panel's center.
-func _slab_points(k: int, x0: float, x1: float, r0: float, r1: float,
+func slab_points(k: int, x0: float, x1: float, r0: float, r1: float,
 		along_min := -INF, along_max := INF) -> PackedVector3Array:
 	var down := RingGeometry.section_down(k)
 	var along := RingGeometry.section_tangent(k)

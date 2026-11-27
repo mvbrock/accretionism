@@ -79,3 +79,21 @@ func test_several_holes_in_one_section() -> void:
 		assert_true(through.is_empty(), "ray passes through the hole at x = %s" % x)
 	var beside := _ray(Vector3(-10, 0, 0) + down * (hull.floor_apothem() - 1.0), Vector3(-10, 0, 0) + down * (hull.floor_apothem() + 1.0))
 	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Floor"), "ray between the holes hits the floor")
+
+
+func test_floor_layers_and_lights_are_switches() -> void:
+	var hull := _make_hull()
+	hull.floor_layers = Ship.WORLD_LAYER | Ship.FLOOR_LAYER | Ship.OCCLUDER_LAYER
+	hull.lights = false
+	var ship := await _build(hull)
+	var panel: StaticBody3D = ship.get_node("Section0/Floor")
+	assert_true(panel.collision_layer == (Ship.WORLD_LAYER | Ship.FLOOR_LAYER | Ship.OCCLUDER_LAYER), "floor on the given layers")
+	assert_true(panel.has_meta("fade_mesh"), "an occluder floor can fade")
+	assert_true(not ship.get_node("Section0").has_node("Light"), "no section light")
+
+
+func test_defaults_keep_ring_floor_and_lights() -> void:
+	var ship := await _build(_make_hull())
+	var panel: StaticBody3D = ship.get_node("Section0/Floor")
+	assert_true(panel.collision_layer == (Ship.WORLD_LAYER | Ship.FLOOR_LAYER), "floor on world and floor layers")
+	assert_true(ship.get_node("Section0").has_node("Light"), "a light per section")

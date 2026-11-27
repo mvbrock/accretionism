@@ -115,6 +115,27 @@ func test_cycles_four_ships() -> void:
 	assert_true(fleet.active == ring, "back on the ring")
 
 
+func test_cycles_five_ships() -> void:
+	await _setup()
+	var tug := DeckShip.new()
+	tug.name = "Tug"
+	var freighter := DeckShip.new()
+	freighter.name = "Freighter"
+	freighter.deck_count = 4
+	var wheel := WheelShip.new()
+	wheel.name = "Wheel"
+	fleet.add_child(tug)
+	fleet.add_child(freighter)
+	fleet.add_child(wheel)
+	for i in 4:
+		fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == wheel, "the fifth ship is the wheel")
+	assert_true(player.gravity_enabled, "the wheel's spawn is in a ring, with gravity")
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
 func test_one_world_environment() -> void:
 	await _setup()
 	var all := fleet.find_children("*", "WorldEnvironment", true, false)
