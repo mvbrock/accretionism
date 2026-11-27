@@ -7,7 +7,7 @@ func _link() -> ShipLink:
 
 func test_ships_list() -> void:
 	var response := _link().run("ships list")
-	assert_true(response == "ships: kestrel, wren", "got '%s'" % response)
+	assert_true(response == "kestrel\nwren", "got '%s'" % response)
 
 
 func test_connect_is_case_insensitive() -> void:
