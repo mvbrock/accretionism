@@ -31,11 +31,12 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 
 Connected, these go to that ship. A command takes the ship's `transmission_s` (8 minutes unless its file says
 otherwise) to arrive and runs then; its reply takes as long to come back. The console prints
-`sent to <ship>; reply in <round trip>` when it sends, and `reply to '<line>': <reply>` when the reply lands. The console checks the line first: an unknown command or the wrong number of arguments is answered at once
-with the usual `unknown command` or `usage:` text and nothing is sent; the ship still checks the values (room, door and breaker ids). One command is in flight
-at a time, and `disconnect` waits for the reply. Two bars under the scrollback show the command's
-progress, each with the time left: `uplink` while it travels to the ship, `downlink` while the reply comes
-back. `ships`, `disconnect` and `help` answer at once:
+`sent to <ship>; reply in <round trip>` when it sends, and `reply to '<line>': <reply>` when the reply lands.
+The console checks the line first: an unknown command or the wrong number of arguments is answered at once
+with the usual `unknown command` or `usage:` text and nothing is sent; the ship still checks the values (room,
+door and breaker ids). One command is in flight at a time, and `disconnect` waits for the reply. Two bars
+under the scrollback show the command's progress, each with the time left: `uplink` while it travels to the
+ship, `downlink` while the reply comes back. `ships`, `disconnect` and `help` answer at once:
 
 | Command | Effect |
 |---|---|
