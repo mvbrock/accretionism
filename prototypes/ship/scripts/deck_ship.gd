@@ -92,24 +92,8 @@ func _build_deck(i: int) -> Node3D:
 ## Four panels `prefix`a to d from y = `y0` up `SLAB`, around a hole the size of the pipe's outer footprint.
 func _add_slab(parent: Node3D, prefix: String, y0: float, color: Color, layers: int) -> Array[StaticBody3D]:
 	var reach := HALF + SLAB
-	var o := PIPE_OUTER
-	var x0 := PIPE_CENTER.x - o
-	var x1 := PIPE_CENTER.x + o
-	var z0 := PIPE_CENTER.y - o
-	var z1 := PIPE_CENTER.y + o
-	var y1 := y0 + SLAB
-	var boxes := [
-		[Vector3(-reach, y0, -reach), Vector3(x0, y1, reach)],
-		[Vector3(x1, y0, -reach), Vector3(reach, y1, reach)],
-		[Vector3(x0, y0, -reach), Vector3(x1, y1, z0)],
-		[Vector3(x0, y0, z1), Vector3(x1, y1, reach)],
-	]
-	var panels: Array[StaticBody3D] = []
-	for k in boxes.size():
-		var panel := make_panel("%s%s" % [prefix, "abcd"[k]], box_points(boxes[k][0], boxes[k][1]), color, layers)
-		parent.add_child(panel)
-		panels.append(panel)
-	return panels
+	return add_holed_slab(parent, prefix, Vector3(-reach, y0, -reach), Vector3(reach, y0 + SLAB, reach), PIPE_CENTER,
+			PIPE_OUTER, color, layers)
 
 
 ## The pipe's frame: its axis is world Y through PIPE_CENTER, the doorway toward -Z.

@@ -34,3 +34,19 @@ func test_pipe_segment_along_a_tilted_frame() -> void:
 	var axis_ray := PhysicsRayQueryParameters3D.create(frame.origin + axis * 1.0, frame.origin + axis * 5.0, Ship.WORLD_LAYER)
 	var axis_hit := space.intersect_ray(axis_ray)
 	assert_true(not axis_hit.is_empty() and axis_hit.collider.name == "PipeCap", "a ray along the axis hits the cap")
+
+
+func test_holed_slab() -> void:
+	var ship := Ship.new()
+	own(ship)
+	var panels := ship.add_holed_slab(ship, "S", Vector3(-3, 0, -3), Vector3(3, 0.4, 3), Vector2(1, 1), 0.5,
+			Color.WHITE, Ship.WORLD_LAYER)
+	await physics_frames(2)
+	assert_true(panels.size() == 4, "four panels")
+	for piece in ["Sa", "Sb", "Sc", "Sd"]:
+		assert_true(ship.get_node_or_null(piece) != null, "slab has %s" % piece)
+	var space := tree.root.get_world_3d().direct_space_state
+	var through_hole := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(1, 2, 1), Vector3(1, -2, 1), 0xFF))
+	assert_true(through_hole.is_empty(), "a ray through the hole hits nothing")
+	var through_slab := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(-2, 2, -2), Vector3(-2, -2, -2), 0xFF))
+	assert_true(not through_slab.is_empty(), "a ray beside the hole hits a piece")

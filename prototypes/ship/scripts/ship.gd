@@ -111,6 +111,28 @@ func make_panel(panel_name: String, points: PackedVector3Array, color: Color, la
 	return body
 
 
+## An axis-aligned horizontal slab from `lo` to `hi`, with a square hole through it centered at (`hole_center.x`, `hole_center.y`)
+## in X and Z and half-width `hole_half`, built as four box panels `prefix`a..d under `parent`.
+func add_holed_slab(parent: Node3D, prefix: String, lo: Vector3, hi: Vector3, hole_center: Vector2, hole_half: float,
+		color: Color, layers: int) -> Array[StaticBody3D]:
+	var x0 := hole_center.x - hole_half
+	var x1 := hole_center.x + hole_half
+	var z0 := hole_center.y - hole_half
+	var z1 := hole_center.y + hole_half
+	var boxes := [
+		[Vector3(lo.x, lo.y, lo.z), Vector3(x0, hi.y, hi.z)],
+		[Vector3(x1, lo.y, lo.z), Vector3(hi.x, hi.y, hi.z)],
+		[Vector3(x0, lo.y, lo.z), Vector3(x1, hi.y, z0)],
+		[Vector3(x0, lo.y, z1), Vector3(x1, hi.y, hi.z)],
+	]
+	var panels: Array[StaticBody3D] = []
+	for k in boxes.size():
+		var panel := make_panel("%s%s" % [prefix, "abcd"[k]], box_points(boxes[k][0], boxes[k][1]), color, layers)
+		parent.add_child(panel)
+		panels.append(panel)
+	return panels
+
+
 ## A distinct fill color for room `i` of `count`.
 static func room_color(i: int, count: int) -> Color:
 	return Color.from_hsv(float(i) / count, 0.65, 0.85)
