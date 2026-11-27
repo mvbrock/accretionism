@@ -4,7 +4,6 @@ extends Ship
 
 const CRATES_PER_SECTION := 2
 const CRATE_SEED := 1337
-const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 
 
 static func section_color(k: int) -> Color:
@@ -19,7 +18,6 @@ func _ready() -> void:
 	for k in RingGeometry.SECTIONS:
 		add_child(_build_section(k))
 	add_child(_build_crates())
-	add_child(make_environment())
 
 
 # --- sections ---------------------------------------------------------------

@@ -11,7 +11,6 @@ const SLAB := 0.4
 ## [name, z_min, z_max]
 const ROOMS := [["Cockpit", -12.0, -6.0], ["Cabin", -6.0, 4.0], ["Hold", 4.0, 12.0]]
 const BULKHEAD_COLOR := Color(0.5, 0.5, 0.52)
-const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 const WALL := WORLD_LAYER | OCCLUDER_LAYER
 
 
@@ -29,7 +28,6 @@ func _ready() -> void:
 	add_child(_build_bulkhead("Bulkhead1", ROOMS[0][2]))
 	add_child(_build_bulkhead("Bulkhead2", ROOMS[1][2]))
 	add_child(_build_crates())
-	add_child(make_environment())
 
 
 func has_gravity() -> bool:
@@ -41,7 +39,7 @@ func spawn_point() -> Vector3:
 	return Vector3(0, 0.05, -1.0)
 
 
-## The room's ceiling, plus every wall piece bounding it that faces away from the camera.
+## The room's ceiling, plus every wall piece bounding it on the camera's side (its outward normal points against the view).
 func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
 	var meshes: Array[MeshInstance3D] = []
 	var index := _room_at(p.z)

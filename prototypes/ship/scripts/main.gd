@@ -2,10 +2,12 @@ extends Node3D
 ## Wires up the prototype. Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks, turns gravity off, saves shots, then quits)
 
-const CAPTURE_FRAMES := [90, 400, 900, 1500]
+const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800]
 
 @onready var player: Player = $Player
 @onready var rig: CameraRig = $CameraRig
+@onready var fleet: Fleet = $Fleet
+@onready var ship_label: Label = $HUD/ShipLabel
 
 var _capture_dir := ""
 var _frame := 0
@@ -15,15 +17,18 @@ func _ready() -> void:
 	_match_display_scale()
 	Player.ensure_input_actions()
 	player.aim_camera = rig.camera
-	player.global_position = $Ship.spawn_point()
-	player.reset_physics_interpolation()  # teleported: don't interpolate from the origin
-	rig.snap()
+	fleet.ship_changed.connect(_show_ship_name)
+	_show_ship_name(fleet.active)
 	var args := OS.get_cmdline_user_args()
 	var i := args.find("--capture")
 	if i != -1 and i + 1 < args.size():
 		_capture_dir = args[i + 1]
 		player.drive_by_code = true
 		player.move_input = Vector2(0.35, 1.0)
+
+
+func _show_ship_name(ship: Ship) -> void:
+	ship_label.text = "%s   ·   Tab: next ship" % ship.name
 
 
 ## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
@@ -59,6 +64,8 @@ func _process(_delta: float) -> void:
 		player.move_input = Vector2(-0.6, 1.0)
 	if _frame == 1100:
 		player.set_gravity_enabled(false)
+	if _frame == 1550:
+		fleet.next_ship()
 	if _frame in CAPTURE_FRAMES:
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("%s/shot_%04d.png" % [_capture_dir, _frame])

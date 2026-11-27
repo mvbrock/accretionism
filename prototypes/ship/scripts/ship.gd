@@ -9,6 +9,7 @@ extends Node3D
 const WORLD_LAYER := 1
 const OCCLUDER_LAYER := 2
 const FLOOR_LAYER := 4
+const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 
 
 ## Whether the player may walk with gravity aboard this ship (false: it only floats).
@@ -110,7 +111,7 @@ static func prism_mesh(p: PackedVector3Array) -> ArrayMesh:
 
 
 ## Dark background with a dim ambient fill.
-func make_environment() -> WorldEnvironment:
+static func make_environment() -> WorldEnvironment:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.02, 0.02, 0.04)
