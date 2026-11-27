@@ -9,8 +9,12 @@ extends Node3D
 const WORLD_LAYER := 1
 const OCCLUDER_LAYER := 2
 const FLOOR_LAYER := 4
+## Invisible blockers that keep the player out of a pipe doorway; only a ladder lets it through.
+const HATCH_LAYER := 8
 const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 
+## The ladder pipes aboard this ship.
+var ladders: Array[Ladder] = []
 var _crate_material: StandardMaterial3D
 ## Room name -> Array of [MeshInstance3D, outward Vector3] pairs, filled by `add_room_bound`.
 var _room_bounds := {}

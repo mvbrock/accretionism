@@ -9,4 +9,5 @@ func test_base_ship_defaults() -> void:
 	assert_true(ship.room_at(Vector3.ZERO) == "", "no rooms by default")
 	assert_true(ship.spawn_point() == Vector3.ZERO, "spawn at origin")
 	assert_true(ship.has_gravity(), "gravity by default")
+	assert_true(ship.ladders.is_empty(), "no ladders by default")
 	ship.free()
