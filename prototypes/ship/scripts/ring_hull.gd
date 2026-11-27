@@ -15,17 +15,12 @@ var walls := true
 var crates_per_section := 0
 ## Room names are room_prefix + "Section%d".
 var room_prefix := ""
-## Whether each section gets a light. Without a ceiling the light would sit inside the floor, so a hull without one adds its own.
-var lights := true
 var light_range := 22.0
-## Collision layers of the floor panels. The ring's floors never hide the player; a floor that does adds OCCLUDER_LAYER.
-var floor_layers := Ship.WORLD_LAYER | Ship.FLOOR_LAYER
 ## Added to each section's hue fraction, so rings can differ.
 var hue_offset := 0.0
 
-## Section index -> list of [across position, half size] of its ceiling / floor holes.
+## Section index -> list of [across position, half size] of its ceiling holes.
 var _ceiling_holes := {}
-var _floor_holes := {}
 
 
 func floor_apothem() -> float:
@@ -38,18 +33,9 @@ func ceiling_apothem() -> float:
 
 ## A square hole centered on section k's ceiling panel center at across-position x. Call before build. A section may have several holes, which must not overlap across.
 func add_ceiling_hole(k: int, x: float, half_size: float) -> void:
-	_add_hole(_ceiling_holes, k, x, half_size)
-
-
-## A square hole centered on section k's floor panel center at across-position x. Call before build. A section may have several holes, which must not overlap across.
-func add_floor_hole(k: int, x: float, half_size: float) -> void:
-	_add_hole(_floor_holes, k, x, half_size)
-
-
-func _add_hole(holes: Dictionary, k: int, x: float, half_size: float) -> void:
-	if not holes.has(k):
-		holes[k] = []
-	holes[k].append([x, half_size])
+	if not _ceiling_holes.has(k):
+		_ceiling_holes[k] = []
+	_ceiling_holes[k].append([x, half_size])
 
 
 ## The room containing `p`, or "" outside the hull's slabs.
@@ -87,8 +73,8 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 	var room_color := Color.from_hsv(_hue(k), 0.65, 0.85)
 	var trim_color := Color.from_hsv(_hue(k), 0.25, 0.75)
 
-	_add_slab(section, "Floor", k, center_x - w - t, center_x + w + t, floor_r, floor_r + t, _floor_holes.get(k),
-			room_color, floor_layers, ship, room, Vector3.ZERO)
+	_add_slab(section, "Floor", k, center_x - w - t, center_x + w + t, floor_r, floor_r + t, null,
+			room_color, Ship.WORLD_LAYER | Ship.FLOOR_LAYER, ship, room, Vector3.ZERO)
 	if ceiling_height > 0.0:
 		_add_slab(section, "Ceiling", k, center_x - w - t, center_x + w + t, ceiling_r - t, ceiling_r,
 				_ceiling_holes.get(k), trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER, ship, room,
@@ -101,9 +87,8 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 		ship.add_room_bound(room, section.get_node("WallLeft"), Vector3.LEFT)
 		ship.add_room_bound(room, section.get_node("WallRight"), Vector3.RIGHT)
 
-	if lights:
-		var light_r := ceiling_r + 0.6 if ceiling_height > 0.0 else floor_r - 5.0
-		section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * light_r, light_range))
+	var light_r := ceiling_r + 0.6 if ceiling_height > 0.0 else floor_r - 5.0
+	section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * light_r, light_range))
 	return section
 
 

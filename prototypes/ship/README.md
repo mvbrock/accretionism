@@ -21,7 +21,7 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 | Tab | Switch to the next ship (each remembers where you were) |
 | Esc | Quit |
 
-There are five ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold), the Tug, two decks under thrust joined by a ladder pipe, the Freighter, four decks under thrust joined by one ladder pipe, and the Wheel, three rings side by side around a zero-g hub, joined by nine ladder spokes.
+There are five ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold), the Tug, two decks under thrust joined by a ladder pipe, the Freighter, four decks under thrust joined by one ladder pipe, and the Wheel, three rings side by side, each with a square zero-g hub room on the spin axis. The hub rooms are joined front and back by doorways, and two ladder spokes per ring (straight down, straight up) enter its room through the floor and the ceiling.
 
 ## Tuning knobs (Inspector, or the `@export` vars)
 
@@ -29,7 +29,7 @@ There are five ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold)
 |---|---|---|---|
 | Player | `walk_speed` | 3.0 m/s | Walking pace (a real walk is about 1.4 m/s) |
 | Player | `turn_speed` | 12 | How quickly the capsule turns to face the cursor |
-| Player | `climb_speed` | 1.5 m/s | How fast W/S move along a ladder (a Wheel spoke is 38.6 m long) |
+| Player | `climb_speed` | 1.5 m/s | How fast W/S move along a ladder (a Wheel spoke is 42.3 m long) |
 | CameraRig | `ortho_size` | 24 m | How much of the ship fits on screen |
 | CameraRig | `follow_sharpness` | 10 | How tightly the camera tracks the player |
 | OcclusionFader | `faded_alpha` | 0.15 | How see-through blocking walls and ceilings get |
@@ -49,7 +49,7 @@ Ring dimensions are constants in `scripts/ring_geometry.gd`.
 - A `DeckShip` stacks decks joined by a ladder pipe. Each pipe gets a `Ladder`; climbing places the
   player on the pipe's axis, and doorway blockers on the hatch layer keep walkers out of the shaft.
 - Gravity applies where the ship has it and the player wants it: G sets what the player wants, and the ship answers per
-  position. The Wheel's hub has none, so climbing a spoke into it leaves the player floating, and climbing out brings gravity back.
+  position. The Wheel's hub rooms have none, so climbing a spoke into one leaves the player floating, and climbing out brings gravity back.
 - A cutaway hides every deck above the player's; the ladder reveals each deck as you climb past its floor.
 - `CameraRig` sits on the axis and rolls by the ship's camera roll at the player (the player's
   angle, for the ring); its isometric camera is a child, which makes the ship appear to turn

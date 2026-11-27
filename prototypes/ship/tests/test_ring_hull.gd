@@ -64,32 +64,20 @@ func test_no_ceiling() -> void:
 
 func test_several_holes_in_one_section() -> void:
 	var hull := RingHull.new()
-	hull.ceiling_height = 0.0
 	hull.walls = false
-	hull.floor_corner_radius = 10.0
+	hull.floor_corner_radius = 30.0
 	hull.half_width = 30.0
 	hull.center_x = 0.0
 	var hole_xs := [-21.5, 2.5, 26.5]
 	for x in hole_xs:
-		hull.add_floor_hole(6, x, 0.85)
+		hull.add_ceiling_hole(6, x, 0.85)
 	await _build(hull)
 	var down := RingGeometry.section_down(6)
 	for x in hole_xs:
-		var through := _ray(Vector3(x, 0, 0) + down * (hull.floor_apothem() - 1.0), Vector3(x, 0, 0) + down * (hull.floor_apothem() + 1.0))
+		var through := _ray(Vector3(x, 0, 0) + down * (hull.ceiling_apothem() - 1.0), Vector3(x, 0, 0) + down * (hull.ceiling_apothem() + 1.0))
 		assert_true(through.is_empty(), "ray passes through the hole at x = %s" % x)
-	var beside := _ray(Vector3(-10, 0, 0) + down * (hull.floor_apothem() - 1.0), Vector3(-10, 0, 0) + down * (hull.floor_apothem() + 1.0))
-	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Floor"), "ray between the holes hits the floor")
-
-
-func test_floor_layers_and_lights_are_switches() -> void:
-	var hull := _make_hull()
-	hull.floor_layers = Ship.WORLD_LAYER | Ship.FLOOR_LAYER | Ship.OCCLUDER_LAYER
-	hull.lights = false
-	var ship := await _build(hull)
-	var panel: StaticBody3D = ship.get_node("Section0/Floor")
-	assert_true(panel.collision_layer == (Ship.WORLD_LAYER | Ship.FLOOR_LAYER | Ship.OCCLUDER_LAYER), "floor on the given layers")
-	assert_true(panel.has_meta("fade_mesh"), "an occluder floor can fade")
-	assert_true(not ship.get_node("Section0").has_node("Light"), "no section light")
+	var beside := _ray(Vector3(-10, 0, 0) + down * (hull.ceiling_apothem() - 1.0), Vector3(-10, 0, 0) + down * (hull.ceiling_apothem() + 1.0))
+	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Ceiling"), "ray between the holes hits the ceiling")
 
 
 func test_defaults_keep_ring_floor_and_lights() -> void:
