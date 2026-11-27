@@ -9,8 +9,6 @@ enum CommandResult { STARTED, ALREADY, NO_POWER }
 const OUTSIDE := "outside"
 ## Every hatch's id starts with this.
 const HATCH_PREFIX := "hatch"
-## The id of the one hatch on a ship that has just one.
-const HATCH_ID := HATCH_PREFIX
 const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
 
 var id: String
@@ -28,9 +26,9 @@ var size := Vector2.ZERO
 var travel_s: float
 var fraction := 0.0  # 0 closed, 1 fully open
 var state := State.CLOSED
-var conductance := 0.0  # m3/s, set by the loader
-var mixing := 0.0  # m3/s, set by the loader
-var heat_conductance := 0.0  # W/K, set by the loader
+var conductance := 0.0  # m3/s, set when the ship is built
+var mixing := 0.0  # m3/s, set when the ship is built
+var heat_conductance := 0.0  # W/K, set when the ship is built
 
 
 func _init(opening_id: String, a: String, b: String, travel_time_s: float) -> void:

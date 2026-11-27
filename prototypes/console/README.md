@@ -1,6 +1,6 @@
 # Ship Sim Prototype
 
-A fleet of five ships, each with rooms, an atmosphere, three life-support systems, doors, a hatch and a
+A fleet of five ships, each with rooms, an atmosphere, three life-support systems, doors, one or more hatches and a
 power panel. A dashboard on the right shows the connected ship in 3D and its readings, and a command line
 down the left side is the only way to act on the ship. Open the skiff's hatch and its hold vents; close it
 and the hold refills. Design: `docs/design.md`.

@@ -16,6 +16,22 @@ func test_the_standard_fleet_ships_are_typeable_names() -> void:
 		assert_true(CommandInterpreter.is_typeable(ship_name), "'%s' can be typed" % ship_name)
 
 
+func test_every_standard_ship_is_reachable_and_has_its_doors_on_their_faces() -> void:
+	var fleet := Fleet.standard()
+	for ship_name in fleet.ships:
+		var problems := ShipChecks.shape_problems(fleet.ships[ship_name])
+		assert_true(problems.is_empty(), "%s: %s" % [ship_name, problems])
+
+
+func test_every_standard_ship_holds_its_air_for_a_day_with_doors_open() -> void:
+	var fleet := Fleet.standard()
+	for ship_name in fleet.ships:
+		# A fresh ship of the same type, with random breaker trips off so the day is not cut short.
+		var ship: Ship = fleet.ships[ship_name].get_script().new(ShipChecks.NO_TRIPS)
+		var problems := ShipChecks.steady_state_problems(ship, SimClock.step_sizes().back())
+		assert_true(problems.is_empty(), "%s steady state: %s" % [ship_name, problems])
+
+
 func test_a_fleet_keeps_the_ships_it_is_given() -> void:
 	var fleet := ShipFixture.make_fleet()
 	assert_true(fleet.names() == PackedStringArray(["kestrel", "wren"]), "got %s" % fleet.names())

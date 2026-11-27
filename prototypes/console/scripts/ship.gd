@@ -17,7 +17,7 @@ const SYSTEM_BREAKER_IDS: Array[String] = ["pressure-control", "hvac", "air-recy
 const LIGHT_BREAKER_PREFIX := "light-"
 ## Float residue from summing steps must not cost a whole step.
 const _STEP_EPSILON := 1e-9
-## A room's walls, floor and ceiling can each carry a door, no more.
+## A room has at most this many doors and hatches, on any of its faces; a face may hold more than one.
 const MAX_DOORS_PER_ROOM := 6
 ## A door's size (width, height) in metres. The reference door, 1 x 2 m, passes the numbers below;
 ## a door of another area passes in proportion.
@@ -77,8 +77,6 @@ func _init(overrides := {}) -> void:
 	merge_params(params, overrides)
 	transmission_s = float(params.transmission_s)
 	_build()
-	for room_ in rooms:
-		_rooms_by_id[room_.id] = room_
 	_check_doors()
 	_place_openings()
 	power = PowerPanel.new(int(params.seed), float(params.breakers.mean_time_between_trips_h) * 3600.0,
@@ -97,6 +95,7 @@ func _init(overrides := {}) -> void:
 		_light_breakers[room_.id] = light_breaker_id(room_.id)
 		last_hvac_w[room_.id] = 0.0
 		# Gain scales with max watts, or a big room's hull loss would leave it a few degrees cold.
+		# Below about 5 m3 the full gain overshoots each 5 s step (gain * dt / heat capacity > 1).
 		_hvac_scale[room_.id] = maxf(1.0, room_.volume / REFERENCE_ROOM_VOLUME_M3)
 	_setpoints_pa = {"O2": params.setpoints.o2_kpa * 1000.0, "N2": params.setpoints.n2_kpa * 1000.0}
 	_setpoint_k = Units.kelvin(params.setpoints.temperature_c)
@@ -254,11 +253,18 @@ func _total_volume() -> float:
 	return total
 
 
+## Logs an error for, and drops, each opening that joins a room the build never added.
 func _check_doors() -> void:
+	var known: Array[Opening] = []
 	for opening_ in openings:
+		var joins_known_rooms := true
 		for room_id in [opening_.room_a, opening_.room_b]:
 			if room_id != Opening.OUTSIDE and room(room_id) == null:
 				push_error("Opening '%s' joins unknown room '%s'" % [opening_.id, room_id])
+				joins_known_rooms = false
+		if joins_known_rooms:
+			known.append(opening_)
+	openings = known
 
 
 ## The numbers a ship runs on unless a subclass or caller changes them. Fresh each call.

@@ -36,14 +36,6 @@ static func hatches(ship: Ship) -> Array[Opening]:
 	return found
 
 
-static func overfull_rooms(ship: Ship) -> Array[String]:
-	var found: Array[String] = []
-	for room in ship.rooms:
-		if ship.doors_of(room.id).size() > Ship.MAX_DOORS_PER_ROOM:
-			found.append(room.id)
-	return found
-
-
 ## Rooms that cannot be reached from the first room through doors (hatches lead outside).
 static func unreachable_rooms(ship: Ship) -> Array[String]:
 	var reached := {ship.rooms[0].id: true}
@@ -149,4 +141,14 @@ static func hatch_seal_problems(ship: Ship, hatch_id: String, step_s := Ship.STE
 	for opening in ship.openings:
 		if not opening.is_hatch() and opening.state != Opening.State.CLOSED:
 			problems.append("%s did not auto-close" % opening.id)
+	return problems
+
+
+## Every way the ship's rooms and doors are mis-shaped: unreachable rooms and doors off their faces.
+static func shape_problems(ship: Ship) -> Array[String]:
+	var problems: Array[String] = []
+	for room_id in unreachable_rooms(ship):
+		problems.append("unreachable: %s" % room_id)
+	for door_id in misplaced_doors(ship):
+		problems.append("off its face: %s" % door_id)
 	return problems

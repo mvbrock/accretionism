@@ -294,14 +294,11 @@ func _frame(ship: Ship) -> void:
 	for room in ship.rooms:
 		_name_order.append(room.id)
 	_name_order.sort_custom(func(a: String, b: String) -> bool:
-		var volume_a: float = _volume(ship.room(a))
-		var volume_b: float = _volume(ship.room(b))
+		var volume_a: float = ship.room(a).volume
+		var volume_b: float = ship.room(b).volume
 		return a < b if is_equal_approx(volume_a, volume_b) else volume_a > volume_b)
 	_reframe()
 
-
-func _volume(room: Room) -> float:
-	return room.size.x * room.size.y * room.size.z
 
 
 func _reframe() -> void:

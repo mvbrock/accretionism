@@ -80,7 +80,9 @@ func test_a_hatch_counts_toward_a_rooms_six_doors() -> void:
 
 func test_a_door_to_an_unknown_room_is_an_error() -> void:
 	expect_error("unknown room 'ghost'")
-	GhostDoorShip.new()
+	var ship := GhostDoorShip.new()
+	assert_true(ship.opening("d") == null, "the door to the missing room is dropped")
+	assert_true(ship.openings.is_empty(), "and nothing else is left")
 
 func test_a_hatch_id_must_start_with_hatch() -> void:
 	expect_error("must start with 'hatch'")

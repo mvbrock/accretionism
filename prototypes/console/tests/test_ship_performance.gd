@@ -1,5 +1,5 @@
 extends TestCase
-## The five ships together must run an hour of sim, one real second at 1 hour/s, in half a real
+## The standard fleet's ships together must run an hour of sim, one real second at 1 hour/s, in half a real
 ## second of CPU or less, at the clock's fastest step.
 
 ## The target is 0.5 s. The five ships measured 0.24 s with the doors shut and 0.42 s with them
@@ -9,7 +9,7 @@ const LIMIT_S := 0.75
 
 func test_the_fleet_runs_an_hour_at_the_fastest_clock_step_within_the_limit() -> void:
 	var step_s: float = SimClock.step_sizes().back()
-	var ships: Array[Ship] = [RingShip.new(), SkiffShip.new(), TugShip.new(), FreighterShip.new(), WheelShip.new()]
+	var ships: Array = Fleet.standard().ships.values()
 	for ship in ships:
 		ShipChecks.open_all_doors(ship)
 	var started := Time.get_ticks_usec()

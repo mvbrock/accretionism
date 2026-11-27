@@ -26,12 +26,6 @@ func _segment_door_ids(prefix: String) -> Array[String]:
 	return ids
 
 
-func _check_shape(ship: Ship) -> void:
-	assert_true(ShipChecks.overfull_rooms(ship).is_empty(), "over six doors: %s" % [ShipChecks.overfull_rooms(ship)])
-	assert_true(ShipChecks.unreachable_rooms(ship).is_empty(), "unreachable: %s" % [ShipChecks.unreachable_rooms(ship)])
-	assert_true(ShipChecks.misplaced_doors(ship).is_empty(), "doors off their faces: %s" % [ShipChecks.misplaced_doors(ship)])
-
-
 func _check_hatches(ship: Ship, expected: Dictionary) -> void:
 	var found := {}
 	for hatch in ShipChecks.hatches(ship):
@@ -45,7 +39,6 @@ func test_ring_rooms_and_doors() -> void:
 	var ship := _ring()
 	assert_true(ShipChecks.room_ids(ship) == _segment_ids("s"), "rooms %s" % [ShipChecks.room_ids(ship)])
 	assert_true(ShipChecks.door_ids(ship) == _segment_door_ids("s"), "doors %s" % [ShipChecks.door_ids(ship)])
-	_check_shape(ship)
 
 func test_ring_segments_are_the_corridor_between_floor_and_ceiling() -> void:
 	var segment := _ring().room("s0")
@@ -62,10 +55,6 @@ func test_ring_crew() -> void:
 
 func test_ring_hatches_are_in_s0s_and_s6s_outer_floors() -> void:
 	_check_hatches(_ring(), {"hatch0": ["s0", Room.Face.MINUS_Y], "hatch6": ["s6", Room.Face.MINUS_Y]})
-
-func test_ring_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_ring(), SimClock.step_sizes().back())
-	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_ring_hatches_expose_their_segment_and_the_rest_seals() -> void:
 	for hatch_id in ["hatch0", "hatch6"]:
@@ -94,7 +83,6 @@ func test_wheel_rooms_and_doors() -> void:
 	rooms.append("hub")
 	assert_true(ShipChecks.room_ids(ship) == rooms, "rooms %s" % [ShipChecks.room_ids(ship)])
 	assert_true(ShipChecks.door_ids(ship) == doors, "doors %s" % [ShipChecks.door_ids(ship)])
-	_check_shape(ship)
 
 func test_wheel_hub_has_exactly_six_doors_one_per_spoke() -> void:
 	var doors := _wheel().doors_of("hub")
@@ -127,10 +115,6 @@ func test_wheel_crew() -> void:
 
 func test_wheel_hatch_is_in_b3s_outer_floor() -> void:
 	_check_hatches(_wheel(), {"hatch": ["b3", Room.Face.MINUS_Y]})
-
-func test_wheel_holds_its_air_for_a_day_with_doors_open() -> void:
-	var problems := ShipChecks.steady_state_problems(_wheel(), SimClock.step_sizes().back())
-	assert_true(problems.is_empty(), "steady state: %s" % [problems])
 
 func test_wheel_hatch_exposes_b3_and_the_rest_seals() -> void:
 	var problems := ShipChecks.hatch_seal_problems(_wheel(), "hatch", SimClock.step_sizes().back())
