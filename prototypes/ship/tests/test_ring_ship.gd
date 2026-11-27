@@ -51,7 +51,7 @@ func test_ceiling_is_occluder() -> void:
 func test_section_colors_distinct() -> void:
 	var seen := {}
 	for k in RingGeometry.SECTIONS:
-		seen[RingShip.section_color(k).to_html()] = true
+		seen[Ship.room_color(k, RingGeometry.SECTIONS).to_html()] = true
 	assert_true(seen.size() == RingGeometry.SECTIONS, "12 distinct colors")
 
 

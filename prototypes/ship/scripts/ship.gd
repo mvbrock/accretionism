@@ -91,6 +91,27 @@ func make_panel(panel_name: String, points: PackedVector3Array, color: Color, la
 	return body
 
 
+## A distinct fill color for room `i` of `count`.
+static func room_color(i: int, count: int) -> Color:
+	return Color.from_hsv(float(i) / count, 0.65, 0.85)
+
+
+## The paler wall color matching `room_color(i, count)`.
+static func trim_color(i: int, count: int) -> Color:
+	return Color.from_hsv(float(i) / count, 0.25, 0.75)
+
+
+## A shadow-casting omni light named "Light" at `at`, reaching `light_range` metres.
+func make_light(at: Vector3, light_range: float) -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = "Light"
+	light.position = at
+	light.omni_range = light_range
+	light.light_energy = 1.6
+	light.shadow_enabled = true
+	return light
+
+
 ## A crate `size` metres on a side, placed by `at`. It sits on the world layer only, so the
 ## player bumps into it but a floating player measures its height from the floor beneath.
 func make_crate(crate_name: String, size: float, at: Transform3D) -> StaticBody3D:

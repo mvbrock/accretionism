@@ -1,10 +1,9 @@
 class_name OcclusionFader
 extends Node
 ## Fades walls and ceilings that block the camera's view of the target, and restores them after.
-## The ceiling and camera-side wall of the target's own section always fade, wherever it stands.
-## Occluder bodies sit on collision layer 2 and carry a "fade_mesh" meta pointing at their mesh.
+## The ceiling and camera-side wall of the target's own room always fade, wherever it stands.
+## Occluder bodies sit on `Ship.OCCLUDER_LAYER` and carry a "fade_mesh" meta pointing at their mesh.
 
-const OCCLUDER_MASK := 2
 const MAX_HITS_PER_RAY := 6
 const RAY_LENGTH := 80.0
 
@@ -71,7 +70,7 @@ func find_occluders() -> Array[MeshInstance3D]:
 	for point in sight_points():
 		var exclude: Array[RID] = []
 		for i in MAX_HITS_PER_RAY:
-			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, OCCLUDER_MASK, exclude)
+			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, Ship.OCCLUDER_LAYER, exclude)
 			var hit := space.intersect_ray(query)
 			if hit.is_empty():
 				break

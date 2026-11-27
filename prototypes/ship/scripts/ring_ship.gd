@@ -6,14 +6,6 @@ const CRATES_PER_SECTION := 2
 const CRATE_SEED := 1337
 
 
-static func section_color(k: int) -> Color:
-	return Color.from_hsv(float(k) / RingGeometry.SECTIONS, 0.65, 0.85)
-
-
-static func trim_color(k: int) -> Color:
-	return Color.from_hsv(float(k) / RingGeometry.SECTIONS, 0.25, 0.75)
-
-
 func _ready() -> void:
 	for k in RingGeometry.SECTIONS:
 		add_child(_build_section(k))
@@ -47,24 +39,18 @@ func _build_section(k: int) -> Node3D:
 	var ceiling_r := RingGeometry.ceiling_apothem()
 
 	section.add_child(make_panel("Floor", _slab_points(k, -w - t, w + t, floor_r, floor_r + t),
-			section_color(k), WORLD_LAYER | FLOOR_LAYER))
+			room_color(k, RingGeometry.SECTIONS), WORLD_LAYER | FLOOR_LAYER))
 	section.add_child(make_panel("Ceiling", _slab_points(k, -w - t, w + t, ceiling_r - t, ceiling_r),
-			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
+			trim_color(k, RingGeometry.SECTIONS), WORLD_LAYER | OCCLUDER_LAYER))
 	section.add_child(make_panel("WallLeft", _slab_points(k, -w - t, -w, ceiling_r, floor_r),
-			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
+			trim_color(k, RingGeometry.SECTIONS), WORLD_LAYER | OCCLUDER_LAYER))
 	section.add_child(make_panel("WallRight", _slab_points(k, w, w + t, ceiling_r, floor_r),
-			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
+			trim_color(k, RingGeometry.SECTIONS), WORLD_LAYER | OCCLUDER_LAYER))
 	add_room_bound(section.name, section.get_node("Ceiling"), -RingGeometry.section_down(k))
 	add_room_bound(section.name, section.get_node("WallLeft"), Vector3.LEFT)
 	add_room_bound(section.name, section.get_node("WallRight"), Vector3.RIGHT)
 
-	var light := OmniLight3D.new()
-	light.name = "Light"
-	light.position = RingGeometry.section_down(k) * (ceiling_r + 0.6)
-	light.omni_range = 22.0
-	light.light_energy = 1.6
-	light.shadow_enabled = true
-	section.add_child(light)
+	section.add_child(make_light(RingGeometry.section_down(k) * (ceiling_r + 0.6), 22.0))
 	return section
 
 

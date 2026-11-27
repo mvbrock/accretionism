@@ -1,8 +1,8 @@
 class_name CameraRig
 extends Node3D
-## Sits on the spin axis and rolls by the ship's camera roll at the player (for the ring, the
-## player's angle around it), so the player always appears at the bottom of the ring. Its child
-## camera keeps a fixed isometric angle, so on screen the ship seems to turn under the player.
+## Sits at the ship's origin and rolls by the ship's camera roll at the target, which on a
+## spinning ship keeps the player at the bottom of the screen. Its child camera keeps a fixed
+## isometric angle.
 
 @export var target: Node3D
 ## Supplies the camera roll at the target. Without one the rig does not roll.

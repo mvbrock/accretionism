@@ -21,7 +21,7 @@ const TIP_SHARPNESS := 6.0
 
 ## Relative to the facing: x = strafe (D = +1), y = forward (W = +1).
 var move_input := Vector2.ZERO
-## Ship-relative direction to turn and face (x = across the ring, y = around it); zero keeps
+## Ship-relative direction to turn and face (x = across (world X), y = perpendicular to up and X); zero keeps
 ## the current facing.
 var aim_heading := Vector2.ZERO
 ## When true, `move_input` and `aim_heading` are set by code (tests, auto-walk) instead of

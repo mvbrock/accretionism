@@ -14,14 +14,6 @@ const BULKHEAD_COLOR := Color(0.5, 0.5, 0.52)
 const WALL := WORLD_LAYER | OCCLUDER_LAYER
 
 
-static func room_color(i: int) -> Color:
-	return Color.from_hsv(float(i) / ROOMS.size(), 0.65, 0.85)
-
-
-static func trim_color(i: int) -> Color:
-	return Color.from_hsv(float(i) / ROOMS.size(), 0.25, 0.75)
-
-
 func _ready() -> void:
 	for i in ROOMS.size():
 		add_child(_build_room(i))
@@ -57,32 +49,26 @@ func _build_room(i: int) -> Node3D:
 	var w := HALF_WIDTH
 	var h := HEIGHT
 	room.add_child(make_panel("Floor", box_points(Vector3(-w - SLAB, -SLAB, z0), Vector3(w + SLAB, 0, z1)),
-			room_color(i), WORLD_LAYER | FLOOR_LAYER))
+			room_color(i, ROOMS.size()), WORLD_LAYER | FLOOR_LAYER))
 	room.add_child(make_panel("Ceiling", box_points(Vector3(-w - SLAB, h, z0), Vector3(w + SLAB, h + SLAB, z1)),
-			trim_color(i), WALL))
+			trim_color(i, ROOMS.size()), WALL))
 	room.add_child(make_panel("WallLeft", box_points(Vector3(-w - SLAB, 0, z0), Vector3(-w, h, z1)),
-			trim_color(i), WALL))
+			trim_color(i, ROOMS.size()), WALL))
 	room.add_child(make_panel("WallRight", box_points(Vector3(w, 0, z0), Vector3(w + SLAB, h, z1)),
-			trim_color(i), WALL))
+			trim_color(i, ROOMS.size()), WALL))
 	add_room_bound(room.name, room.get_node("Ceiling"), Vector3.UP)
 	add_room_bound(room.name, room.get_node("WallLeft"), Vector3.LEFT)
 	add_room_bound(room.name, room.get_node("WallRight"), Vector3.RIGHT)
 	if i == 0:
 		room.add_child(make_panel("WallFore", box_points(Vector3(-w, 0, z0 - SLAB), Vector3(w, h, z0)),
-				trim_color(i), WALL))
+				trim_color(i, ROOMS.size()), WALL))
 		add_room_bound(room.name, room.get_node("WallFore"), Vector3.FORWARD)
 	if i == ROOMS.size() - 1:
 		room.add_child(make_panel("WallAft", box_points(Vector3(-w, 0, z1), Vector3(w, h, z1 + SLAB)),
-				trim_color(i), WALL))
+				trim_color(i, ROOMS.size()), WALL))
 		add_room_bound(room.name, room.get_node("WallAft"), Vector3.BACK)
 
-	var light := OmniLight3D.new()
-	light.name = "Light"
-	light.position = Vector3(0, h - 0.6, (z0 + z1) / 2.0)
-	light.omni_range = 12.0
-	light.light_energy = 1.6
-	light.shadow_enabled = true
-	room.add_child(light)
+	room.add_child(make_light(Vector3(0, h - 0.6, (z0 + z1) / 2.0), 12.0))
 	return room
 
 
