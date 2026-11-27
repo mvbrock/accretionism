@@ -117,6 +117,7 @@ func test_aim_through_faces_the_spot_under_the_cursor() -> void:
 	camera.name = "Camera"
 	rig.add_child(camera)
 	rig.target = player
+	rig.ship = player.ship
 	own(rig)
 	await physics_frames(1)
 	rig.snap()

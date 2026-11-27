@@ -18,6 +18,7 @@ func _setup(x: float = 0.0) -> void:
 	camera.name = "Camera"
 	rig.add_child(camera)
 	rig.target = player
+	rig.ship = ship
 	own(rig)
 	fader = OcclusionFader.new()
 	fader.camera = camera

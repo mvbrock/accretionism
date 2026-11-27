@@ -15,7 +15,7 @@ func _ready() -> void:
 	_match_display_scale()
 	Player.ensure_input_actions()
 	player.aim_camera = rig.camera
-	player.global_position = RingGeometry.section_down(0) * (RingGeometry.floor_apothem() - 0.05)
+	player.global_position = $Ship.spawn_point()
 	player.reset_physics_interpolation()  # teleported: don't interpolate from the origin
 	rig.snap()
 	var args := OS.get_cmdline_user_args()

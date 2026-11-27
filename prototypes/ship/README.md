@@ -37,8 +37,11 @@ Ring dimensions are constants in `scripts/ring_geometry.gd`.
 - The ship never moves. The player's "up" always points at the spin axis (world X), so
   gravity pulls outward like a real spinning station. Flat panels mean each panel's middle is
   slightly "uphill" of its seams (up to 15°).
-- `CameraRig` sits on the axis and rotates to the player's angle; its isometric camera is a
-  child, which makes the ship appear to turn under a fixed view.
+- A `Ship` node answers which way is up, how far the camera rolls, which room meshes fade and
+  where to spawn; `RingShip` is the ring.
+- `CameraRig` sits on the axis and rolls by the ship's camera roll at the player (the player's
+  angle, for the ring); its isometric camera is a child, which makes the ship appear to turn
+  under a fixed view.
 - `OcclusionFader` always fades the ceiling and camera-side wall of the player's own section, and
   casts rays along the camera's view toward the player to fade any other wall or ceiling they hit.
 - With gravity off, the player switches to Godot's floating motion mode, eases to `FLOAT_HEIGHT`

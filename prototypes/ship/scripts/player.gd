@@ -140,7 +140,7 @@ func _physics_process(delta: float) -> void:
 	_shape.transform = _pivot.transform
 
 
-## Unit direction around the ring at the body's position (the way a heading's y points).
+## Unit direction perpendicular to both up and world X (the way a heading's y points).
 func _around() -> Vector3:
 	return ship.up_at(global_position).cross(Vector3.RIGHT)
 
@@ -155,8 +155,8 @@ func _turn_toward_aim(delta: float) -> void:
 	_heading = _heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
 
 
-## Distance along `up` from the body's origin down to the floor beneath it, or FLOAT_HEIGHT
-## when there is none, so floating holds its height.
+## Distance from the body's origin down to the floor beneath it, measured perpendicular to the
+## floor panel, or FLOAT_HEIGHT when there is none, so floating holds its height.
 func _height_above_floor(up: Vector3) -> float:
 	var query := PhysicsRayQueryParameters3D.create(
 			global_position + up * 0.1, global_position - up * 20.0, Ship.FLOOR_LAYER)
@@ -164,7 +164,7 @@ func _height_above_floor(up: Vector3) -> float:
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return FLOAT_HEIGHT
-	return (global_position - hit.position).dot(up)
+	return (global_position - hit.position).dot(hit.normal)
 
 
 ## Stands the body upright along `up` and faces it along `_heading`.
