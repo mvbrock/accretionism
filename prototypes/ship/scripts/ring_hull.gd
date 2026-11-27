@@ -5,47 +5,42 @@ extends RefCounted
 const CRATE_SEED := 1337
 ## Crates keep this far (across and along the panel) from a ceiling hole's center, so they stay off ladder pipes' feet.
 const CRATE_HOLE_CLEARANCE := 3.0
+const LIGHT_RANGE := 22.0
 
 var center_x := 0.0
-var half_width := RingGeometry.HALF_WIDTH
-var floor_corner_radius := RingGeometry.FLOOR_CORNER_RADIUS
-## Distance between floor and ceiling. 0 means no ceiling.
-var ceiling_height := RingGeometry.CEILING_HEIGHT
-var walls := true
 var crates_per_section := 0
 ## Room names are room_prefix + "Section%d".
 var room_prefix := ""
-var light_range := 22.0
 ## Added to each section's hue fraction, so rings can differ.
 var hue_offset := 0.0
 
-## Section index -> list of [across position, half size] of its ceiling holes.
+## Section index -> [across position, half size] of its ceiling hole.
 var _ceiling_holes := {}
 
 
 func floor_apothem() -> float:
-	return floor_corner_radius * cos(RingGeometry.HALF_ANGLE)
+	return RingGeometry.FLOOR_CORNER_RADIUS * cos(RingGeometry.HALF_ANGLE)
 
 
 func ceiling_apothem() -> float:
-	return floor_apothem() - ceiling_height
+	return floor_apothem() - RingGeometry.CEILING_HEIGHT
 
 
-## A square hole centered on section k's ceiling panel center at across-position x. Call before build. A section may have several holes, which must not overlap across.
+## A square hole centered on section k's ceiling panel center at across-position x. Call before build. A section has at most one hole.
 func add_ceiling_hole(k: int, x: float, half_size: float) -> void:
-	if not _ceiling_holes.has(k):
-		_ceiling_holes[k] = []
-	_ceiling_holes[k].append([x, half_size])
+	if _ceiling_holes.has(k):
+		push_error("Section %d already has a ceiling hole" % k)
+		return
+	_ceiling_holes[k] = [x, half_size]
 
 
 ## The room containing `p`, or "" outside the hull's slabs.
 func room_at(p: Vector3) -> String:
 	var t := RingGeometry.SLAB_THICKNESS
-	if absf(p.x - center_x) > half_width + t:
+	if absf(p.x - center_x) > RingGeometry.HALF_WIDTH + t:
 		return ""
 	var radius := Vector2(p.y, p.z).length()
-	var inner := ceiling_apothem() - t if ceiling_height > 0.0 else 0.0
-	if radius < inner or radius > floor_corner_radius + t:
+	if radius < ceiling_apothem() - t or radius > RingGeometry.FLOOR_CORNER_RADIUS + t:
 		return ""
 	return room_prefix + "Section%d" % RingGeometry.section_of(p)
 
@@ -66,7 +61,7 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 	var section := Node3D.new()
 	section.name = "Section%d" % k
 	var t := RingGeometry.SLAB_THICKNESS
-	var w := half_width
+	var w := RingGeometry.HALF_WIDTH
 	var floor_r := floor_apothem()
 	var ceiling_r := ceiling_apothem()
 	var room := room_prefix + section.name
@@ -75,48 +70,37 @@ func _build_section(ship: Ship, k: int) -> Node3D:
 
 	_add_slab(section, "Floor", k, center_x - w - t, center_x + w + t, floor_r, floor_r + t, null,
 			room_color, Ship.WORLD_LAYER | Ship.FLOOR_LAYER, ship, room, Vector3.ZERO)
-	if ceiling_height > 0.0:
-		_add_slab(section, "Ceiling", k, center_x - w - t, center_x + w + t, ceiling_r - t, ceiling_r,
-				_ceiling_holes.get(k), trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER, ship, room,
-				-RingGeometry.section_down(k))
-	if walls:
-		section.add_child(ship.make_panel("WallLeft", slab_points(k, center_x - w - t, center_x - w, ceiling_r, floor_r),
-				trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
-		section.add_child(ship.make_panel("WallRight", slab_points(k, center_x + w, center_x + w + t, ceiling_r, floor_r),
-				trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
-		ship.add_room_bound(room, section.get_node("WallLeft"), Vector3.LEFT)
-		ship.add_room_bound(room, section.get_node("WallRight"), Vector3.RIGHT)
-
-	var light_r := ceiling_r + 0.6 if ceiling_height > 0.0 else floor_r - 5.0
-	section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * light_r, light_range))
+	_add_slab(section, "Ceiling", k, center_x - w - t, center_x + w + t, ceiling_r - t, ceiling_r,
+			_ceiling_holes.get(k), trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER, ship, room,
+			-RingGeometry.section_down(k))
+	section.add_child(ship.make_panel("WallLeft", slab_points(k, center_x - w - t, center_x - w, ceiling_r, floor_r),
+			trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
+	section.add_child(ship.make_panel("WallRight", slab_points(k, center_x + w, center_x + w + t, ceiling_r, floor_r),
+			trim_color, Ship.WORLD_LAYER | Ship.OCCLUDER_LAYER))
+	ship.add_room_bound(room, section.get_node("WallLeft"), Vector3.LEFT)
+	ship.add_room_bound(room, section.get_node("WallRight"), Vector3.RIGHT)
+	section.add_child(ship.make_light(Vector3(center_x, 0, 0) + RingGeometry.section_down(k) * (ceiling_r + 0.6), LIGHT_RANGE))
 	return section
 
 
-## Adds one panel, or with holes several pieces named `panel_name` + "a", "b", "c"... in build order.
-## Holes (lists of [across position, half size]) must not overlap across. Across the panel come full-length
-## strips in the gaps and beyond the outermost holes, and before and after each hole its two along-panel strips.
+## Adds the panel, or with a hole four pieces named `panel_name` + "a", "b", "c", "d": the full-length strips on either
+## side of the hole across the panel, then the two along-panel strips before and after it.
 ## Each piece is registered as a room bound facing `outward`; a zero `outward` registers nothing.
+## `hole` is [across position, half size], or null.
 func _add_slab(section: Node3D, panel_name: String, k: int, x0: float, x1: float, r0: float, r1: float,
-		holes: Variant, color: Color, layers: int, ship: Ship, room: String, outward: Vector3) -> void:
+		hole: Variant, color: Color, layers: int, ship: Ship, room: String, outward: Vector3) -> void:
 	var pieces: Array[PackedVector3Array] = []
-	if holes == null:
+	if hole == null:
 		pieces.append(slab_points(k, x0, x1, r0, r1))
 	else:
-		var sorted: Array = holes.duplicate()
-		sorted.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
-		var cursor := x0
-		for hole: Array in sorted:
-			var hx: float = hole[0]
-			var h: float = hole[1]
-			if hx - h > cursor:
-				pieces.append(slab_points(k, cursor, hx - h, r0, r1))
-			pieces.append(slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
-			pieces.append(slab_points(k, hx - h, hx + h, r0, r1, h, INF))
-			cursor = hx + h
-		if x1 > cursor:
-			pieces.append(slab_points(k, cursor, x1, r0, r1))
+		var hx: float = hole[0]
+		var h: float = hole[1]
+		pieces.append(slab_points(k, x0, hx - h, r0, r1))
+		pieces.append(slab_points(k, hx - h, hx + h, r0, r1, -INF, -h))
+		pieces.append(slab_points(k, hx - h, hx + h, r0, r1, h, INF))
+		pieces.append(slab_points(k, hx + h, x1, r0, r1))
 	for i in pieces.size():
-		var piece := ship.make_panel(panel_name if holes == null else panel_name + char(97 + i), pieces[i], color, layers)
+		var piece := ship.make_panel(panel_name if hole == null else panel_name + char(97 + i), pieces[i], color, layers)
 		section.add_child(piece)
 		if outward != Vector3.ZERO:
 			ship.add_room_bound(room, piece, outward)
@@ -161,12 +145,11 @@ func _build_crates(ship: Ship) -> Node3D:
 	return crates
 
 
-## Whether the spot at across-position `x` and `offset` along section k's panel is within CRATE_HOLE_CLEARANCE of a ceiling hole of k, across and along.
+## Whether the spot at across-position `x` and `offset` along section k's panel is within CRATE_HOLE_CLEARANCE of section k's ceiling hole, across and along.
 func _near_ceiling_hole(k: int, x: float, offset: float) -> bool:
-	for hole: Array in _ceiling_holes.get(k, []):
-		if absf(x - hole[0]) < CRATE_HOLE_CLEARANCE and absf(offset) < CRATE_HOLE_CLEARANCE:
-			return true
-	return false
+	if not _ceiling_holes.has(k):
+		return false
+	return absf(x - _ceiling_holes[k][0]) < CRATE_HOLE_CLEARANCE and absf(offset) < CRATE_HOLE_CLEARANCE
 
 
 func _crate(ship: Ship, k: int, x: float, offset: float, size: float, yaw: float, index: int) -> StaticBody3D:

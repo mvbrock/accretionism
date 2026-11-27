@@ -13,11 +13,6 @@ func _ray(from: Vector3, to: Vector3, mask: int = 0xFFFFFFFF) -> Dictionary:
 	return space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, mask))
 
 
-## The ladder of the spoke on ring `ring` at section `k`.
-func _ladder(ship: WheelShip, ring: int, k: int) -> Ladder:
-	return ship.ladders[ring * WheelShip.SPOKE_SECTIONS.size() + WheelShip.SPOKE_SECTIONS.find(k)]
-
-
 func test_rooms_and_gravity() -> void:
 	var ship := await _make_ship()
 	assert_true(ship.room_at(ship.spawn_point()) == "Ring1/Section0", "spawn is in the middle ring's section 0")
@@ -92,7 +87,7 @@ func test_hub_far_side_fades() -> void:
 func test_climb_spoke_into_hub_floats() -> void:
 	var ship := await _make_ship()
 	var player := own_player(ship)
-	var ladder := _ladder(ship, 1, 0)
+	var ladder := ship.spoke_ladder(1, 0)
 	player.board(ship, PlayerPose.new(ladder.landings[0].exit, Vector2(0, -1), true))
 	await physics_frames(2)
 	player.interact()
@@ -127,7 +122,7 @@ func test_climb_spoke_into_hub_floats() -> void:
 func test_ceiling_spoke_arrival_floats_off_the_ceiling() -> void:
 	var ship := await _make_ship()
 	var player := own_player(ship)
-	player.board(ship, PlayerPose.new(_ladder(ship, 1, 6).landings[1].exit, Vector2(0, -1), false))
+	player.board(ship, PlayerPose.new(ship.spoke_ladder(1, 6).landings[1].exit, Vector2(0, -1), false))
 	await physics_frames(180)
 	var from_ceiling := WheelShip.HUB_HALF_SIZE - player.global_position.y
 	assert_near(from_ceiling, Player.FLOAT_HEIGHT, 0.2, "floats off the ceiling, which is its floor")

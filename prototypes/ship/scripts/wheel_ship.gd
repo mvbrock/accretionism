@@ -49,6 +49,11 @@ func _ready() -> void:
 			_build_spoke(ring, k)
 
 
+## The ladder of the spoke on ring `ring` at section `k`, one of SPOKE_SECTIONS.
+func spoke_ladder(ring: int, k: int) -> Ladder:
+	return ladders[ring * SPOKE_SECTIONS.size() + SPOKE_SECTIONS.find(k)]
+
+
 func up_at(p: Vector3) -> Vector3:
 	return RingGeometry.up_at(p)
 
@@ -223,7 +228,7 @@ func _build_spoke(ring: int, k: int) -> void:
 	add_child(spoke)
 	var frame := spoke_frame(ring, k)
 	var length := spoke_length()
-	var ring_top := _rings[ring].ceiling_height + SLAB
+	var ring_top := RingGeometry.CEILING_HEIGHT + SLAB
 	var segments := [
 		["RingSeg", 0.0, ring_top, DOOR_HEIGHT],
 		["Shaft", ring_top, length, 0.0],

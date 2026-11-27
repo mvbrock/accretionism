@@ -5,7 +5,6 @@ func _make_hull() -> RingHull:
 	var hull := RingHull.new()
 	hull.room_prefix = "R/"
 	hull.center_x = 10.0
-	hull.floor_corner_radius = 30.0
 	return hull
 
 
@@ -26,7 +25,7 @@ func test_floor_at_apothem() -> void:
 	await _build(hull)
 	var down := RingGeometry.section_down(3)
 	var origin := Vector3(10, 0, 0)
-	var hit := _ray(origin, origin + down * 40.0, Ship.FLOOR_LAYER)
+	var hit := _ray(origin, origin + down * (hull.floor_apothem() + 5.0), Ship.FLOOR_LAYER)
 	assert_true(not hit.is_empty(), "floor hit")
 	if not hit.is_empty():
 		assert_near(hit.position.distance_to(origin), hull.floor_apothem(), 0.01, "floor distance")
@@ -51,33 +50,11 @@ func test_ceiling_hole() -> void:
 	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Ceiling"), "ray beside the hole hits the ceiling")
 
 
-func test_no_ceiling() -> void:
+func test_second_hole_in_a_section_is_an_error() -> void:
 	var hull := _make_hull()
-	hull.ceiling_height = 0.0
-	hull.walls = false
-	var ship := await _build(hull)
-	var section := ship.get_node("Section0")
-	assert_true(section.has_node("Floor"), "has a floor")
-	assert_true(not section.has_node("Ceiling"), "no ceiling")
-	assert_true(not section.has_node("WallLeft"), "no wall")
-
-
-func test_several_holes_in_one_section() -> void:
-	var hull := RingHull.new()
-	hull.walls = false
-	hull.floor_corner_radius = 30.0
-	hull.half_width = 30.0
-	hull.center_x = 0.0
-	var hole_xs := [-21.5, 2.5, 26.5]
-	for x in hole_xs:
-		hull.add_ceiling_hole(6, x, 0.85)
-	await _build(hull)
-	var down := RingGeometry.section_down(6)
-	for x in hole_xs:
-		var through := _ray(Vector3(x, 0, 0) + down * (hull.ceiling_apothem() - 1.0), Vector3(x, 0, 0) + down * (hull.ceiling_apothem() + 1.0))
-		assert_true(through.is_empty(), "ray passes through the hole at x = %s" % x)
-	var beside := _ray(Vector3(-10, 0, 0) + down * (hull.ceiling_apothem() - 1.0), Vector3(-10, 0, 0) + down * (hull.ceiling_apothem() + 1.0))
-	assert_true(not beside.is_empty() and str(beside.collider.name).begins_with("Ceiling"), "ray between the holes hits the ceiling")
+	hull.add_ceiling_hole(2, 12.0, 0.85)
+	expect_error("already has a ceiling hole")
+	hull.add_ceiling_hole(2, 8.0, 0.85)
 
 
 func test_defaults_keep_ring_floor_and_lights() -> void:

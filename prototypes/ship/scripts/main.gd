@@ -33,8 +33,13 @@ func _ready() -> void:
 
 ## Boards the player, floating and facing +X, into the Wheel's middle hub room at spoke (1, 0)'s hub landing.
 func _float_into_hub() -> void:
-	var wheel: Ship = fleet.active
-	var landing_exit: Vector3 = wheel.ladders[1 * WheelShip.SPOKE_SECTIONS.size()].landings[1].exit
+	var wheel: WheelShip
+	for ship in fleet.ships():
+		if ship is WheelShip:
+			wheel = ship
+	if fleet.active != wheel:
+		fleet.switch_to(wheel)
+	var landing_exit: Vector3 = wheel.spoke_ladder(1, 0).landings[1].exit
 	player.move_input = Vector2.ZERO
 	player.board(wheel, PlayerPose.new(landing_exit, Vector2(1, 0), false))
 	rig.snap()
