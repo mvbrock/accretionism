@@ -55,7 +55,6 @@ var _name_order: Array[String] = []
 var _selected_room := ""
 ## The view the name visibility was last worked out for, to skip a repeat.
 var _names_for := []
-## Every room corner in ship space.
 var _corners := PackedVector3Array()
 ## Once the user orbits or zooms, a resize no longer re-frames the ship.
 var _user_moved := false
@@ -110,12 +109,10 @@ func room_box(room_id: String) -> MeshInstance3D:
 	return _rooms[room_id].box
 
 
-## The room's name, drawn at its centre.
 func room_name(room_id: String) -> Label3D:
 	return _rooms[room_id].label
 
 
-## The colour the room's box is filled with, alpha included.
 func room_tint(room_id: String) -> Color:
 	return _rooms[room_id].fill.albedo_color
 
@@ -232,7 +229,6 @@ func _build_door(ship: Ship, opening: Opening) -> void:
 	_doors[opening.id] = {"panel": panel, "material": material}
 
 
-## The 12 edges of a box `size` centred on the origin, as lines.
 func _edge_mesh(size: Vector3) -> ArrayMesh:
 	var half := size * 0.5
 	var lines := PackedVector3Array()
@@ -308,7 +304,6 @@ func _volume(room: Room) -> float:
 	return room.size.x * room.size.y * room.size.z
 
 
-## Centres the focus on the ship as seen from the start angle and sets the orthographic size.
 func _reframe() -> void:
 	var basis := Basis.from_euler(Vector3(-_pitch, _yaw, 0.0))
 	var inverse := basis.inverse()

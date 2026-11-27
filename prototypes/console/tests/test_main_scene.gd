@@ -171,7 +171,6 @@ func _lay_out(main: Main) -> void:
 	await tree.process_frame
 
 
-## Presses and releases the left button over the centre of `room_id` in the 3D view.
 func _click_room(main: Main, room_id: String) -> void:
 	await _lay_out(main)
 	var view := main.dashboard.ship_view

@@ -36,7 +36,6 @@ static func hatches(ship: Ship) -> Array[Opening]:
 	return found
 
 
-## Rooms with more than MAX_DOORS_PER_ROOM openings.
 static func overfull_rooms(ship: Ship) -> Array[String]:
 	var found: Array[String] = []
 	for room in ship.rooms:
@@ -84,7 +83,6 @@ static func misplaced_doors(ship: Ship) -> Array[String]:
 	return found
 
 
-## Opens every door and lets them finish moving.
 static func open_all_doors(ship: Ship) -> void:
 	for opening in ship.openings:
 		if not opening.is_hatch():

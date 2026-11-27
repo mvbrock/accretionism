@@ -55,12 +55,10 @@ func set_partial_pressure(gas: String, pa: float) -> void:
 	mol[gas] = mol_for(pa, volume, temperature)
 
 
-## The outward unit normal of `face`, in ship space.
 func face_normal(face: Face) -> Vector3:
 	return orientation * _axis(face)
 
 
-## The centre of `face`, in ship space.
 func face_center(face: Face) -> Vector3:
 	var axis := _axis(face)
 	return position + orientation * (axis * (size * 0.5).dot(axis.abs()))

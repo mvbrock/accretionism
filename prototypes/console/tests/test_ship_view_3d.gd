@@ -3,7 +3,6 @@ extends TestCase
 const VIEW_SIZE := Vector2(800, 400)
 
 
-## A view of `ship` in the tree, laid out at VIEW_SIZE and drawn once with `selected` selected.
 func _view(ship: Ship, selected := "") -> ShipView3D:
 	var view := ShipView3D.new(ship)
 	own(view)

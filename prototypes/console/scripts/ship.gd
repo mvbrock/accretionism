@@ -46,7 +46,8 @@ var systems: Dictionary = {}  # system id -> SystemUnit
 var tanks: Dictionary = {}  # "O2" / "N2" -> Tank
 var light_switches: Dictionary = {}  # room id -> bool
 var exposed: Dictionary = {}  # room id -> bool
-var params: Dictionary = {}  # default_params() with the subclass's and caller's overrides merged in
+var params: Dictionary = {}
+var _light_breakers: Dictionary = {}  # room id -> its light's breaker id
 ## Sim seconds elapsed; derived from the step count so float error never accumulates.
 var time_s: float:
 	get:
@@ -67,7 +68,6 @@ var _pressure_control_max_mol_s := 0.0
 var _hvac_scale: Dictionary = {}  # room id -> factor on the HVAC's gain and max watts
 var _unplaced: Array[Opening] = []  # openings that take the centre of their face once the rooms exist
 var _rooms_by_id: Dictionary = {}  # room id -> Room, so step() finds a door's rooms without a scan
-var _light_breakers: Dictionary = {}  # room id -> its light's breaker id
 var _passing: Array[bool] = []  # each opening's passes() when exposure was last worked out
 
 
@@ -189,12 +189,10 @@ func add_hatch(id: String, room_id: String, face: Room.Face, travel_s := HATCH_T
 	return _add_opening(opening_, at)
 
 
-## A rotation of `degrees` about the vertical (y) axis, for a room's `orientation`.
 static func yaw(degrees: float) -> Basis:
 	return Basis(Vector3.UP, deg_to_rad(degrees))
 
 
-## The openings that join this room to another room or to outside, in opening order.
 func doors_of(room_id: String) -> Array[Opening]:
 	var found: Array[Opening] = []
 	for opening_ in openings:
@@ -256,7 +254,6 @@ func _total_volume() -> float:
 	return total
 
 
-## Reports each opening that names a room the build never added.
 func _check_doors() -> void:
 	for opening_ in openings:
 		for room_id in [opening_.room_a, opening_.room_b]:

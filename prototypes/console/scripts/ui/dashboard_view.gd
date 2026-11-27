@@ -168,7 +168,6 @@ func _column(title: String, ids: Array[String], labels: Dictionary) -> VBoxConta
 	return column
 
 
-## Lists the selected room's breakers, the system breakers and every other tripped breaker, in that order.
 func _show_breakers(ship: Ship) -> void:
 	var listed := DashboardModel.listed_breakers(ship, selected_room)
 	for id in _breaker_labels:

@@ -1,6 +1,5 @@
 class_name ShipFixture
 extends RefCounted
-## Builds the ships the tests run on.
 
 
 ## A ThreeRoomShip with random trips off and `overrides` deep-merged into its params
@@ -9,7 +8,6 @@ static func make(overrides := {}) -> Ship:
 	return ThreeRoomShip.new(overrides)
 
 
-## A FourRoomShip, built like `make`.
 static func make_four_room(overrides := {}) -> Ship:
 	return FourRoomShip.new(overrides)
 

@@ -38,7 +38,6 @@ static func add_ring(ship: Ship, prefix: String, axial_m: float, crewed: Array) 
 				"%s%d" % [prefix, next], Room.Face.PLUS_Z, DOORWAY_M)
 
 
-## Segment k's turn about the axis from segment 0.
 static func segment_basis(k: int) -> Basis:
 	return Basis(Vector3.RIGHT, SEGMENT_ANGLE * k)
 

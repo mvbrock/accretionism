@@ -29,7 +29,6 @@ static func room_tile(ship: Ship, room_id: String) -> Dictionary:
 	}
 
 
-## The worst of the room's readings.
 static func room_level(ship: Ship, room_id: String) -> Status.Level:
 	return Status.worst(_readings(ship, ship.room(room_id)).map(func(reading: Dictionary) -> int: return reading.level))
 
