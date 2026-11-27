@@ -28,7 +28,7 @@ No to-scale map of orbits (the diagram is a schematic, not a map). No fuel, delt
 | Table | Ship, Origin, Progress (% of the trip done), Destination |
 | Parked or docked | Progress and Destination show "-" |
 | Views | A table and a diagram, on separate tabs |
-| Diagram | Earth (blue circle) and the Moon (white circle) on the left, Mars (red circle) on the right. Cyclers are squares, transports are triangles. Lines are solid for the part of the trip done and dotted for the part still to go. Overlapping lines are kept to a minimum |
+| Diagram | Earth (blue circle) and the Moon (white circle) on the left, Mars (red circle) on the right. Cyclers are squares, transports are triangles. Lines are solid for the part of the trip done and dashed for the part still to go, in 8 px dashes 6 px apart on every line, whatever its length. Overlapping lines are kept to a minimum |
 | Cyclers | No destination; they shuttle Earth ↔ Mars forever |
 | Transports | Travel to Earth, Moon, Mars or a cycler |
 | Docking | A transport can dock only with a cycler, never with another transport |
@@ -64,7 +64,7 @@ The sim bisects over [0, horizon] (the horizon is 2 years). This is valid withou
 
 - Every possible target (a planet, the Moon, a cycler) follows a fully predictable path, so the intercept worked out at departure is exact. The sim never has to steer mid-flight or re-estimate.
 - The fastest target is the Moon, at about 31 km/s in the Sun's frame. Transports fly at 50 km/s, so an intercept always exists. The horizon only guards against bugs. If the search ever fails, departure is refused with the message *unreachable*.
-- **Local legs.** Earth's 30 km/s drift through the Sun's frame would make Earth → Moon (about 5 h) and Moon → Earth (about 1.4 h) very unequal, so Earth ↔ Moon trips use Earth's frame instead. A **local leg** is one that leaves Earth or the Moon for the other of the two. A ship on a local leg that is redirected to Earth or the Moon stays on a local leg. Every other leg is flown in the Sun's frame at 50 km/s.
+- **Local legs.** Earth's 30 km/s drift through the Sun's frame would make Earth → Moon (about 5 h) and Moon → Earth (about 1.4 h) very unequal, so Earth ↔ Moon trips use Earth's frame instead. A **local leg** is one that leaves Earth or the Moon for the other of the two. Every other leg is flown in the Sun's frame at 50 km/s.
   - A local leg is solved and flown relative to Earth: every position is an offset from Earth's position that day, and the ship flies at 5 km/s through those offsets. The Moon moves about 1 km/s relative to Earth, slower than the ship, so the intercept is still unique.
   - Both directions take about 384,400 km ÷ 5 km/s ≈ 21 h. Progress and leg length use the leg's own speed.
 - Because arrival times are worked out exactly, a fast clock can't skip past an arrival.
@@ -112,7 +112,7 @@ A cycler is an automated ship that never stops. It runs on a timetable that mimi
 ### Transports
 
 - A transport can be sent to Earth, the Moon, Mars, or any cycler. It can't target the place it is already at or docked to.
-- It can leave from a body, from the cycler it's docked to (the departure point is the cycler's current position), or mid-flight, which redirects it. A redirected trip keeps its original origin. The new leg starts from the ship's current position.
+- It can leave from a body or from the cycler it's docked to (the departure point is the cycler's current position). Once in flight it keeps its destination until it arrives: it can't be sent anywhere else, and the dispatch panel shows where it is headed in place of the dispatch controls.
 - On arrival a transport becomes `AtBody` or `DockedTo`. Any number of transports can dock with one cycler. A docked transport rides through the cycler's flybys until it is sent somewhere.
 
 ## Screen
@@ -137,14 +137,7 @@ The clock bar and dispatch panel stay on screen in both tabs. Switching tabs kee
 | Transport in flight | where the trip started | % of the trip done | target's name |
 | Cycler | planet it last flew past | % of the current leg done | - |
 
-**Progress** is `distance flown ÷ trip length`, rounded down to a whole percent, so 100% shows only on arrival. For a redirected trip, the distance flown before the redirect counts toward both numbers:
-
-```
-progress = (flown before redirect + flown on new leg) ÷ (flown before redirect + new leg length)
-```
-
-A redirect to a farther target can make progress go down.
-
+**Progress** is `distance flown ÷ trip length`, rounded down to two decimal places, so 100.00% shows only on arrival. Every number on screen has two decimal places. 
 ## Diagram view
 
 The diagram is a schematic. It draws trips and how far along they are, not where ships are in space. The only sim values it uses are each ship's state, origin, destination and progress, so it never reads an orbital position.
@@ -180,7 +173,6 @@ The diagram is a schematic. It draws trips and how far along they are, not where
   - The triangle sits on the curve at its progress fraction and points toward the destination.
   - The curve is solid from the origin to the triangle and dotted from the triangle onward.
   - When an end of the curve is a cycler, it follows the square as it moves.
-  - A transport redirected back to where it started draws a teardrop loop that leaves and returns to its origin node on the node's free side: toward the lower left for Earth, the upper left for the Moon and the lower right for Mars. Back to a cycler's square, the loop hangs below the square, so it never hides the docked row above it.
 
 ### Keeping lines from overlapping
 
@@ -189,7 +181,7 @@ The layout follows fixed rules, worked out every frame by a pure function, so ea
 1. **Body-to-body trips stay out of the cycler band.** Trips toward Mars arc above the band, and trips toward Earth or the Moon arc below it. Traffic in each direction keeps to its own side. Mars to Moon goes around Earth's left side: it runs under the band, passes below Earth, and then curves up the left of it to reach the Moon.
 2. **Trips on the same route nest.** When several transports share an origin, a destination and a direction, each one gets its own arc, a step further from the band than the one before. Order is by departure time, so an arc moves only when a trip inside it ends. Nesting is compressed to keep every route on the canvas: once a route is too busy to fit, its step shrinks, so its arcs also shift when a trip joins or leaves.
 3. **Earth-Moon trips are short arcs on the left.** Trips toward the Moon bow to one side and trips back to Earth bow to the other.
-4. **Trips to and from cyclers are straight lines** between the body and the square. They cross only the lanes between that body and the cycler's own lane. Every square is on a lane, so this can't be avoided entirely.
+4. **Trips to and from cyclers bow gently** between the body or square at each end, to the left of the direction of travel, so a trip toward Mars arcs above the straight line and one toward Earth arcs below it, as the body routes do. Each one's midpoint sits a tenth of its length off the straight line, more than the most bent lane, so a trip never reads as a lane. They still cross lanes between that body and the cycler's own lane; every square is on a lane, so this can't be avoided entirely.
 5. **Lines end at different points around a node.** When several lines meet one circle, they start or end at points spread around its edge, ordered by the direction each line leaves in. They don't all converge on the center.
 
 Body-to-body trips never cross a cycler lane. Lanes are crossed only under rule 4. Trips on different routes may cross each other, and so may trips headed in opposite directions to a cycler.
@@ -198,19 +190,23 @@ Body-to-body trips never cross a cycler lane. Lanes are crossed only under rule 
 
 Cycler squares are 14.4 px wide and transport triangles 12 px long. A click within 14.4 px of a ship selects it.
 
+Every ship has a color no other ship shares, spread round the hue wheel in fleet order. The dispatch panel shows the selected ship's icon beside its name, and each cycler in the destination list beside its name.
+
 | Thing | Shape | Color |
 |---|---|---|
 | Earth | circle | blue |
 | Moon | small circle | white |
 | Mars | circle | red |
-| Cycler | square | amber |
-| Transport | triangle | light gray |
+| Cycler | square | its own color |
+| Transport | triangle | its own color |
+| Cycler lane | line | amber |
+| Transport trip | line | light gray |
 | Selected ship | its usual shape | highlighted outline, and its line drawn on top |
 
 ## Controls
 
 - **Clock:** pause/play, speed steps of 1 h, 1 d and 10 d per real second, and the current sim date.
-- **Dispatch:** select a transport (in either view), pick a destination from the valid targets, and see *"Est. travel time: 31 d 4 h"* before pressing **Depart**. Selecting a cycler row shows no dispatch controls.
+- **Dispatch:** select a transport (in either view), pick a destination from the valid targets, and see *"Est. travel time: 31.17 d"* before pressing **Depart**. Selecting a cycler row shows no dispatch controls.
 
 ## Starting fleet
 
@@ -235,8 +231,7 @@ All transports start parked or docked. None start in flight.
   - six cyclers spaced 130 days apart, alternating UP and DOWN
   - transport arrival and docking
   - docked ships moving with their cycler
-  - refused targets (another transport, the current location)
-  - redirect progress
+  - refused targets (another transport, the current location, anywhere for a ship in flight)
   - formatting of every row state
   - building the same fleet from the same seed
   - the diagram layout:

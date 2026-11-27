@@ -183,15 +183,26 @@ func test_earth_moon_trips_bow_to_opposite_sides() -> void:
 	assert_true(side.call(out) * side.call(back) < 0.0, "toward the Moon and back to Earth bow to opposite sides")
 
 
-func test_cycler_trips_are_straight() -> void:
+## How far the curve's midpoint sits off the straight line between its ends, per unit of that line's length.
+func _sag_ratio(points: PackedVector2Array) -> float:
+	var chord := points[points.size() - 1] - points[0]
+	return absf(chord.normalized().cross(points[MIDPOINT] - points[0])) / chord.length()
+
+
+func test_cycler_trips_curve_more_than_the_lanes() -> void:
 	var fleet := _fleet()
 	fleet.advance_to(50.0)
 	var transport := _parked(fleet, "Kestrel", EARTH)
 	fleet.depart(transport, fleet.cyclers[0])
-	var points: PackedVector2Array = DiagramLayout.build(fleet, SIZE).trips[0].points
-	var direction := (points[32] - points[0]).normalized()
-	for p in points:
-		assert_near(direction.cross(p - points[0]), 0.0, 0.01, "every point lies on the straight line")
+	var layout := DiagramLayout.build(fleet, SIZE)
+	var trip: PackedVector2Array = layout.trips[0].points
+	var most_bent_lane := 0.0
+	for lane in layout.lanes:
+		most_bent_lane = maxf(most_bent_lane, _sag_ratio(lane.points))
+	assert_true(_sag_ratio(trip) > most_bent_lane * 1.2,
+		"the trip bends more than any lane (trip %.3f, lane %.3f)" % [_sag_ratio(trip), most_bent_lane])
+	var chord := trip[trip.size() - 1] - trip[0]
+	assert_true(chord.x > 0.0 and chord.cross(trip[MIDPOINT] - trip[0]) < 0.0, "heading toward Mars, it bows up, as body routes to Mars do")
 
 
 func test_triangle_at_progress() -> void:
@@ -380,25 +391,12 @@ func test_busy_routes_stay_on_canvas_and_nest_outward_by_departure() -> void:
 				previous_reach = reach
 
 
-## Transport `t`, flying away from `origin`, turned back to it. A turned-back
-## trip lasts about as long as it had been flying, so turn back soon.
-func _turn_back(fleet: Fleet, t: Transport, origin: Variant) -> void:
-	fleet.advance_to(fleet.day + 0.05)
-	assert_true(t.state == Transport.State.IN_TRANSIT, "%s is still in flight" % t.name)
-	assert_true(fleet.depart(t, origin), "%s turns back" % t.name)
-
-
 func test_body_routes_never_cross_lanes() -> void:
 	var fleet := _fleet()
 	var trips: Array[Transport] = []
 	for route in BODY_ROUTES:
 		trips.append_array(_depart_many(fleet, route[0], route[1], 3))
 	_assert_no_lane_crossings(fleet, trips)
-	for body in [EARTH, MOON, MARS]:
-		var turning_fleet := _fleet()
-		var t: Transport = _depart_many(turning_fleet, body, MARS if body != MARS else EARTH, 1)[0]
-		_turn_back(turning_fleet, t, body)
-		_assert_no_lane_crossings(turning_fleet, [t])
 
 
 func _assert_no_lane_crossings(fleet: Fleet, trips: Array[Transport]) -> void:
@@ -424,57 +422,6 @@ func _on_a_planet_edge(layout: Dictionary, point: Vector2) -> bool:
 		if point.distance_to(body.center) <= body.radius + 1.0:
 			return true
 	return false
-
-
-## Steps the clock to where `t` is `fraction` of the way along its trip.
-func _advance_to_progress(fleet: Fleet, t: Transport, fraction: float) -> void:
-	var total := t.flown_before_km + t.leg_km
-	var leg_fraction := (fraction * total - t.flown_before_km) / t.leg_km
-	fleet.advance_to(t.t0 + leg_fraction * (t.t_arrive - t.t0))
-	assert_near(fleet.progress(t), fraction, 0.01, "%s is %.0f%% of the way" % [t.name, fraction * 100.0])
-
-
-## Loops apart from each other until near the tip, where the two halves meet.
-func _assert_loop_halves_apart(points: PackedVector2Array, what: String) -> void:
-	var last := points.size() - 1
-	var closest := INF
-	for i in 12:
-		closest = minf(closest, points[i].distance_to(points[last - i]))
-	assert_true(closest > 4.0, "%s: the outbound and return halves stay apart (closest %.1f px)" % [what, closest])
-
-
-func test_turning_back_to_a_body_loops_out_past_the_ring() -> void:
-	for body in [EARTH, MOON, MARS]:
-		var fleet := _fleet()
-		var t := _parked(fleet, "Wren", body)
-		assert_true(fleet.depart(t, MARS if body != MARS else EARTH), "Wren departs")
-		_turn_back(fleet, t, body)
-		_advance_to_progress(fleet, t, 0.5)
-		var layout := DiagramLayout.build(fleet, SIZE)
-		var trip: Dictionary = _entry_for(layout.trips, "transport", t)
-		var center := _body_center(layout, body)
-		var radius: float = DiagramLayout.BODY_RADII[body]
-		var name := Orbits.body_name(body)
-		assert_true(trip.tri_pos.distance_to(center) > radius + DiagramLayout.PARKED_RING_GAP,
-			"back to %s: halfway, the triangle is out past the parked ring" % name)
-		assert_near(trip.points[0].distance_to(center), radius, 0.01, "back to %s: the loop leaves from the edge" % name)
-		_assert_loop_halves_apart(trip.points, "back to %s" % name)
-
-
-func test_turning_back_to_a_cycler_loops_below_its_square() -> void:
-	var fleet := _fleet()
-	var host := fleet.cyclers[0] # UP, at Earth on day 0
-	var t := Transport.docked_to("Wren", host)
-	fleet.transports.append(t)
-	assert_true(fleet.depart(t, MOON), "Wren leaves for the Moon")
-	_turn_back(fleet, t, host)
-	var layout := DiagramLayout.build(fleet, SIZE)
-	var trip: Dictionary = _entry_for(layout.trips, "transport", t)
-	var square: Vector2 = _entry_for(layout.cyclers, "cycler", host).pos
-	var highest: float = Array(trip.points).map(func(p: Vector2) -> float: return p.y).min()
-	assert_true(highest > square.y, "the loop hangs below the square, top %.1f vs square %.1f" % [highest, square.y])
-	assert_true(trip.tri_pos.distance_to(square) > 1.0, "the triangle is off the square")
-	_assert_loop_halves_apart(trip.points, "back to %s" % host.name)
 
 
 func test_docked_row_clears_the_planet_at_a_flyby() -> void:

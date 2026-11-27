@@ -18,6 +18,13 @@ func assert_near(actual: float, expected: float, tolerance: float, message: Stri
 		failures.append("%s (got %.4f, expected %.4f ± %.4f)" % [message, actual, expected, tolerance])
 
 
+## Within one 8-bit step per channel, the precision of an RGBA8 texture.
+func assert_color_near(actual: Color, expected: Color, message: String) -> void:
+	var off := maxf(maxf(absf(actual.r - expected.r), absf(actual.g - expected.g)), maxf(absf(actual.b - expected.b), absf(actual.a - expected.a)))
+	if off > 1.0 / 255.0:
+		failures.append("%s (got %s, expected %s)" % [message, actual, expected])
+
+
 ## Declares that this test deliberately logs an error containing `substring`
 ## (for example through push_error). The test fails if none arrives.
 func expect_error(substring: String) -> void:

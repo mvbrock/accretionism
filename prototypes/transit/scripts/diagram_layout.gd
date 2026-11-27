@@ -22,6 +22,11 @@ const BODY_CENTERS := {
 }
 const BODY_RADII := {Orbits.Body.EARTH: 40.0, Orbits.Body.MOON: 16.0, Orbits.Body.MARS: 36.0}
 
+## A trip to or from a cycler bows to the left of its direction of travel (so
+## toward Mars it arcs above, like the body routes), its control point this
+## fraction of the trip's length off the straight line. Its midpoint then sits
+## a tenth of its length off, more than the most bent lane's 0.07.
+const CYCLER_TRIP_BOW := 0.2
 ## Lane control points step down the band by this much, in phase order.
 const LANE_SPACING := 64.0
 ## Lane ends are spaced this far apart along each planet's edge, in phase order,
@@ -47,22 +52,6 @@ const NEST_FIT_ITERATIONS := 20
 ## from Mars steeper than the lanes' fan; nested trips push both outward.
 const MARS_MOON_FIRST_CONTROL := Vector2(860, BAND_Y + 800)
 const MARS_MOON_SECOND_CONTROL := Vector2(-200, 600)
-## A trip turned back to its own origin flies a teardrop loop off the node's free
-## side: it leaves and returns LOOP_SPREAD either side of that direction, and its
-## control points reach out by the loop's reach, LOOP_FLARE either side of it.
-const LOOP_SPREAD := 0.5
-const LOOP_FLARE := 0.5
-const BODY_LOOP_REACH := 64.0
-## A cycler's loop hangs below its square (its docked row is above), starting a
-## little off the square's center so its triangle never hides under the square.
-const CYCLER_LOOP_ROOT := 9.0
-const CYCLER_LOOP_REACH := 40.0
-## Each body's free side: away from the lanes, its label and the Moon routes.
-const LOOP_DIRECTIONS := {
-	Orbits.Body.EARTH: 3.0 * PI / 4.0, # down and left
-	Orbits.Body.MOON: -2.6, # up and left
-	Orbits.Body.MARS: PI / 4.0, # down and right
-}
 const PARKED_RING_GAP := 16.8
 const DOCKED_ROW_RISE := 18.0
 const DOCKED_ROW_SPACING := 14.4
@@ -145,28 +134,22 @@ static func _lane_points(i: int) -> PackedVector2Array:
 static func _trip_points(fleet: Fleet, t: Transport, square_at: Dictionary, outward: float) -> PackedVector2Array:
 	var origin: Variant = _origin_node(fleet, t)
 	var destination: Variant = t.target
-	var is_turned_back := t.origin_name == Fleet.target_name(destination)
-	if is_turned_back and origin is Cycler:
-		return _loop(square_at[origin], CYCLER_LOOP_ROOT, PI / 2.0, CYCLER_LOOP_REACH)
 	if origin is Cycler or destination is Cycler:
 		var start: Vector2 = square_at[origin] if origin is Cycler else BODY_CENTERS[origin]
 		var end: Vector2 = square_at[destination] if destination is Cycler else BODY_CENTERS[destination]
 		if not origin is Cycler:
-			start = _edge_facing(origin, end)
+			start = _edge_facing(origin, _bow_control(BODY_CENTERS[origin], end))
 		if not destination is Cycler:
-			end = _edge_facing(destination, start)
-		return _line(start, end)
+			end = _edge_facing(destination, _bow_control(start, BODY_CENTERS[destination]))
+		return _bowed(start, end)
 	return _route_points(origin, destination, outward)
 
 
-## A route between bodies, or a loop back to the same body, `outward` further
-## out than the route's first trip.
+## A route between two bodies, `outward` further out than the route's first trip.
 static func _route_points(origin: Orbits.Body, destination: Orbits.Body, outward: float) -> PackedVector2Array:
 	var from_center: Vector2 = BODY_CENTERS[origin]
 	var to_center: Vector2 = BODY_CENTERS[destination]
 	var middle := (from_center + to_center) / 2.0
-	if origin == destination:
-		return _loop(from_center, BODY_RADII[origin], LOOP_DIRECTIONS[origin], BODY_LOOP_REACH + outward)
 	if _is_earth_moon(origin, destination):
 		# The + side, taken toward the Moon, is the one facing up and right.
 		var away_from_screen_edge := -(BODY_CENTERS[_MOON] - BODY_CENTERS[_EARTH]).normalized().orthogonal()
@@ -227,7 +210,7 @@ static func _nest_offsets(fleet: Fleet) -> Dictionary:
 ## The route's full nesting step, or the largest smaller one (found by bisection)
 ## that keeps all `count` of its trips inside the canvas.
 static func _fitted_nest_step(origin: Orbits.Body, destination: Orbits.Body, count: int) -> float:
-	var is_short_route := origin == destination or _is_earth_moon(origin, destination)
+	var is_short_route := _is_earth_moon(origin, destination)
 	var full_step := MOON_ROUTE_NEST_STEP if is_short_route else ROUTE_NEST_STEP
 	var outermost := count - 1
 	var fits := func(step: float) -> bool:
@@ -393,20 +376,12 @@ static func _cubic(start: Vector2, first: Vector2, second: Vector2, end: Vector2
 	return points
 
 
-## A teardrop leaving `root` out from `center`, LOOP_SPREAD to one side of
-## `direction`, and coming back the same distance out on the other side.
-static func _loop(center: Vector2, root: float, direction: float, reach: float) -> PackedVector2Array:
-	var leave := center + Vector2.from_angle(direction - LOOP_SPREAD) * root
-	var come_back := center + Vector2.from_angle(direction + LOOP_SPREAD) * root
-	return _cubic(leave, leave + Vector2.from_angle(direction - LOOP_FLARE) * reach,
-		come_back + Vector2.from_angle(direction + LOOP_FLARE) * reach, come_back)
+static func _bowed(start: Vector2, end: Vector2) -> PackedVector2Array:
+	return _bezier(start, _bow_control(start, end), end)
 
 
-static func _line(start: Vector2, end: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in CURVE_POINTS:
-		points.append(start.lerp(end, float(i) / (CURVE_POINTS - 1)))
-	return points
+static func _bow_control(start: Vector2, end: Vector2) -> Vector2:
+	return (start + end) / 2.0 + (end - start).orthogonal() * CYCLER_TRIP_BOW
 
 
 static func _points_to_screen(points: PackedVector2Array, to_screen: Callable) -> PackedVector2Array:

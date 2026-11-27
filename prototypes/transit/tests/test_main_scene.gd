@@ -95,7 +95,7 @@ func test_unreachable_disables_depart() -> void:
 	assert_true(main.dispatch.estimate_label.text == "Est. travel time: unreachable", "says so")
 	assert_true(main.dispatch.depart_button.disabled, "Depart is disabled")
 	main.dispatch.show_estimate(31.1667)
-	assert_true(main.dispatch.estimate_label.text == "Est. travel time: 31 d 4 h", "got %s" % main.dispatch.estimate_label.text)
+	assert_true(main.dispatch.estimate_label.text == "Est. travel time: 31.17 d", "got %s" % main.dispatch.estimate_label.text)
 	assert_true(not main.dispatch.depart_button.disabled, "Depart is enabled again")
 
 
@@ -137,7 +137,7 @@ func test_scaled_window_size_fits_the_screen() -> void:
 	assert_near(float(size.x) / size.y, 16.0 / 9.0, 0.01, "keeps the 16:9 shape")
 
 
-func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() -> void:
+func test_a_ship_in_flight_shows_its_destination_until_it_arrives() -> void:
 	var main := _main()
 	var kestrel: Transport = _ship(main, "Kestrel")
 	main.select(kestrel)
@@ -146,14 +146,17 @@ func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() ->
 	main.dispatch.targets.select(mars_index)
 	main.dispatch.depart_button.pressed.emit()
 	assert_true(kestrel.state == Transport.State.IN_TRANSIT, "Kestrel is on its way")
-	main.dispatch.targets.select(_option_texts(main).find("Mars"))
-	assert_true(main.dispatch.selected_target() == Orbits.Body.MARS, "Mars is chosen mid-flight")
+	assert_true(main.dispatch.note_label.visible and main.dispatch.note_label.text == "In flight to Mars.",
+		"the panel says where it is headed, got '%s'" % main.dispatch.note_label.text)
+	for control in [main.dispatch.targets, main.dispatch.estimate_label, main.dispatch.depart_button]:
+		assert_true(not control.visible, "%s hides while it flies" % control.name)
 
 	main.fleet.advance_to(main.fleet.day + 1000.0)
 	main.dispatch.refresh()
-	assert_true(not _option_texts(main).has("Mars"), "Mars is no longer a target once Kestrel has arrived")
-	assert_true(main.dispatch.selected_target() == null, "nothing is selected")
-	assert_true(main.dispatch.targets.selected == -1, "the list shows no choice")
+	assert_true(not main.dispatch.note_label.visible, "the note goes once Kestrel has arrived")
+	assert_true(main.dispatch.targets.visible and main.dispatch.depart_button.visible, "the controls come back")
+	assert_true(not _option_texts(main).has("Mars"), "Mars is no longer a target")
+	assert_true(main.dispatch.selected_target() == null, "nothing is chosen for it")
 	assert_true(main.dispatch.estimate_label.text == "Pick a destination", "got '%s'" % main.dispatch.estimate_label.text)
 	assert_true(main.dispatch.depart_button.disabled, "Depart is disabled until a destination is picked")
 
@@ -162,10 +165,36 @@ func test_dispatch_selects_nothing_when_the_chosen_target_stops_being_valid() ->
 	assert_true(main.dispatch.estimate_label.text.begins_with("Est. travel time: "), "picking a target brings the estimate back")
 	assert_true(not main.dispatch.depart_button.disabled, "and Depart")
 
-
 func test_dispatch_keeps_the_list_when_its_targets_have_not_changed() -> void:
 	var main := _main()
 	main.select(_ship(main, "Kestrel"))
 	main.dispatch.targets.set_item_metadata(0, "still the same item")
 	main.dispatch.refresh()
 	assert_true(main.dispatch.targets.get_item_metadata(0) == "still the same item", "refresh leaves an unchanged list alone")
+
+
+func test_panel_title_shows_the_selected_ship_icon() -> void:
+	var main := _main()
+	assert_true(not main.dispatch.ship_icon.visible, "no icon with nothing selected")
+	for ship_name in ["Kestrel", "Aldrin III"]:
+		var ship: Variant = _ship(main, ship_name)
+		main.select(ship)
+		var image: Image = main.dispatch.ship_icon.texture.get_image()
+		var middle := image.get_pixelv(Vector2i(image.get_width() / 2, image.get_height() * 6 / 10))
+		assert_true(main.dispatch.ship_icon.visible, "%s's icon shows" % ship_name)
+		assert_color_near(middle, main.icons.color_of(ship), "%s's icon is in its color" % ship_name)
+	main.select(null)
+	assert_true(not main.dispatch.ship_icon.visible, "the icon hides again")
+
+
+func test_cycler_targets_show_their_icons() -> void:
+	var main := _main()
+	var kestrel: Transport = _ship(main, "Kestrel")
+	main.select(kestrel)
+	var valid := main.fleet.valid_targets(kestrel)
+	assert_true(main.dispatch.targets.item_count == valid.size(), "the list shows every valid target")
+	for i in valid.size():
+		var has_icon := main.dispatch.targets.get_item_icon(i) != null
+		assert_true(has_icon == valid[i] is Cycler, "%s %s an icon" % [Fleet.target_name(valid[i]), "has" if has_icon else "lacks"])
+	assert_true(main.dispatch.targets.get_theme_constant("icon_max_width") == DispatchPanel.TARGET_ICON_WIDTH, "the button shows icons at logical size")
+	assert_true(main.dispatch.targets.get_popup().get_theme_constant("icon_max_width") == DispatchPanel.TARGET_ICON_WIDTH, "so does its list")

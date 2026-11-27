@@ -11,6 +11,7 @@ const TABLE_TAB := 0
 const DIAGRAM_TAB := 1
 
 var fleet: Fleet
+var icons: ShipIcons
 var clock := SimClock.new()
 ## The selected Cycler or Transport, or null.
 var selected: Variant = null
@@ -31,7 +32,9 @@ func _ready() -> void:
 	fleet = FleetLoader.load_file(FLEET_PATH)
 	assert(fleet != null, "could not load %s" % FLEET_PATH)
 	clock.day = fleet.day
-	table.show_fleet(_ships(), TableModel.rows(fleet))
+	icons = ShipIcons.new(fleet)
+	dispatch.icons = icons
+	table.show_fleet(fleet.ships(), TableModel.rows(fleet))
 	table.ship_selected.connect(select)
 	diagram.attach(self)
 	dispatch.depart_requested.connect(_on_depart_requested)
@@ -93,10 +96,6 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().quit()
-
-
-func _ships() -> Array:
-	return fleet.cyclers + fleet.transports
 
 
 func _toggle_pause() -> void:
@@ -174,7 +173,7 @@ class CaptureScript:
 			push_warning("capture: %s could not depart for %s" % [ship_name, target_name])
 
 	func _ship(ship_name: String) -> Variant:
-		for ship in _main._ships():
+		for ship in _main.fleet.ships():
 			if ship.name == ship_name:
 				return ship
 		return null
