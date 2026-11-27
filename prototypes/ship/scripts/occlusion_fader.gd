@@ -15,6 +15,8 @@ const RAY_LENGTH := 80.0
 
 ## Meshes currently faded or fading back in.
 var _tracked: Array[MeshInstance3D] = []
+## Nodes this fader has hidden for the cutaway.
+var _cut_away: Array[Node3D] = []
 
 
 func _process(delta: float) -> void:
@@ -22,6 +24,7 @@ func _process(delta: float) -> void:
 
 
 func step(delta: float) -> void:
+	_apply_cutaway()
 	var occluders := find_occluders()
 	for mesh in occluders:
 		if mesh not in _tracked:
@@ -39,6 +42,19 @@ func step(delta: float) -> void:
 		else:
 			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.albedo_color = color
+
+
+## Hides the ship's cutaway nodes above the target and shows any it hid before that are no longer cut away.
+func _apply_cutaway() -> void:
+	var wanted: Array[Node3D] = []
+	if ship != null and target != null:
+		wanted = ship.cutaway_nodes(target.global_position)
+	for node in _cut_away:
+		if is_instance_valid(node) and node not in wanted:
+			node.visible = true
+	for node in wanted:
+		node.visible = false
+	_cut_away = wanted
 
 
 ## Points on the target's body (feet, middle, head, and either side) that the camera should see.

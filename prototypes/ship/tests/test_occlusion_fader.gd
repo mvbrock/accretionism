@@ -1,6 +1,7 @@
 extends TestCase
 
 var ship: RingShip
+var decks: DeckShip
 var player: Player
 var rig: CameraRig
 var fader: OcclusionFader
@@ -89,3 +90,47 @@ func test_sight_points_follow_floating_body() -> void:
 	for point in fader.sight_points():
 		var height := RingGeometry.floor_apothem() - point.dot(RingGeometry.section_down(0))
 		assert_true(height > 2.0 and height < 3.0, "sight point on the floating body (%.2f m up)" % height)
+
+
+func _cutaway_setup(y: float) -> Node3D:
+	decks = DeckShip.new()
+	decks.deck_count = 3
+	own(decks)
+	var body: Node3D = own(Node3D.new())
+	body.global_position = Vector3(0, y, 0)
+	fader = OcclusionFader.new()
+	fader.ship = decks
+	fader.target = body
+	own(fader)
+	fader.set_process(false)
+	return body
+
+
+func test_cutaway_hides_decks_above_target() -> void:
+	var body := _cutaway_setup(1.0)
+	fader.step(1.0 / 60.0)
+	assert_true(not decks.get_node("Deck1").visible, "Deck1 hidden")
+	assert_true(not decks.get_node("Deck2").visible, "Deck2 hidden")
+	assert_true(decks.get_node("Deck0").visible, "Deck0 visible")
+	body.global_position = Vector3(0, 2.0 * DeckShip.PITCH + 1.0, 0)
+	fader.step(1.0 / 60.0)
+	for i in 3:
+		assert_true(decks.get_node("Deck%d" % i).visible, "Deck%d visible on the top deck" % i)
+
+
+func test_cutaway_restored_when_ship_changes() -> void:
+	_cutaway_setup(1.0)
+	fader.step(1.0 / 60.0)
+	assert_true(not decks.get_node("Deck1").visible, "Deck1 hidden")
+	fader.ship = own(RingShip.new())
+	fader.step(1.0 / 60.0)
+	assert_true(decks.get_node("Deck1").visible, "Deck1 shown again")
+	assert_true(decks.get_node("Deck2").visible, "Deck2 shown again")
+
+
+func test_no_cutaway_on_ring() -> void:
+	await _setup()
+	fader.step(1.0 / 60.0)
+	for child in ship.get_children():
+		if child.name.begins_with("Section"):
+			assert_true(child.visible, "%s visible" % child.name)
