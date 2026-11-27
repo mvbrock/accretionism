@@ -20,6 +20,11 @@ var room_b: String  # OUTSIDE for a hatch
 var face_a := Room.Face.PLUS_Z
 ## The face of room_b it sits on; unused for a hatch.
 var face_b := Room.Face.MINUS_Z
+## Where the opening's centre is, in ship space. Neighbouring rooms meet at a door, so one point
+## serves both faces.
+var position := Vector3.ZERO
+## The opening's width and height in metres, for drawing it and for how much it passes.
+var size := Vector2.ZERO
 var travel_s: float
 var fraction := 0.0  # 0 closed, 1 fully open
 var state := State.CLOSED

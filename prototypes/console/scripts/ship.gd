@@ -19,13 +19,22 @@ const LIGHT_BREAKER_PREFIX := "light-"
 const _STEP_EPSILON := 1e-9
 ## A room's walls, floor and ceiling can each carry a door, no more.
 const MAX_DOORS_PER_ROOM := 6
-## Door and hatch numbers `add_door` and `add_hatch` use unless told otherwise.
+## A door's size (width, height) in metres. The reference door, 1 x 2 m, passes the numbers below;
+## a door of another area passes in proportion.
+const DOOR_SIZE_M := Vector2(1.0, 2.0)
+## Hatches are not scaled by size; this is only how big one is drawn.
+const HATCH_SIZE_M := Vector2(1.0, 1.0)
 const DOOR_TRAVEL_S := 2.0
 const DOOR_CONDUCTANCE_M3S := 10.0
 const DOOR_MIXING_M3S := 0.5
 const DOOR_HEAT_W_PER_K := 100.0
 const HATCH_TRAVEL_S := 6.0
 const HATCH_CONDUCTANCE_M3S := 5.0
+## The defaults were tuned for a ship of this much air. A bigger ship's tanks and pressure control
+## grow with its total volume, and each room's HVAC with that room's volume against the largest
+## room the defaults were tuned for. Smaller ones keep the defaults.
+const REFERENCE_SHIP_VOLUME_M3 := 82.0
+const REFERENCE_ROOM_VOLUME_M3 := 40.0
 
 ## Every system, the computer last.
 static var SYSTEM_IDS: Array[String] = _system_ids()
@@ -54,6 +63,9 @@ var _tank_was_empty: Dictionary = {}  # gas -> bool
 var _setpoints_pa: Dictionary = {}
 var _setpoint_k := 0.0
 var _hull_k := 0.0
+var _pressure_control_max_mol_s := 0.0
+var _hvac_scale: Dictionary = {}  # room id -> factor on the HVAC's gain and max watts
+var _unplaced: Array[Opening] = []  # openings that take the centre of their face once the rooms exist
 
 
 func _init(overrides := {}) -> void:
@@ -63,18 +75,23 @@ func _init(overrides := {}) -> void:
 	transmission_s = float(params.transmission_s)
 	_build()
 	_check_doors()
+	_place_openings()
 	power = PowerPanel.new(int(params.seed), float(params.breakers.mean_time_between_trips_h) * 3600.0,
 			_breaker_ids())
 	for id in SYSTEM_IDS:
 		var section: Dictionary = params[id.replace("-", "_")]
 		systems[id] = SystemUnit.new(id, float(section.boot_s))
+	var ship_scale := maxf(1.0, _total_volume() / REFERENCE_SHIP_VOLUME_M3)
 	for gas in params.tanks:
 		var entry: Dictionary = params.tanks[gas]
-		tanks[gas] = Tank.new(gas, float(entry.capacity_mol), float(entry.start_mol))
+		tanks[gas] = Tank.new(gas, float(entry.capacity_mol) * ship_scale, float(entry.start_mol) * ship_scale)
 		_tank_was_empty[gas] = false
+	_pressure_control_max_mol_s = float(params.pressure_control.max_mol_s) * ship_scale
 	for room_ in rooms:
 		light_switches[room_.id] = true
 		last_hvac_w[room_.id] = 0.0
+		# Gain scales with max watts, or a big room's hull loss would leave it a few degrees cold.
+		_hvac_scale[room_.id] = maxf(1.0, room_.volume / REFERENCE_ROOM_VOLUME_M3)
 	_setpoints_pa = {"O2": params.setpoints.o2_kpa * 1000.0, "N2": params.setpoints.n2_kpa * 1000.0}
 	_setpoint_k = Units.kelvin(params.setpoints.temperature_c)
 	_hull_k = Units.kelvin(params.heat.hull_temperature_c)
@@ -94,9 +111,12 @@ func _param_overrides() -> Dictionary:
 
 ## A room: `size_m` (x width, y height, z length) in metres, centred at `position` in ship space,
 ## turned by `orientation` (see `yaw`). Volume is size.x * size.y * size.z. It starts at the
-## `params.start` air. Returns the room.
+## `params.start` air. Returns the room, or null (and an error naming the id) if the id is taken.
 func add_room(id: String, size_m: Vector3, position: Vector3, orientation := Basis.IDENTITY,
 		passengers := 0) -> Room:
+	if room(id) != null:
+		push_error("Room '%s' already exists" % id)
+		return null
 	var start: Dictionary = params.start
 	var room_ := Room.new(id, size_m.x * size_m.y * size_m.z, Units.kelvin(start.temperature_c), passengers)
 	room_.size = size_m
@@ -112,33 +132,40 @@ func add_room(id: String, size_m: Vector3, position: Vector3, orientation := Bas
 
 
 ## A door between two rooms, on `face_a` of `room_a` and `face_b` of `room_b` (each face in
-## that room's own frame). Two doors may share a face. A room has at most MAX_DOORS_PER_ROOM
-## doors; one more is an error naming the room, and nothing is added (returns null).
+## that room's own frame). It is `size_m` (width, height) and centred at `at`, a point in ship
+## space; by default at the centre of `room_a`'s face. Conductance, mixing and heat conductance
+## scale with its area against the reference door `DOOR_SIZE_M`. Two doors may share a face. A
+## room has at most MAX_DOORS_PER_ROOM doors; one more is an error naming the room, and nothing
+## is added (returns null). So is a taken id.
 func add_door(id: String, room_a: String, face_a: Room.Face, room_b: String, face_b: Room.Face,
-		travel_s := DOOR_TRAVEL_S, conductance_m3s := DOOR_CONDUCTANCE_M3S) -> Opening:
+		size_m := DOOR_SIZE_M, at: Variant = null) -> Opening:
 	if id.begins_with(Opening.HATCH_PREFIX):
 		push_error("Door '%s' cannot start with '%s'; that is for hatches" % [id, Opening.HATCH_PREFIX])
 		return null
-	var opening_ := Opening.new(id, room_a, room_b, travel_s)
+	var opening_ := Opening.new(id, room_a, room_b, DOOR_TRAVEL_S)
 	opening_.face_a = face_a
 	opening_.face_b = face_b
-	opening_.conductance = conductance_m3s
-	opening_.mixing = DOOR_MIXING_M3S
-	opening_.heat_conductance = DOOR_HEAT_W_PER_K
-	return _add_opening(opening_)
+	opening_.size = size_m
+	var scale := size_m.x * size_m.y / (DOOR_SIZE_M.x * DOOR_SIZE_M.y)
+	opening_.conductance = DOOR_CONDUCTANCE_M3S * scale
+	opening_.mixing = DOOR_MIXING_M3S * scale
+	opening_.heat_conductance = DOOR_HEAT_W_PER_K * scale
+	return _add_opening(opening_, at)
 
 
-## An opening between `room_id` and outside, on `face` of the room. Its id must start with
-## `hatch`; a ship may have any number. Returns null on an error, like `add_door`.
+## An opening between `room_id` and outside, on `face` of the room, `size_m` and centred at `at`
+## like a door (size only matters for drawing). Its id must start with `hatch`; a ship may have
+## any number. Returns null on an error, like `add_door`.
 func add_hatch(id: String, room_id: String, face: Room.Face, travel_s := HATCH_TRAVEL_S,
-		conductance_m3s := HATCH_CONDUCTANCE_M3S) -> Opening:
+		conductance_m3s := HATCH_CONDUCTANCE_M3S, size_m := HATCH_SIZE_M, at: Variant = null) -> Opening:
 	if not id.begins_with(Opening.HATCH_PREFIX):
 		push_error("Hatch '%s' must start with '%s'" % [id, Opening.HATCH_PREFIX])
 		return null
 	var opening_ := Opening.new(id, room_id, Opening.OUTSIDE, travel_s)
 	opening_.face_a = face
+	opening_.size = size_m
 	opening_.conductance = conductance_m3s
-	return _add_opening(opening_)
+	return _add_opening(opening_, at)
 
 
 ## A rotation of `degrees` about the vertical (y) axis, for a room's `orientation`.
@@ -155,14 +182,39 @@ func doors_of(room_id: String) -> Array[Opening]:
 	return found
 
 
-func _add_opening(opening_: Opening) -> Opening:
+func _add_opening(opening_: Opening, at: Variant) -> Opening:
+	if opening(opening_.id) != null:
+		push_error("Opening '%s' already exists" % opening_.id)
+		return null
 	for room_id in [opening_.room_a, opening_.room_b]:
 		if room_id != Opening.OUTSIDE and doors_of(room_id).size() >= MAX_DOORS_PER_ROOM:
 			push_error("Room '%s' already has %d doors; '%s' would be one too many" % [
 					room_id, MAX_DOORS_PER_ROOM, opening_.id])
 			return null
+	if at != null:
+		opening_.position = at
+	elif room(opening_.room_a) != null:
+		opening_.position = room(opening_.room_a).face_center(opening_.face_a)
+	else:
+		_unplaced.append(opening_)
 	openings.append(opening_)
 	return opening_
+
+
+## Rooms may be added after the doors that name them, so centring waits for the build to finish.
+func _place_openings() -> void:
+	for opening_ in _unplaced:
+		var host := room(opening_.room_a)
+		if host != null:
+			opening_.position = host.face_center(opening_.face_a)
+	_unplaced.clear()
+
+
+func _total_volume() -> float:
+	var total := 0.0
+	for room_ in rooms:
+		total += room_.volume
+	return total
 
 
 ## Reports each opening that names a room the build never added.
@@ -442,7 +494,7 @@ func _run_pressure_control(dt: float) -> void:
 		return
 	for r in rooms:
 		LifeSupport.pressure_control(r, exposed[r.id], tanks, _setpoints_pa,
-				params.pressure_control.max_mol_s, dt)
+				_pressure_control_max_mol_s, dt)
 
 
 func _run_recycler(dt: float) -> void:
@@ -474,7 +526,8 @@ func _apply_heat(dt: float) -> void:
 			watts += params.heat.light_w
 		var hvac_w := 0.0
 		if hvac_running:
-			hvac_w = LifeSupport.hvac_heat_w(r, _setpoint_k, params.hvac.gain_w_per_k, params.hvac.max_w)
+			hvac_w = LifeSupport.hvac_heat_w(r, _setpoint_k,
+					params.hvac.gain_w_per_k * _hvac_scale[r.id], params.hvac.max_w * _hvac_scale[r.id])
 		last_hvac_w[r.id] = hvac_w
 		Atmosphere.add_heat(r, (watts + hvac_w) * dt)
 		Atmosphere.hull_loss(r, _hull_k, dt)
