@@ -2,7 +2,10 @@ extends Node3D
 ## Wires up the prototype. Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks, turns gravity off, saves shots, then quits)
 
-const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800, 2100, 2400, 2700]
+const WHEEL_SHOT_FRAME := 2700
+## The last shot, taken this many frames after the player floats into the Wheel's middle hub room.
+const HUB_SHOT_DELAY := 200
+const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800, 2100, 2400, WHEEL_SHOT_FRAME, WHEEL_SHOT_FRAME + HUB_SHOT_DELAY]
 
 @onready var player: Player = $Player
 @onready var rig: CameraRig = $CameraRig
@@ -26,6 +29,15 @@ func _ready() -> void:
 		_capture_dir = args[i + 1]
 		player.drive_by_code = true
 		player.move_input = Vector2(0.35, 1.0)
+
+
+## Boards the player, floating and facing +X, into the Wheel's middle hub room at spoke (1, 0)'s hub landing.
+func _float_into_hub() -> void:
+	var wheel: Ship = fleet.active
+	var landing_exit: Vector3 = wheel.ladders[1 * WheelShip.SPOKE_SECTIONS.size()].landings[1].exit
+	player.move_input = Vector2.ZERO
+	player.board(wheel, PlayerPose.new(landing_exit, Vector2(1, 0), false))
+	rig.snap()
 
 
 func _show_ship_name(ship: Ship) -> void:
@@ -74,6 +86,8 @@ func _process(_delta: float) -> void:
 		fleet.next_ship()
 	if _frame == 2450:
 		fleet.next_ship()
+	if _frame == WHEEL_SHOT_FRAME + 1:
+		_float_into_hub()
 	if _frame in CAPTURE_FRAMES:
 		var image := get_viewport().get_texture().get_image()
 		image.save_png("%s/shot_%04d.png" % [_capture_dir, _frame])

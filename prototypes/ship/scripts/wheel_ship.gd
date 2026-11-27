@@ -73,10 +73,9 @@ func room_at(p: Vector3) -> String:
 		var local: Vector3 = shaft[1] * p
 		if absf(local.x) < PIPE_INNER and absf(local.z) < PIPE_INNER and local.y >= 0.0 and local.y <= spoke_length():
 			return shaft[0]
-	if absf(p.y) <= HUB_HALF_SIZE + SLAB and absf(p.z) <= HUB_HALF_SIZE + SLAB:
-		for i in RING_CENTERS.size():
-			if absf(p.x - RING_CENTERS[i]) <= ROOM_LENGTH / 2.0:
-				return _hub_name(i)
+	var hub := _hub_index_at(p)
+	if hub != -1:
+		return _hub_name(hub)
 	for hull in _rings:
 		var room := hull.room_at(p)
 		if room != "":
@@ -84,9 +83,17 @@ func room_at(p: Vector3) -> String:
 	return ""
 
 
-## Every ring, with its spokes, and every hub room wholly on the camera's side (+X) of `p`: they would cover the view of the player.
+## Every ring, with its spokes, every hub room, and every bulkhead and the aft end wall wholly on the camera's side (+X) of `p`:
+## they would cover the view of the player. A player in a hub room keeps that room's own +X bulkhead, which fades as the room's bound.
 func cutaway_nodes(p: Vector3) -> Array[Node3D]:
 	var nodes: Array[Node3D] = []
+	var hub := _hub_index_at(p)
+	var boundary := p.x if hub == -1 else _room_max_x(hub)
+	for i in range(1, RING_CENTERS.size()):
+		if _room_max_x(i - 1) > boundary:
+			nodes.append(get_node("Bulkhead%d" % i))
+	if _room_max_x(RING_CENTERS.size() - 1) > boundary:
+		nodes.append(get_node("HubEndAft"))
 	for ring in RING_CENTERS.size():
 		if RING_CENTERS[ring] - RingGeometry.HALF_WIDTH - SLAB > p.x:
 			nodes.append(get_node("Ring%d" % ring))
@@ -111,6 +118,20 @@ static func spoke_frame(ring: int, k: int) -> Transform3D:
 
 static func _hub_name(i: int) -> String:
 	return "Hub%d" % i
+
+
+static func _room_max_x(i: int) -> float:
+	return RING_CENTERS[i] + ROOM_LENGTH / 2.0
+
+
+## The index of the hub room containing `p`, or -1.
+func _hub_index_at(p: Vector3) -> int:
+	if absf(p.y) > HUB_HALF_SIZE + SLAB or absf(p.z) > HUB_HALF_SIZE + SLAB:
+		return -1
+	for i in RING_CENTERS.size():
+		if absf(p.x - RING_CENTERS[i]) <= ROOM_LENGTH / 2.0:
+			return i
+	return -1
 
 
 func _build_rings() -> void:

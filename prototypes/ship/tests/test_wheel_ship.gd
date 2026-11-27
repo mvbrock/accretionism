@@ -164,13 +164,15 @@ func _ring_with_spokes(ring: int) -> Array:
 
 func test_cutaway() -> void:
 	var ship := await _make_ship()
-	var expected := _ring_with_spokes(2) + ["Hub2"]
+	var expected := _ring_with_spokes(2) + ["Hub2", "Bulkhead2", "HubEndAft"]
 	expected.sort()
-	assert_true(_cutaway_names(ship, ship.spawn_point()) == expected, "ring 1 hides ring 2, its spokes and Hub2")
-	expected = _ring_with_spokes(1) + _ring_with_spokes(2) + ["Hub1", "Hub2"]
+	assert_true(_cutaway_names(ship, ship.spawn_point()) == expected, "ring 1 hides ring 2, its spokes, Hub2, bulkhead 2 and the aft end")
+	expected = _ring_with_spokes(1) + _ring_with_spokes(2) + ["Hub1", "Hub2", "Bulkhead2", "HubEndAft"]
 	expected.sort()
-	assert_true(_cutaway_names(ship, Vector3(-24, -4, 0)) == expected, "Hub0 hides rings 1 and 2, their spokes, Hub1 and Hub2")
-	assert_true(_cutaway_names(ship, Vector3(24, -47, 0)).is_empty(), "ring 2 hides nothing")
+	var in_hub0 := _cutaway_names(ship, Vector3(-24, -4, 0))
+	assert_true(in_hub0 == expected, "Hub0 hides rings 1 and 2, their spokes, Hub1, Hub2, bulkhead 2 and the aft end, not bulkhead 1 (got %s)" % [in_hub0])
+	assert_true(_cutaway_names(ship, Vector3(24, -4, 0)).is_empty(), "Hub2 hides no bulkhead or end wall")
+	assert_true(_cutaway_names(ship, Vector3(24, -47, 0)) == ["HubEndAft"], "ring 2 hides only the aft end wall beyond it")
 
 
 func test_every_hub_landing_is_lit() -> void:
