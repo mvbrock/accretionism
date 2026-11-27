@@ -1,9 +1,7 @@
 extends TestCase
 
 func _ship(mean_trip_h := 0.0) -> Ship:
-	var data := ShipFixture.four_room_data()
-	data.breakers.mean_time_between_trips_h = mean_trip_h
-	return ShipLoader.from_dict(data)
+	return ShipFixture.make_four_room({"breakers": {"mean_time_between_trips_h": mean_trip_h}})
 
 func test_loads_with_a_breaker_per_room_light_and_opening() -> void:
 	var ship := _ship()
@@ -61,10 +59,11 @@ func _tile_title(view: DashboardView, tile: Node) -> String:
 	return "?"
 
 func test_schematic_places_a_door_after_the_earlier_of_its_rooms() -> void:
-	var data := ShipFixture.four_room_data()
-	data.openings[0].between = ["cockpit", "treehouse"]
+	var ship := ShipFixture.make_four_room()
+	ship.opening("d0").room_a = "cockpit"
+	ship.opening("d0").room_b = "treehouse"
 	var view := DashboardView.new()
 	own(view)
-	view.show_ship(ShipLoader.from_dict(data))
+	view.show_ship(ship)
 	var order := _schematic_order(view)
 	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))

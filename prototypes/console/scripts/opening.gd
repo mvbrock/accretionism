@@ -1,19 +1,25 @@
 class_name Opening
 extends RefCounted
-## A door between two rooms, or the hatch between a room and outside. It moves
+## A door between two rooms, or a hatch between a room and outside. It moves
 ## at a fixed speed while powered and holds where it is without power.
 
 enum State { CLOSED, OPENING, OPEN, CLOSING }
 enum CommandResult { STARTED, ALREADY, NO_POWER }
 
 const OUTSIDE := "outside"
-## The one opening to outside.
-const HATCH_ID := "hatch"
+## Every hatch's id starts with this.
+const HATCH_PREFIX := "hatch"
+## The id of the one hatch on a ship that has just one (and what ShipLoader requires).
+const HATCH_ID := HATCH_PREFIX
 const END_SNAP := 1e-9  # float drift from repeated dt / travel_s steps is snapped to the end
 
 var id: String
 var room_a: String
-var room_b: String  # OUTSIDE for the hatch
+var room_b: String  # OUTSIDE for a hatch
+## The face of room_a the opening sits on, in that room's frame.
+var face_a := Room.Face.PLUS_Z
+## The face of room_b it sits on; unused for a hatch.
+var face_b := Room.Face.MINUS_Z
 var travel_s: float
 var fraction := 0.0  # 0 closed, 1 fully open
 var state := State.CLOSED

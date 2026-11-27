@@ -3,6 +3,21 @@ extends RefCounted
 ## Builds a Ship from the data file. Bad data is reported with push_error,
 ## naming the offending value, and yields null.
 
+## A ship whose rooms and openings the loader has already made from the file.
+class LoadedShip extends Ship:
+	var _loaded_rooms: Array[Room]
+	var _loaded_openings: Array[Opening]
+
+	func _init(data: Dictionary, loaded_rooms: Array[Room], loaded_openings: Array[Opening]) -> void:
+		_loaded_rooms = loaded_rooms
+		_loaded_openings = loaded_openings
+		super._init(data)
+
+	func _build() -> void:
+		rooms = _loaded_rooms
+		openings = _loaded_openings
+
+
 const _REQUIRED_KEYS := ["seed", "setpoints", "rooms", "openings", "heat", "passenger", "pressure_control",
 		"hvac", "air_recycler", "computer", "tanks", "breakers", "status"]
 const _ROOM_KEYS := ["id", "volume_m3", "passengers", "start"]
@@ -36,7 +51,7 @@ static func from_dict(data: Dictionary) -> Ship:
 	var openings: Array[Opening] = []
 	for entry in data.openings:
 		openings.append(_make_opening(entry))
-	return Ship.new(data, rooms, openings)
+	return LoadedShip.new(data, rooms, openings)
 
 
 static func _fail(problem: String, log_line: String) -> Ship:

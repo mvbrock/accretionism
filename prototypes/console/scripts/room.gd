@@ -2,13 +2,20 @@ class_name Room
 extends RefCounted
 ## One sealed room's gas, temperature and passengers. Gas is held as moles per gas.
 
+## The six faces of a room's box, named for the axis they face in the room's own frame:
+## the walls are +x/-x and +z/-z, the ceiling +y and the floor -y.
+enum Face { PLUS_X, MINUS_X, PLUS_Y, MINUS_Y, PLUS_Z, MINUS_Z }
+
 var id: String
 var volume: float  # m3
 var temperature: float  # K
 var passengers: int
 var mol: Dictionary = {}  # gas -> mol, every gas in Units.GASES present
-var heat_capacity := 0.0  # J/K, set by the loader
-var hull_conductance := 0.0  # W/K, set by the loader
+var heat_capacity := 0.0  # J/K, set when the ship is built
+var hull_conductance := 0.0  # W/K, set when the ship is built
+var size := Vector3.ZERO  # m, the box's x, y and z extents; zero for a room built without a box
+var position := Vector3.ZERO  # m, the box's centre in ship space
+var orientation := Basis.IDENTITY  # the box's rotation in ship space
 
 
 func _init(room_id: String, room_volume: float, room_temperature: float, room_passengers: int) -> void:
