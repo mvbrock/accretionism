@@ -12,6 +12,8 @@ const FLOOR_LAYER := 4
 const CRATE_COLOR := Color(0.62, 0.45, 0.28)
 
 var _crate_material: StandardMaterial3D
+## Room name -> Array of [MeshInstance3D, outward Vector3] pairs, filled by `add_room_bound`.
+var _room_bounds := {}
 
 
 ## Whether the player may walk with gravity aboard this ship (false: it only floats).
@@ -29,9 +31,31 @@ func camera_roll_at(_p: Vector3) -> float:
 	return 0.0
 
 
-## The meshes that hide a player standing at `p` from a camera looking along `view`.
-func room_fade_meshes(_p: Vector3, _view: Vector3) -> Array[MeshInstance3D]:
-	return []
+## The name of the room containing `p`, or "" when `p` is in no room.
+func room_at(_p: Vector3) -> String:
+	return ""
+
+
+## Records `panel`'s "fade_mesh" as bounding `room`, with `outward` (unit) pointing out of the room.
+## A panel bounding two rooms is added once per room.
+func add_room_bound(room: String, panel: StaticBody3D, outward: Vector3) -> void:
+	var mesh: MeshInstance3D = panel.get_meta("fade_mesh", null)
+	if mesh == null:
+		push_error("%s has no fade_mesh meta" % panel.name)
+		return
+	if not _room_bounds.has(room):
+		_room_bounds[room] = []
+	_room_bounds[room].append([mesh, outward])
+
+
+## The meshes that hide a player standing at `p` from a camera looking along `view`: the bounds of
+## its room whose outward direction points against the view.
+func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
+	var meshes: Array[MeshInstance3D] = []
+	for bound in _room_bounds.get(room_at(p), []):
+		if bound[1].dot(view) < 0.0:
+			meshes.append(bound[0])
+	return meshes
 
 
 ## Where the player starts.

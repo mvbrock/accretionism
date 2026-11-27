@@ -84,9 +84,11 @@ func test_camera_roll_is_angle_around_axis() -> void:
 func test_room_fade_meshes_by_position() -> void:
 	var ship := await _make_ship()
 	var p := RingGeometry.section_down(5) * 46.0
-	var right := ship.room_fade_meshes(p, Vector3(1, 0, 0))
+	# The real camera always looks down at the player's section, so the views include that component.
+	var look_down := RingGeometry.section_down(5) * 0.58 + RingGeometry.section_tangent(5) * 0.58
+	var right := ship.room_fade_meshes(p, (Vector3(0.58, 0, 0) + look_down).normalized())
 	assert_true(right == [ship.get_node("Section5/Ceiling/Mesh"), ship.get_node("Section5/WallLeft/Mesh")], "view +x fades ceiling and left wall")
-	var left := ship.room_fade_meshes(p, Vector3(-1, 0, 0))
+	var left := ship.room_fade_meshes(p, (Vector3(-0.58, 0, 0) + look_down).normalized())
 	assert_true(left == [ship.get_node("Section5/Ceiling/Mesh"), ship.get_node("Section5/WallRight/Mesh")], "view -x fades ceiling and right wall")
 
 

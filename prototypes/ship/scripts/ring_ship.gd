@@ -30,11 +30,8 @@ func camera_roll_at(p: Vector3) -> float:
 	return RingGeometry.angle_of(p)
 
 
-## The ceiling and the wall on the camera's side of the section containing `p`.
-func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
-	var section := get_node("Section%d" % RingGeometry.section_of(p))
-	var wall := "WallLeft" if view.x > 0.0 else "WallRight"
-	return [section.get_node("Ceiling/Mesh"), section.get_node(wall + "/Mesh")]
+func room_at(p: Vector3) -> String:
+	return "Section%d" % RingGeometry.section_of(p)
 
 
 func spawn_point() -> Vector3:
@@ -57,6 +54,9 @@ func _build_section(k: int) -> Node3D:
 			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
 	section.add_child(make_panel("WallRight", _slab_points(k, w, w + t, ceiling_r, floor_r),
 			trim_color(k), WORLD_LAYER | OCCLUDER_LAYER))
+	add_room_bound(section.name, section.get_node("Ceiling"), -RingGeometry.section_down(k))
+	add_room_bound(section.name, section.get_node("WallLeft"), Vector3.LEFT)
+	add_room_bound(section.name, section.get_node("WallRight"), Vector3.RIGHT)
 
 	var light := OmniLight3D.new()
 	light.name = "Light"

@@ -27,6 +27,8 @@ func _ready() -> void:
 		add_child(_build_room(i))
 	add_child(_build_bulkhead("Bulkhead1", ROOMS[0][2]))
 	add_child(_build_bulkhead("Bulkhead2", ROOMS[1][2]))
+	for i in ROOMS.size() - 1:
+		_bound_rooms_by_bulkhead(get_node("Bulkhead%d" % (i + 1)), ROOMS[i][0], ROOMS[i + 1][0])
 	add_child(_build_crates())
 
 
@@ -39,41 +41,12 @@ func spawn_point() -> Vector3:
 	return Vector3(0, 0.05, -1.0)
 
 
-## The room's ceiling, plus every wall piece bounding it on the camera's side (its outward normal points against the view).
-func room_fade_meshes(p: Vector3, view: Vector3) -> Array[MeshInstance3D]:
-	var meshes: Array[MeshInstance3D] = []
-	var index := _room_at(p.z)
-	if index == -1:
-		return meshes
-	var room := get_node(NodePath(ROOMS[index][0]))
-	meshes.append(room.get_node("Ceiling/Mesh"))
-	if view.x > 0.0:
-		meshes.append(room.get_node("WallLeft/Mesh"))
-	elif view.x < 0.0:
-		meshes.append(room.get_node("WallRight/Mesh"))
-	if view.z > 0.0:
-		_append_end(meshes, room, "WallFore", "Bulkhead%d" % index, index > 0)
-	elif view.z < 0.0:
-		_append_end(meshes, room, "WallAft", "Bulkhead%d" % (index + 1), index < ROOMS.size() - 1)
-	return meshes
-
-
-## The index of the room whose z range holds `z`, or -1.
-func _room_at(z: float) -> int:
-	for i in ROOMS.size():
-		if z >= ROOMS[i][1] and z <= ROOMS[i][2]:
-			return i
-	return -1
-
-
-## Adds the pieces closing one end of `room`: a bulkhead's three panels, or the end wall.
-func _append_end(meshes: Array[MeshInstance3D], room: Node, end_wall: String,
-		bulkhead: String, has_bulkhead: bool) -> void:
-	if has_bulkhead:
-		for piece in ["Left", "Right", "Lintel"]:
-			meshes.append(get_node("%s/%s/Mesh" % [bulkhead, piece]))
-	else:
-		meshes.append(room.get_node(end_wall + "/Mesh"))
+## The name of the room whose z range holds `p.z`, or "".
+func room_at(p: Vector3) -> String:
+	for room in ROOMS:
+		if p.z >= room[1] and p.z <= room[2]:
+			return room[0]
+	return ""
 
 
 func _build_room(i: int) -> Node3D:
@@ -91,12 +64,17 @@ func _build_room(i: int) -> Node3D:
 			trim_color(i), WALL))
 	room.add_child(make_panel("WallRight", box_points(Vector3(w, 0, z0), Vector3(w + SLAB, h, z1)),
 			trim_color(i), WALL))
+	add_room_bound(room.name, room.get_node("Ceiling"), Vector3.UP)
+	add_room_bound(room.name, room.get_node("WallLeft"), Vector3.LEFT)
+	add_room_bound(room.name, room.get_node("WallRight"), Vector3.RIGHT)
 	if i == 0:
 		room.add_child(make_panel("WallFore", box_points(Vector3(-w, 0, z0 - SLAB), Vector3(w, h, z0)),
 				trim_color(i), WALL))
+		add_room_bound(room.name, room.get_node("WallFore"), Vector3.FORWARD)
 	if i == ROOMS.size() - 1:
 		room.add_child(make_panel("WallAft", box_points(Vector3(-w, 0, z1), Vector3(w, h, z1 + SLAB)),
 				trim_color(i), WALL))
+		add_room_bound(room.name, room.get_node("WallAft"), Vector3.BACK)
 
 	var light := OmniLight3D.new()
 	light.name = "Light"
@@ -121,6 +99,13 @@ func _build_bulkhead(bulkhead_name: String, z: float) -> Node3D:
 	bulkhead.add_child(make_panel("Lintel", box_points(Vector3(-d, DOOR_HEIGHT, z - half), Vector3(d, HEIGHT, z + half)),
 			BULKHEAD_COLOR, WALL))
 	return bulkhead
+
+
+## Registers each piece of `bulkhead` as bounding the room in front of it (lower z) and the room behind it.
+func _bound_rooms_by_bulkhead(bulkhead: Node, front_room: String, back_room: String) -> void:
+	for piece in bulkhead.get_children():
+		add_room_bound(front_room, piece, Vector3.BACK)
+		add_room_bound(back_room, piece, Vector3.FORWARD)
 
 
 ## Two 1 m crates on the Hold floor.
