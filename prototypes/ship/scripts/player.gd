@@ -1,7 +1,8 @@
 class_name Player
 extends CharacterBody3D
-## Capsule walker on the inside of the spinning ring. "Up" always points toward the spin axis.
+## Capsule walker aboard a ship. "Up" is whatever the ship says it is at the body's position.
 ## It faces the mouse; W/S move forward and back along that facing, A/D strafe.
+## E grabs a ladder at a landing, W/S climb it, and E lets go at a landing.
 ## G toggles gravity. Without it the body lies horizontal and hovers at FLOAT_HEIGHT, and a
 ## key press sets a drift that carries on after release until it hits something or another key
 ## changes it.
@@ -13,13 +14,24 @@ const FLOAT_SHARPNESS := 3.0
 ## How quickly the body tips between upright and horizontal.
 const TIP_SHARPNESS := 6.0
 
+## How close to a landing's exit the player must stand to grab the ladder.
+const REACH := 1.2
+## How close along the ladder to a landing the player must be to let go there.
+const LANDING_SNAP := 0.5
+## The capsule's height. An upside-down climber's feet hang this much further along the ladder than an upright one's.
+const BODY_HEIGHT := 1.8
+
+## The ship the body walks on; it answers which way is up.
+@export var ship: Ship
 @export var walk_speed := 3.0
 @export var gravity := 9.8
 @export var turn_speed := 12.0
+## Metres per second along a ladder.
+@export var climb_speed := 3.0
 
 ## Relative to the facing: x = strafe (D = +1), y = forward (W = +1).
 var move_input := Vector2.ZERO
-## Ship-relative direction to turn and face (x = across the ring, y = around it); zero keeps
+## Ship-relative direction to turn and face (x = across (world X), y = perpendicular to up and X); zero keeps
 ## the current facing.
 var aim_heading := Vector2.ZERO
 ## When true, `move_input` and `aim_heading` are set by code (tests, auto-walk) instead of
@@ -28,10 +40,26 @@ var drive_by_code := false
 ## The view the mouse points through.
 var aim_camera: Camera3D
 
+## What G asks for; gravity applies only where the ship has it at the body's position.
+var wants_gravity := true
+## Whether gravity applies here now: `wants_gravity` and the ship has it at the body's position.
 var gravity_enabled := true
 
+## The ladder held, or null while walking or floating.
+var climbing: Ladder = null
+## Distance along `climbing` the body hangs from: the feet when upright, the head when upside down. `pose()` saves it
+## to resume the climb.
+var climb_s := 0.0
+## The 3D direction the climber faces, from the landing it grabbed at; its heading is recomputed from it each frame, so
+## a flip keeps it facing the rungs.
+var _climb_facing := Vector3.BACK
+## The sign of `move_input.y` the current climb key press started with, or 0 while no key is held.
+var _held_sign := 0.0
+## Which way along the ladder axis the held climb key moves `climb_s` (+1 or -1), or 0 while none is held.
+var _climb_dir := 0.0
+
 ## Facing, ship-relative like `aim_heading`, so it turns with the ring as the body walks a lap.
-var _heading := Vector2(0, 1)
+var heading := Vector2(0, 1)
 ## Zero-g velocity along the floor, ship-relative like `aim_heading` (m/s).
 var _drift := Vector2.ZERO
 
@@ -48,6 +76,8 @@ static func ensure_input_actions() -> void:
 		"move_left": KEY_A,
 		"move_right": KEY_D,
 		"toggle_gravity": KEY_G,
+		"next_ship": KEY_TAB,
+		"interact": KEY_E,
 	}
 	for action: String in bindings:
 		if InputMap.has_action(action):
@@ -63,7 +93,9 @@ func _ready() -> void:
 	floor_constant_speed = true
 	floor_snap_length = 0.6
 	floor_max_angle = deg_to_rad(40.0)
-	_orient(RingGeometry.up_at(global_position))
+	if ship == null:
+		return
+	_orient(ship.up_at(global_position))
 
 
 ## Aims the facing at a world point, flattened onto the floor plane.
@@ -76,35 +108,198 @@ func aim_at(point: Vector3) -> void:
 
 ## Aims at the spot under `screen_point`, on the floor-parallel plane through the body.
 func aim_through(camera: Camera3D, screen_point: Vector2) -> void:
-	var plane := Plane(RingGeometry.up_at(global_position), global_position)
+	var plane := Plane(ship.up_at(global_position), global_position)
 	var hit = plane.intersects_ray(camera.project_ray_origin(screen_point), camera.project_ray_normal(screen_point))
 	if hit != null:
 		aim_at(hit)
 
 
-## Floating mode has no floor, so Godot doesn't snap the body back down to it.
+## Records what the player wants; it applies where the ship has gravity at the body's position.
 func set_gravity_enabled(enabled: bool) -> void:
-	gravity_enabled = enabled
+	wants_gravity = enabled
+	_apply_gravity()
+
+
+## Applies `wants_gravity and ship.has_gravity_at(position)`: switches the motion mode and clears drift.
+## Floating mode has no floor, so Godot doesn't snap the body back down to it.
+func _apply_gravity() -> void:
+	gravity_enabled = wants_gravity and ship.has_gravity_at(global_position)
 	_drift = Vector2.ZERO
-	motion_mode = MOTION_MODE_GROUNDED if enabled else MOTION_MODE_FLOATING
+	motion_mode = MOTION_MODE_GROUNDED if gravity_enabled else MOTION_MODE_FLOATING
+
+
+## Where the player is now, as a ship would remember it.
+func pose() -> PlayerPose:
+	var now := PlayerPose.new(global_position, heading, wants_gravity)
+	now.ladder = climbing
+	now.climb_s = climb_s
+	return now
+
+
+## Puts the body aboard `new_ship` as `at` describes, at rest and already tipped to match its
+## gravity (a ship without gravity overrides `at.gravity`), holding `at.ladder` if it has one.
+func board(new_ship: Ship, at: PlayerPose) -> void:
+	ship = new_ship
+	climbing = null
+	global_position = at.position
+	heading = at.heading
+	aim_heading = Vector2.ZERO
+	velocity = Vector3.ZERO
+	set_gravity_enabled(at.gravity)
+	if at.ladder != null:
+		_hold_ladder(at.ladder, at.climb_s, _facing_toward(heading, ship.up_at(global_position)))
+	else:
+		_orient(ship.up_at(global_position))
+	_set_tip(_wanted_tip())
+	reset_physics_interpolation()
+
+
+## E: grab the ladder with a landing within REACH, or let go at a landing within LANDING_SNAP.
+func interact() -> void:
+	if climbing == null:
+		_grab_nearby_ladder()
+	else:
+		_let_go_at_landing()
+
+
+## What E would do now, as a prompt for the screen.
+func interact_hint() -> String:
+	if climbing == null:
+		return "E: climb" if _ladder_in_reach() != null else ""
+	if climbing.landing_at(climb_s, LANDING_SNAP) != -1:
+		return "W/S: climb   E: let go"
+	return "W/S: climb"
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_gravity"):
-		set_gravity_enabled(not gravity_enabled)
+	if event.is_action_pressed("interact"):
+		interact()
+	elif event.is_action_pressed("toggle_gravity") and climbing == null and ship != null and ship.has_gravity_at(global_position):
+		set_gravity_enabled(not wants_gravity)
+
+
+## The ladder with a landing in reach of the spot on the floor under the body, so a floating
+## player can grab too.
+func _ladder_in_reach() -> Ladder:
+	if ship == null:
+		return null
+	var reach_point := _reach_point()
+	for ladder in ship.ladders:
+		if ladder.landing_near(reach_point, REACH) != -1:
+			return ladder
+	return null
+
+
+## Where reach is measured from: the body's origin, or the floor point under it when floating.
+func _reach_point() -> Vector3:
+	if gravity_enabled:
+		return global_position
+	var up := ship.up_at(global_position)
+	return global_position - up * _height_above_floor(up)
+
+
+func _grab_nearby_ladder() -> void:
+	var ladder := _ladder_in_reach()
+	if ladder == null:
+		return
+	var landing := ladder.landings[ladder.landing_near(_reach_point(), REACH)]
+	_hold_ladder(ladder, landing.s, landing.facing)
+
+
+## Holds `ladder` `s` metres along it, facing `facing`, at rest.
+func _hold_ladder(ladder: Ladder, s: float, facing: Vector3) -> void:
+	climbing = ladder
+	climb_s = s
+	_climb_facing = facing
+	_held_sign = 0.0
+	_climb_dir = 0.0
+	_place_on_ladder()
+	_stop()
+	reset_physics_interpolation()
+
+
+func _let_go_at_landing() -> void:
+	var i := climbing.landing_at(climb_s, LANDING_SNAP)
+	if i == -1:
+		return
+	var landing := climbing.landings[i]
+	climbing = null
+	global_position = landing.exit
+	heading = _heading_toward(-landing.facing, ship.up_at(global_position))
+	aim_heading = Vector2.ZERO
+	_stop()
+	_apply_gravity()
+	_orient(ship.up_at(global_position))
+	reset_physics_interpolation()
+
+
+## Zeroes velocity and drift.
+func _stop() -> void:
+	velocity = Vector3.ZERO
+	_drift = Vector2.ZERO
+
+
+## The ship-relative 2D heading that faces the 3D direction `direction`, where `up` is up.
+func _heading_toward(direction: Vector3, up: Vector3) -> Vector2:
+	return Vector2(direction.dot(Vector3.RIGHT), direction.dot(up.cross(Vector3.RIGHT))).normalized()
+
+
+## The 3D direction a ship-relative `facing` heading points, where `up` is up.
+func _facing_toward(facing: Vector2, up: Vector3) -> Vector3:
+	return Vector3.RIGHT * facing.x + up.cross(Vector3.RIGHT) * facing.y
+
+
+## Climbing: W climbs toward the top of the screen and S toward the bottom, and a held key keeps the direction it
+## started with. The direction is latched when `move_input.y` goes from 0 to nonzero or changes sign, and cleared
+## when it returns to 0. The body is placed on the ladder, with no walking or drift.
+func _climb(delta: float) -> void:
+	var pressed := signf(move_input.y)
+	if pressed != _held_sign:
+		_held_sign = pressed
+		_climb_dir = pressed * _screen_up_along_ladder()
+	climb_s = clampf(climb_s + _climb_dir * absf(move_input.y) * climb_speed * delta, 0.0, climbing.length)
+	_place_on_ladder()
+	_set_tip(_wanted_tip())
+
+
+## +1 when the top of the screen lies along the ladder's axis, -1 when it lies against it; +1 with no camera.
+func _screen_up_along_ladder() -> float:
+	if aim_camera == null:
+		return 1.0
+	return 1.0 if climbing.axis.dot(aim_camera.global_basis.y) >= 0.0 else -1.0
+
+
+## Puts the body on the ladder at `climb_s`, facing `_climb_facing`. The feet are at `point_at(climb_s)` when the up at
+## the body's current position points along the axis, and BODY_HEIGHT further along it when it points against it. Up
+## is read before the body moves, so a flip leaves its middle where it was and the next frame's up decides again.
+func _place_on_ladder() -> void:
+	var up := ship.up_at(global_position)
+	var feet := climbing.point_at(climb_s)
+	if up.dot(climbing.axis) < 0.0:
+		feet += climbing.axis * BODY_HEIGHT
+	global_position = feet
+	heading = _heading_toward(_climb_facing, up)
+	_orient(up)
 
 
 func _physics_process(delta: float) -> void:
+	if ship == null:
+		return
 	if not drive_by_code:
 		move_input = Input.get_vector("move_left", "move_right", "move_back", "move_forward")
-		if aim_camera != null:
+		if aim_camera != null and climbing == null:
 			aim_through(aim_camera, get_viewport().get_mouse_position())
+	if climbing != null:
+		_climb(delta)
+		return
+	if (wants_gravity and ship.has_gravity_at(global_position)) != gravity_enabled:
+		_apply_gravity()
 	_turn_toward_aim(delta)
 
-	var up := RingGeometry.up_at(global_position)
+	var up := ship.up_at(global_position)
 	up_direction = up
-	var right := Vector2(_heading.y, -_heading.x)
-	var push := (_heading * move_input.y + right * move_input.x).limit_length(1.0) * walk_speed
+	var right := Vector2(heading.y, -heading.x)
+	var push := (heading * move_input.y + right * move_input.x).limit_length(1.0) * walk_speed
 	if not gravity_enabled and push != Vector2.ZERO:
 		_drift = push
 	var ship_velocity := push if gravity_enabled else _drift
@@ -115,7 +310,7 @@ func _physics_process(delta: float) -> void:
 
 	var vertical := velocity.dot(up)
 	if not gravity_enabled:
-		vertical = (FLOAT_HEIGHT - _height_above_floor()) * FLOAT_SHARPNESS
+		vertical = (FLOAT_HEIGHT - _height_above_floor(up)) * FLOAT_SHARPNESS
 	elif is_on_floor():
 		vertical = 0.0
 	else:
@@ -128,36 +323,51 @@ func _physics_process(delta: float) -> void:
 		# Walking uphill out of a seam points velocity "up", which disables Godot's own snap.
 		apply_floor_snap()
 
-	_orient(RingGeometry.up_at(global_position))
-	var tip := 0.0 if gravity_enabled else -PI / 2.0
-	_pivot.rotation.x = lerp_angle(_pivot.rotation.x, tip, 1.0 - exp(-TIP_SHARPNESS * delta))
+	_orient(ship.up_at(global_position))
+	_set_tip(lerp_angle(_pivot.rotation.x, _wanted_tip(), 1.0 - exp(-TIP_SHARPNESS * delta)))
+
+
+## Tips the pivot to `angle` about X and copies the tip to the collision shape.
+func _set_tip(angle: float) -> void:
+	_pivot.rotation.x = angle
 	_shape.transform = _pivot.transform
 
 
-## Unit direction around the ring at the body's position (the way a heading's y points).
+## The pivot's tilt about X: upright with gravity, lying horizontal without.
+func _wanted_tip() -> float:
+	return 0.0 if gravity_enabled or climbing != null else -PI / 2.0
+
+
+## Unit direction perpendicular to both up and world X (the way a heading's y points).
 func _around() -> Vector3:
-	return RingGeometry.up_at(global_position).cross(Vector3.RIGHT)
+	return ship.up_at(global_position).cross(Vector3.RIGHT)
 
 
 func _turn_toward_aim(delta: float) -> void:
 	if aim_heading == Vector2.ZERO:
 		return
 	# Turn by an angle; a lerp can't turn through 180°.
-	var turn := _heading.angle_to(aim_heading)
+	var turn := heading.angle_to(aim_heading)
 	if absf(turn) > PI - 0.01:
 		turn = PI - 0.01  # exactly opposite: pick a side so the turn is visible
-	_heading = _heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
+	heading = heading.rotated(turn * (1.0 - exp(-turn_speed * delta))).normalized()
 
 
-## Height of the body's origin above the flat floor panel beneath it.
-func _height_above_floor() -> float:
-	var down := RingGeometry.section_down(RingGeometry.section_of(global_position))
-	return RingGeometry.floor_apothem() - global_position.dot(down)
+## Distance from the body's origin down to the floor beneath it, measured perpendicular to the
+## floor panel, or FLOAT_HEIGHT when there is none, so floating holds its height.
+func _height_above_floor(up: Vector3) -> float:
+	var query := PhysicsRayQueryParameters3D.create(
+			global_position + up * 0.1, global_position - up * 20.0, Ship.FLOOR_LAYER)
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return FLOAT_HEIGHT
+	return (global_position - hit.position).dot(hit.normal)
 
 
-## Stands the body upright along `up` and faces it along `_heading`.
+## Stands the body upright along `up` and faces it along `heading`.
 func _orient(up: Vector3) -> void:
 	if up.length_squared() < 0.5:
 		return  # on the spin axis (e.g. before being placed): no meaningful "up"
-	var back := -(Vector3.RIGHT * _heading.x + up.cross(Vector3.RIGHT) * _heading.y)
+	var back := -(Vector3.RIGHT * heading.x + up.cross(Vector3.RIGHT) * heading.y)
 	global_basis = Basis(up.cross(back), up, back)

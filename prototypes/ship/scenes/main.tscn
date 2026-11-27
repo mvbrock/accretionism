@@ -1,16 +1,17 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/ship_builder.gd" id="2_ship"]
+[ext_resource type="Script" path="res://scripts/ring_ship.gd" id="2_ring"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="3_player"]
 [ext_resource type="Script" path="res://scripts/camera_rig.gd" id="4_rig"]
 [ext_resource type="Script" path="res://scripts/occlusion_fader.gd" id="5_fader"]
+[ext_resource type="Script" path="res://scripts/fleet.gd" id="6_fleet"]
+[ext_resource type="Script" path="res://scripts/skiff_ship.gd" id="7_skiff"]
+[ext_resource type="Script" path="res://scripts/deck_ship.gd" id="8_tug"]
+[ext_resource type="Script" path="res://scripts/wheel_ship.gd" id="9_wheel"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
-
-[node name="Ship" type="Node3D" parent="."]
-script = ExtResource("2_ship")
 
 [node name="Player" parent="." instance=ExtResource("3_player")]
 
@@ -21,8 +22,44 @@ target = NodePath("../Player")
 [node name="Camera" type="Camera3D" parent="CameraRig"]
 current = true
 
-[node name="OcclusionFader" type="Node" parent="." node_paths=PackedStringArray("camera", "target", "ship")]
+[node name="OcclusionFader" type="Node" parent="." node_paths=PackedStringArray("camera", "target")]
 script = ExtResource("5_fader")
 camera = NodePath("../CameraRig/Camera")
-ship = NodePath("../Ship")
 target = NodePath("../Player")
+
+[node name="Fleet" type="Node3D" parent="." node_paths=PackedStringArray("player", "rig", "fader")]
+script = ExtResource("6_fleet")
+player = NodePath("../Player")
+rig = NodePath("../CameraRig")
+fader = NodePath("../OcclusionFader")
+
+[node name="Ring" type="Node3D" parent="Fleet"]
+script = ExtResource("2_ring")
+
+[node name="Skiff" type="Node3D" parent="Fleet"]
+script = ExtResource("7_skiff")
+
+[node name="Tug" type="Node3D" parent="Fleet"]
+script = ExtResource("8_tug")
+deck_count = 2
+
+[node name="Freighter" type="Node3D" parent="Fleet"]
+script = ExtResource("8_tug")
+deck_count = 4
+
+[node name="Wheel" type="Node3D" parent="Fleet"]
+script = ExtResource("9_wheel")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="ShipLabel" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 416.0
+offset_bottom = 42.0
+
+[node name="HintLabel" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 48.0
+offset_right = 416.0
+offset_bottom = 74.0

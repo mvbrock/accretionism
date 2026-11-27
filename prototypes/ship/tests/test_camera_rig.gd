@@ -5,12 +5,8 @@ func _make_rig() -> Array:
 	var target := Node3D.new()
 	target.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF  # tests move it outside physics ticks
 	own(target)
-	var rig := CameraRig.new()
-	var camera := Camera3D.new()
-	camera.name = "Camera"
-	rig.add_child(camera)
-	rig.target = target
-	own(rig)
+	var ship: Ship = own(RingShip.new())
+	var rig := own_rig(target, ship)
 	return [rig, target]
 
 
@@ -60,3 +56,14 @@ func test_physics_interpolation_enabled_and_rig_opts_out() -> void:
 	var rig: CameraRig = made[0]
 	assert_true(rig.physics_interpolation_mode == Node.PHYSICS_INTERPOLATION_MODE_OFF,
 			"rig is positioned in _process, so it must not be interpolated itself")
+
+
+func test_rig_does_not_roll_for_a_ship_without_roll() -> void:
+	var made := _make_rig()
+	var rig: CameraRig = made[0]
+	var target: Node3D = made[1]
+	rig.ship = own(Ship.new())
+	target.global_position = RingGeometry.section_down(4) * 48.0
+	rig.snap()
+	rig.update_rig(1.0 / 60.0)
+	assert_near(rig.rotation.x, 0.0, 0.0, "no roll")

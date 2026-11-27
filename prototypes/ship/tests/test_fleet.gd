@@ -1,0 +1,226 @@
+extends TestCase
+
+var fleet: Fleet
+var ring: RingShip
+var skiff: SkiffShip
+var player: Player
+var rig: CameraRig
+var fader: OcclusionFader
+
+
+func _setup() -> void:
+	player = own_player()
+	rig = own_rig(player)
+	fader = own_fader(rig, player)
+	fleet = Fleet.new()
+	ring = RingShip.new()
+	ring.name = "Ring"
+	skiff = SkiffShip.new()
+	skiff.name = "Skiff"
+	fleet.add_child(ring)
+	fleet.add_child(skiff)
+	fleet.player = player
+	fleet.rig = rig
+	fleet.fader = fader
+	own(fleet)
+	await physics_frames(3)
+
+
+## Distance from the player to `point`, ignoring height: a floating player rises to FLOAT_HEIGHT.
+func _floor_plan_distance(point: Vector3) -> float:
+	return Vector2(player.global_position.x - point.x, player.global_position.z - point.z).length()
+
+
+func test_starts_on_first_ship() -> void:
+	await _setup()
+	assert_true(fleet.active == ring, "the ring is active")
+	assert_true(ring.visible and not skiff.visible, "only the ring is shown")
+	assert_near(player.global_position.distance_to(ring.spawn_point()), 0.0, 0.1, "player at the ring's spawn")
+
+
+func test_next_ship_switches_and_wires() -> void:
+	await _setup()
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == skiff, "the skiff is active")
+	assert_true(player.ship == skiff and rig.ship == skiff and fader.ship == skiff, "player, rig and fader follow")
+	assert_near(_floor_plan_distance(skiff.spawn_point()), 0.0, 0.1, "player above the skiff's spawn")
+	assert_true(not player.gravity_enabled, "no gravity aboard the skiff")
+	assert_true(rig.rotation.x == 0.0, "the rig does not roll")
+
+
+func test_hidden_ship_does_not_collide() -> void:
+	await _setup()
+	fleet.next_ship()
+	await physics_frames(2)
+	var down := RingGeometry.section_down(3)
+	var query := PhysicsRayQueryParameters3D.create(down * 47.0, down * 49.0)
+	var hit := ring.get_world_3d().direct_space_state.intersect_ray(query)
+	assert_true(hit.is_empty(), "the hidden ring's floor is not there")
+
+
+func test_remembers_position_per_ship() -> void:
+	await _setup()
+	player.move_input = Vector2(0, 1)
+	await physics_frames(30)
+	player.move_input = Vector2.ZERO
+	var recorded := player.global_position
+	fleet.next_ship()
+	await physics_frames(5)
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_near(player.global_position.distance_to(recorded), 0.0, 0.05, "back where it left the ring")
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_near(_floor_plan_distance(skiff.spawn_point()), 0.0, 0.1, "the skiff still starts at its spawn")
+
+
+func test_next_ship_wraps() -> void:
+	await _setup()
+	fleet.next_ship()
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
+func test_cycles_three_ships() -> void:
+	await _setup()
+	var tug := DeckShip.new()
+	tug.name = "Tug"
+	fleet.add_child(tug)
+	fleet.next_ship()
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == tug, "the third ship is the tug")
+	assert_true(player.gravity_enabled, "thrust gravity aboard the tug")
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
+func test_cycles_four_ships() -> void:
+	await _setup()
+	var tug := DeckShip.new()
+	tug.name = "Tug"
+	tug.deck_count = 2
+	var freighter := DeckShip.new()
+	freighter.name = "Freighter"
+	freighter.deck_count = 4
+	fleet.add_child(tug)
+	fleet.add_child(freighter)
+	fleet.next_ship()
+	fleet.next_ship()
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == freighter, "the fourth ship is the freighter")
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
+func test_cycles_five_ships() -> void:
+	await _setup()
+	var tug := DeckShip.new()
+	tug.name = "Tug"
+	var freighter := DeckShip.new()
+	freighter.name = "Freighter"
+	freighter.deck_count = 4
+	var wheel := WheelShip.new()
+	wheel.name = "Wheel"
+	fleet.add_child(tug)
+	fleet.add_child(freighter)
+	fleet.add_child(wheel)
+	for i in 4:
+		fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == wheel, "the fifth ship is the wheel")
+	assert_true(player.gravity_enabled, "the wheel's spawn is in a ring, with gravity")
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
+func test_one_world_environment() -> void:
+	await _setup()
+	var all := fleet.find_children("*", "WorldEnvironment", true, false)
+	assert_true(all.size() == 1, "one WorldEnvironment under the fleet (got %d)" % all.size())
+	for ship in fleet.ships():
+		assert_true(ship.find_children("*", "WorldEnvironment", true, false).is_empty(), "none under %s" % ship.name)
+
+
+func test_emits_ship_changed() -> void:
+	await _setup()
+	var received: Array[Ship] = []
+	fleet.ship_changed.connect(func(ship: Ship) -> void: received.append(ship))
+	fleet.next_ship()
+	assert_true(received.size() == 1 and received[0] == skiff, "ship_changed carried the skiff")
+
+
+func test_boards_when_placed_before_the_player() -> void:
+	var main := Node3D.new()
+	var early_fleet := Fleet.new()
+	var early_ring := RingShip.new()
+	early_fleet.add_child(early_ring)
+	main.add_child(early_fleet)
+	var early_player: Player = load("res://scenes/player.tscn").instantiate()
+	early_player.drive_by_code = true
+	main.add_child(early_player)
+	var early_rig := CameraRig.new()
+	var camera := Camera3D.new()
+	camera.name = "Camera"
+	early_rig.add_child(camera)
+	early_rig.target = early_player
+	main.add_child(early_rig)
+	var early_fader := OcclusionFader.new()
+	early_fader.camera = camera
+	early_fader.target = early_player
+	main.add_child(early_fader)
+	early_fleet.player = early_player
+	early_fleet.rig = early_rig
+	early_fleet.fader = early_fader
+	own(main)
+	await physics_frames(3)
+	assert_true(early_fleet.active == early_ring, "the ring is active")
+	assert_true(early_player.ship == early_ring, "the player boarded the ring")
+	assert_near(early_player.global_position.distance_to(early_ring.spawn_point()), 0.0, 0.1, "player at the ring's spawn")
+
+
+func test_returns_to_ladder_mid_climb() -> void:
+	player = own_player()
+	rig = own_rig(player)
+	fader = own_fader(rig, player)
+	fleet = Fleet.new()
+	ring = RingShip.new()
+	var deck_ship := DeckShip.new()
+	deck_ship.deck_count = 2
+	fleet.add_child(ring)
+	fleet.add_child(deck_ship)
+	fleet.player = player
+	fleet.rig = rig
+	fleet.fader = fader
+	own(fleet)
+	await physics_frames(3)
+	fleet.switch_to(deck_ship)
+	var ladder := deck_ship.ladders[0]
+	player.board(deck_ship, PlayerPose.new(ladder.landings[0].exit, Vector2(0, -1), true))
+	await physics_frames(2)
+	player.interact()
+	player.move_input = Vector2(0, 1)
+	var frames := 0
+	while player.global_position.y <= 2.0 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	var climb_s := player.climb_s
+	fleet.next_ship()
+	await physics_frames(5)
+	fleet.next_ship()
+	assert_true(player.climbing == ladder, "back on the deck ship's ladder")
+	assert_near(player.climb_s, climb_s, 0.01, "same height on the ladder")
+	assert_near(player.global_position.x, 3.5, 0.05, "on the pipe axis (x)")
+	assert_near(player.global_position.z, 3.5, 0.05, "on the pipe axis (z)")
+	player.move_input = Vector2(0, 1)
+	frames = 0
+	while player.global_position.y <= DeckShip.PITCH - 0.2 and frames < 300:
+		await tree.physics_frame
+		frames += 1
+	player.move_input = Vector2.ZERO
+	player.interact()
+	assert_true(player.climbing == null, "let go at the top")
+	assert_true(player.global_position.distance_to(ladder.landings[1].exit) < 0.1, "stands at landing 1's exit")

@@ -1,21 +1,22 @@
 class_name OcclusionFader
 extends Node
 ## Fades walls and ceilings that block the camera's view of the target, and restores them after.
-## The ceiling and camera-side wall of the target's own section always fade, wherever it stands.
-## Occluder bodies sit on collision layer 2 and carry a "fade_mesh" meta pointing at their mesh.
+## The ceiling and camera-side wall of the target's own room always fade, wherever it stands.
+## Occluder bodies sit on `Ship.OCCLUDER_LAYER` and carry a "fade_mesh" meta pointing at their mesh.
 
-const OCCLUDER_MASK := 2
 const MAX_HITS_PER_RAY := 6
 const RAY_LENGTH := 80.0
 
 @export var camera: Camera3D
 @export var target: Node3D
-@export var ship: ShipBuilder
+@export var ship: Ship
 @export var faded_alpha := 0.15
 @export var fade_speed := 8.0
 
 ## Meshes currently faded or fading back in.
 var _tracked: Array[MeshInstance3D] = []
+## Nodes this fader has hidden for the cutaway.
+var _cut_away: Array[Node3D] = []
 
 
 func _process(delta: float) -> void:
@@ -23,6 +24,7 @@ func _process(delta: float) -> void:
 
 
 func step(delta: float) -> void:
+	_apply_cutaway()
 	var occluders := find_occluders()
 	for mesh in occluders:
 		if mesh not in _tracked:
@@ -40,6 +42,21 @@ func step(delta: float) -> void:
 		else:
 			material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		material.albedo_color = color
+
+
+## Hides the ship's cutaway nodes above the target and shows any it hid before that are no longer cut away.
+## It hides rather than fades: crates share one material, so fading a deck would leave its crates and
+## lights floating in view.
+func _apply_cutaway() -> void:
+	var wanted: Array[Node3D] = []
+	if ship != null and target != null:
+		wanted = ship.cutaway_nodes(target.global_position)
+	for node in _cut_away:
+		if is_instance_valid(node) and node not in wanted:
+			node.visible = true
+	for node in wanted:
+		node.visible = false
+	_cut_away = wanted
 
 
 ## Points on the target's body (feet, middle, head, and either side) that the camera should see.
@@ -66,16 +83,20 @@ func find_occluders() -> Array[MeshInstance3D]:
 		return found
 	var forward := -camera.global_basis.z
 	if ship != null:
-		found.append_array(ship.room_fade_meshes(RingGeometry.section_of(target.global_position), forward))
+		found.append_array(ship.room_fade_meshes(target.global_position, forward))
 	var space := camera.get_world_3d().direct_space_state
 	for point in sight_points():
 		var exclude: Array[RID] = []
-		for i in MAX_HITS_PER_RAY:
-			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, OCCLUDER_MASK, exclude)
+		var hits := 0
+		while hits < MAX_HITS_PER_RAY:
+			var query := PhysicsRayQueryParameters3D.create(point - forward * RAY_LENGTH, point, Ship.OCCLUDER_LAYER, exclude)
 			var hit := space.intersect_ray(query)
 			if hit.is_empty():
 				break
 			exclude.append(hit.rid)
+			if not hit.collider.is_visible_in_tree():
+				continue  # cut away: it hides nothing, so it doesn't use up this ray's hits
+			hits += 1
 			var mesh: MeshInstance3D = hit.collider.get_meta("fade_mesh", null)
 			if mesh != null and mesh not in found:
 				found.append(mesh)
