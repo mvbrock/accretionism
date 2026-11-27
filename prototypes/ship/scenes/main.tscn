@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ring_ship.gd" id="2_ring"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/occlusion_fader.gd" id="5_fader"]
 [ext_resource type="Script" path="res://scripts/fleet.gd" id="6_fleet"]
 [ext_resource type="Script" path="res://scripts/skiff_ship.gd" id="7_skiff"]
+[ext_resource type="Script" path="res://scripts/deck_ship.gd" id="8_tug"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -37,6 +38,10 @@ script = ExtResource("2_ring")
 [node name="Skiff" type="Node3D" parent="Fleet"]
 script = ExtResource("7_skiff")
 
+[node name="Tug" type="Node3D" parent="Fleet"]
+script = ExtResource("8_tug")
+deck_count = 2
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
 [node name="ShipLabel" type="Label" parent="HUD"]
@@ -44,3 +49,9 @@ offset_left = 16.0
 offset_top = 16.0
 offset_right = 416.0
 offset_bottom = 42.0
+
+[node name="HintLabel" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 48.0
+offset_right = 416.0
+offset_bottom = 74.0

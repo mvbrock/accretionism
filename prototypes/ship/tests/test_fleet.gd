@@ -82,6 +82,20 @@ func test_next_ship_wraps() -> void:
 	assert_true(fleet.active == ring, "back on the ring")
 
 
+func test_cycles_three_ships() -> void:
+	await _setup()
+	var tug := DeckShip.new()
+	tug.name = "Tug"
+	fleet.add_child(tug)
+	fleet.next_ship()
+	fleet.next_ship()
+	await physics_frames(2)
+	assert_true(fleet.active == tug, "the third ship is the tug")
+	assert_true(player.gravity_enabled, "thrust gravity aboard the tug")
+	fleet.next_ship()
+	assert_true(fleet.active == ring, "back on the ring")
+
+
 func test_one_world_environment() -> void:
 	await _setup()
 	var all := fleet.find_children("*", "WorldEnvironment", true, false)

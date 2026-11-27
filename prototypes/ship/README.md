@@ -17,10 +17,11 @@ the bottom of the ring. Design: `docs/design.md`. Plan: `docs/plan.md`.
 | W / S | Move forward / back along the facing |
 | A / D | Strafe left / right |
 | G | Toggle gravity: off, the capsule lies horizontal and floats mid-corridor. A W/A/S/D press then sets a drift that carries on after release, until it bumps into something or another key changes it |
+| E | Grab a ladder at its doorway; let go at a landing. W/S climb. |
 | Tab | Switch to the next ship (each remembers where you were) |
 | Esc | Quit |
 
-There are two ships: the ring, and a three-room zero-g skiff (cockpit, cabin, hold).
+There are three ships: the ring, a three-room zero-g skiff (cockpit, cabin, hold), and the Tug, two decks under thrust joined by a ladder pipe.
 
 ## Tuning knobs (Inspector, or the `@export` vars)
 
@@ -44,6 +45,8 @@ Ring dimensions are constants in `scripts/ring_geometry.gd`.
   where to spawn; `RingShip` is the ring and `SkiffShip` the skiff.
 - `Fleet` holds the ships. Only the active one is shown, processed and collidable; Tab switches,
   boarding the player at the pose it last had there and pointing the camera rig and fader at the ship.
+- A `DeckShip` stacks decks joined by a ladder pipe. Each pipe gets a `Ladder`; climbing places the
+  player on the pipe's axis, and doorway blockers on the hatch layer keep walkers out of the shaft.
 - `CameraRig` sits on the axis and rolls by the ship's camera roll at the player (the player's
   angle, for the ring); its isometric camera is a child, which makes the ship appear to turn
   under a fixed view.

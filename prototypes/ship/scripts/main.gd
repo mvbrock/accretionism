@@ -2,12 +2,13 @@ extends Node3D
 ## Wires up the prototype. Esc quits.
 ## Screenshot mode: godot --path . -- --capture <dir>   (auto-walks, turns gravity off, saves shots, then quits)
 
-const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800]
+const CAPTURE_FRAMES := [90, 400, 900, 1500, 1800, 2100]
 
 @onready var player: Player = $Player
 @onready var rig: CameraRig = $CameraRig
 @onready var fleet: Fleet = $Fleet
 @onready var ship_label: Label = $HUD/ShipLabel
+@onready var hint_label: Label = $HUD/HintLabel
 
 var _capture_dir := ""
 var _frame := 0
@@ -57,6 +58,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(_delta: float) -> void:
+	hint_label.text = player.interact_hint()
 	if _capture_dir == "":
 		return
 	_frame += 1
@@ -65,6 +67,8 @@ func _process(_delta: float) -> void:
 	if _frame == 1100:
 		player.set_gravity_enabled(false)
 	if _frame == 1550:
+		fleet.next_ship()
+	if _frame == 1850:
 		fleet.next_ship()
 	if _frame in CAPTURE_FRAMES:
 		var image := get_viewport().get_texture().get_image()
