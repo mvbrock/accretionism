@@ -68,3 +68,17 @@ const EXPRESS_STAGGER_DAYS := 12.0
 ## this long after it.
 const TENDER_LEAD_DAYS := 1.0
 const TENDER_LINGER_DAYS := 1.0
+
+## Daily chance that a party changes its mind, by reason for travel. A party
+## uses the highest chance among its members.
+const CHANGE_OF_MIND := {"VISIT": 0.004, "WORK": 0.002, "RETURNING": 0.002, "MEDICAL": 0.001, "EMIGRATION": 0.0005}
+## From this age, each year raises the risk of an emergency and its severity.
+const AGE_RISK_START_YEAR := 40
+## A condition's daily chance is multiplied by 1 + (age - AGE_RISK_START_YEAR) * this.
+const AGE_RISK_PER_YEAR := 0.02
+## The chance an emergency is CRITICAL: the base, plus this for each year of age past the start year.
+const CRITICAL_BASE := 0.2
+const CRITICAL_PER_YEAR := 0.005
+## The range, in whole days, of a CRITICAL patient's stable period and of a hospital stay.
+const STABLE_DAYS := [5, 20]
+const HOSPITAL_STAY_DAYS := [7, 21]

@@ -47,7 +47,7 @@ func _init(warmup := true, incidents := true) -> void:
 		for member in party.members:
 			passengers_by_id[member.id] = member
 	if incidents:
-		pass # each incident module's install(self) goes here
+		Incidents.install(self)
 	if warmup:
 		advance_to(0.0)
 
@@ -72,7 +72,7 @@ func replan(party: Party, to: Variant, ready_day: float, cause: String) -> void:
 		party.state = Party.State.TRAVELLING
 	else:
 		party.state = Party.State.HELD
-		party.write(ready_day, "No route available; waiting", cause)
+		party.write(day, "No route available; waiting", cause)
 
 
 ## How far through the journey the party is, 0 to 1. The share is of the time
@@ -195,8 +195,25 @@ func _board(party: Party, trip: Trip, t: float) -> void:
 func _arrive(trip: Trip, t: float) -> void:
 	_in_flight.erase(trip)
 	for party in parties:
-		if party.aboard == trip:
+		if party.aboard != trip:
+			continue
+		# A tie counts as still stable: the stable_until timer fires right after this arrival.
+		if party.stable_until >= t and schedule.next_trip_of(trip.ship, t) != null:
+			_ride_on(party, trip, t)
+		else:
 			_disembark(party, trip, t)
+
+
+## A CRITICAL patient's party stays aboard and takes the ship's next trip, which
+## it books even when the trip has no seats left.
+func _ride_on(party: Party, trip: Trip, t: float) -> void:
+	var next := schedule.next_trip_of(trip.ship, t)
+	party.done_trips.append(trip)
+	party.aboard = next
+	next.booked += party.size()
+	party.write(t, "Staying aboard %s past %s: %s's %s emergency" % [
+		trip.ship.name, Fleet.target_name(trip.to), party.patient.full_name, Incidents.in_sentence(party.patient_condition)],
+		"medical emergency")
 
 
 func _disembark(party: Party, trip: Trip, t: float) -> void:
@@ -207,9 +224,39 @@ func _disembark(party: Party, trip: Trip, t: float) -> void:
 	if trip.to is Cycler:
 		party.write(t, "Boarded %s" % trip.to.name, "booked trip")
 	elif party.route.is_empty() and party.place == party.destination:
-		party.state = Party.State.ARRIVED
-		party.arrived_until = t + Config.ARRIVED_LINGER_DAYS
-		party.write(t, "Arrived at %s" % Fleet.target_name(party.place), "journey complete")
+		if party.medical_return != null:
+			begin_hospital_stay(party)
+		else:
+			_mark_arrived(party, t)
+
+
+func _mark_arrived(party: Party, t: float) -> void:
+	party.state = Party.State.ARRIVED
+	party.arrived_until = t + Config.ARRIVED_LINGER_DAYS
+	party.write(t, "Arrived at %s" % Fleet.target_name(party.place), "journey complete")
+
+
+## Admits the party to the hospital at the body it is at, for the length of a stay.
+func begin_hospital_stay(party: Party) -> void:
+	Planner.cancel(party)
+	party.destination = party.place
+	party.state = Party.State.HELD
+	party.hospital_until = day + rng.randi_range(Config.HOSPITAL_STAY_DAYS[0], Config.HOSPITAL_STAY_DAYS[1])
+	party.write(day, "Admitted to hospital at %s" % Fleet.target_name(party.place), "medical emergency")
+
+
+## Sends the party back to where it was going before the emergency.
+func _discharge(party: Party, t: float) -> void:
+	var back_to: Orbits.Body = party.medical_return
+	if is_same(party.place, back_to):
+		party.write(t, "Discharged from hospital", "hospital stay over")
+		_mark_arrived(party, t)
+	else:
+		party.write(t, "Discharged from hospital; heading to %s" % Fleet.target_name(back_to), "hospital stay over")
+		replan(party, back_to, t, "hospital stay over")
+	party.medical_return = null
+	party.patient = null
+	party.patient_condition = ""
 
 
 func _fire_timer(party: Party, kind: String, t: float) -> void:
@@ -221,6 +268,10 @@ func _fire_timer(party: Party, kind: String, t: float) -> void:
 	match kind:
 		"arrived_until":
 			_set_off(party, _other_body(party.place), t, "new journey")
+		"stable_until":
+			Incidents.send_to_hospital(self, party)
+		"hospital_until":
+			_discharge(party, t)
 		_:
 			push_error("Nothing handles the %s timer" % kind)
 

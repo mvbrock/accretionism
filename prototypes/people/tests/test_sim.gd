@@ -99,12 +99,14 @@ func test_bookings_match_routes() -> void:
 		if trip.arrive_day <= sim.day:
 			continue
 		var booked := 0
+		var carries_patient := false
 		for party in sim.parties:
-			if party.route.has(trip):
+			if party.route.has(trip) or party.aboard == trip:
 				booked += party.size()
+				carries_patient = carries_patient or party.stable_until > -INF
 		assert_true(trip.booked == booked, "%s's trip on day %.2f has %d seats booked for %d travelling" % [
 			trip.ship.name, trip.depart_day, trip.booked, booked])
-		assert_true(trip.booked <= trip.seats, "no trip is overbooked")
+		assert_true(trip.booked <= trip.seats or carries_patient, "no trip is overbooked, except for a stabilizing patient's party")
 
 
 func test_arrival_then_new_journey() -> void:

@@ -19,6 +19,9 @@ var place: Variant
 var aboard: Trip
 ## Where a medical emergency sends the party back to, or null.
 var medical_return: Variant
+## Whose emergency the party is dealing with, and the condition behind it.
+var patient: Passenger
+var patient_condition := ""
 var stable_until := -INF
 var hospital_until := -INF
 var arrived_until := -INF
@@ -26,6 +29,11 @@ var arrived_until := -INF
 
 func size() -> int:
 	return members.size()
+
+
+## Whether a medical emergency has the party on a stable period, a hospital stay or the way to either.
+func is_on_medical_route(now: float) -> bool:
+	return medical_return != null or stable_until > now or hospital_until > now
 
 
 func write(day: float, text: String, cause: String) -> void:
