@@ -27,6 +27,9 @@ var hospital_until := -INF
 var arrived_until := -INF
 ## When a party kept aboard a cycler for lack of tender seats tries to leave again.
 var exit_retry_at := -INF
+## The cycler the party is ordered off, or null. Every route planned while it is
+## still aboard leaves at the soonest flyby that has room.
+var must_leave: Cycler
 
 
 func size() -> int:

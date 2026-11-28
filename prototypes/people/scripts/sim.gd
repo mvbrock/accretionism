@@ -115,6 +115,8 @@ func _book_route(party: Party, ready_day: float, via: Variant = null) -> bool:
 	var current := party.aboard
 	Planner.cancel(party)
 	party.exit_retry_at = -INF
+	if via == null and _is_ordered_off(party):
+		via =Planner.soonest_body(schedule, party.place, ready_day, party.size(), null, Orbits.Body.values())
 	var trips: Array[Trip]
 	if via == null:
 		trips = Planner.plan(schedule, party.place, ready_day, party.destination, party.size(), current)
@@ -127,6 +129,11 @@ func _book_route(party: Party, ready_day: float, via: Variant = null) -> bool:
 		current.booked -= party.size()
 	Planner.book(party, trips)
 	return true
+
+
+## Whether the party is still aboard the cycler it is ordered off.
+func _is_ordered_off(party: Party) -> bool:
+	return party.must_leave != null and party.aboard == null and is_same(party.place, party.must_leave)
 
 
 ## The earliest point not yet processed that falls on or before `limit`, or an
@@ -214,6 +221,8 @@ func _board(party: Party, trip: Trip, t: float) -> void:
 		push_error("Party %d is at %s, not at %s where %s leaves" % [
 			party.id, Fleet.target_name(party.place), Fleet.target_name(trip.from), trip.ship.name])
 	party.aboard = trip
+	if is_same(trip.from, party.must_leave):
+		party.must_leave = null
 	party.write(t, "Boarded %s at %s" % [trip.ship.name, Fleet.target_name(party.place)], "booked trip")
 
 

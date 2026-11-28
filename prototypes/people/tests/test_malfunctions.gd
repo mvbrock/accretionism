@@ -198,6 +198,67 @@ func test_life_support_cycler_plans_trip_off() -> void:
 	assert_true(other.route == other_route, "a party on another cycler is not affected")
 
 
+## Every cycler with someone on it.
+func _occupied_cyclers(sim: Sim) -> Array[Cycler]:
+	var cyclers: Array[Cycler] = []
+	for party in sim.parties:
+		if _is_on_cycler(party) and not cyclers.has(party.place):
+			cyclers.append(party.place)
+	return cyclers
+
+
+## The parties on a cycler whose plain plan to where they are going would not leave at its next open flyby.
+func _would_ride_past(sim: Sim, riders: Array) -> Array:
+	return riders.filter(func(p: Party) -> bool:
+		var plain := Planner.plan(sim.schedule, p.place, sim.day, p.destination, p.size())
+		return plain.is_empty() or not Malfunctions.next_exit_group(sim, p.place).has(plain[0]))
+
+
+func _assert_leaving_at_next_open_flyby(sim: Sim, riders: Array) -> void:
+	for party in riders:
+		var cycler: Cycler = party.place
+		assert_true(party.must_leave == cycler, "party %d is still ordered off %s" % [party.id, cycler.name])
+		assert_true(not party.route.is_empty() and Malfunctions.next_exit_group(sim, cycler).has(party.route[0]),
+				"party %d leaves at the next open flyby" % party.id)
+
+
+func test_exit_order_survives_docking_failure() -> void:
+	var sim := _quiet_sim()
+	var riders := sim.parties.filter(_is_on_cycler)
+	for cycler in _occupied_cyclers(sim):
+		Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
+		Malfunctions.strike(sim, cycler, Malfunctions.DOCKING_FAILURE)
+	assert_true(not _would_ride_past(sim, riders).is_empty(), "a plain plan would keep someone aboard past the next open flyby")
+	_assert_leaving_at_next_open_flyby(sim, riders)
+
+
+func test_exit_order_survives_change_of_mind() -> void:
+	var sim := _quiet_sim()
+	var riders := sim.parties.filter(_is_on_cycler)
+	for cycler in _occupied_cyclers(sim):
+		Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
+	# Some new destinations are reached sooner by riding on than by leaving at the next flyby.
+	var changed: Array = []
+	for party in riders:
+		for attempt in 40:
+			Incidents.change_mind(sim, party)
+			if not _would_ride_past(sim, [party]).is_empty():
+				changed.append(party)
+				break
+	assert_true(not changed.is_empty(), "a plain plan to the new destination would keep someone aboard past the next open flyby")
+	_assert_leaving_at_next_open_flyby(sim, changed)
+
+
+func test_exit_order_cleared_once_off() -> void:
+	var sim := _quiet_sim()
+	var party := _party_where(sim, _is_on_cycler)
+	var cycler: Cycler = party.place
+	Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
+	var tender := party.route[0]
+	sim.advance_to(tender.depart_day + 0.001)
+	assert_true(party.aboard == tender and party.must_leave == null, "boarding a tender off the cycler ends the order")
+
+
 func test_tenders_full_stays_aboard() -> void:
 	var sim := _quiet_sim()
 	var party := _party_where(sim, func(p: Party) -> bool: return _is_on_cycler(p))

@@ -149,6 +149,7 @@ static func _fault_cycler_life_support(sim: Sim, cycler: Cycler) -> void:
 ## Plans the party off the cycler by the next trip with seats for it, to the body
 ## reached soonest. When the next flyby has no room it stays aboard and tries again at the flyby after.
 static func _leave_cycler(sim: Sim, party: Party, cycler: Cycler) -> void:
+	party.must_leave = cycler
 	Planner.cancel(party)
 	var groups := exit_groups(sim, cycler)
 	if groups.is_empty():
