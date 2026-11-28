@@ -125,7 +125,7 @@ func _respond_disconnected(words: PackedStringArray) -> String:
 		"help":
 			return "\n".join([
 				"ships list — List the ships",
-				"ships connect <%s> — Connect to that ship" % "|".join(fleet.names()),
+				"ships connect <name> — Connect to that ship",
 			])
 		"ships":
 			return _ships(words)
@@ -144,8 +144,8 @@ func _ships(words: PackedStringArray) -> String:
 		ship_name = words[2]
 		return "connected to " + ship_name
 	if sub == "connect":
-		return "usage: ships connect <%s>" % "|".join(fleet.names())
-	return "usage: ships list | ships connect <ship name>"
+		return "usage: ships connect <name>"
+	return "usage: ships list | ships connect <name>"
 
 
 func _respond_connected(words: PackedStringArray, line: String) -> String:

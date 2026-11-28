@@ -257,7 +257,7 @@ A ship command is transmitted. It reaches the ship after the ship's `transmissio
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands, with the ship's door and room ids in place of `<door id>` and `<room id>` |
+| `help` | List the commands, one per line, with each argument shown as `<name>`; an unknown name is answered with the valid ones |
 | `debug trip <breaker ID>` | Trip a breaker, for testing and demos |
 | `debug fault <system>` | Put a system in FAULT, for testing and demos |
 

@@ -41,7 +41,7 @@ static func computer_refusal(ship: Ship, key: String) -> String:
 
 
 static func _respond(ship: Ship, words: PackedStringArray) -> String:
-	var commands := _build_commands(ship)
+	var commands := _build_commands()
 	var key := _command_key(commands, words)
 	var refusal := computer_refusal(ship, key)
 	if refusal != "":
@@ -59,7 +59,7 @@ static func syntax_problem(ship: Ship, line: String) -> String:
 	var line_words := words(line)
 	if line_words.is_empty():
 		return ""
-	var commands := _build_commands(ship)
+	var commands := _build_commands()
 	return _syntax_problem(commands, _command_key(commands, line_words), line_words)
 
 
@@ -82,25 +82,24 @@ static func _syntax_problem(commands: Dictionary, key: String, words: PackedStri
 	return ""
 
 
-## The usage lines list the ship's own door and room ids.
-static func _build_commands(ship: Ship) -> Dictionary:
-	var doors := "<%s>" % "|".join(_opening_ids(ship))
-	var rooms := "<%s>" % "|".join(_room_ids(ship))
+## Every argument is shown as `<name>`; an unknown name is answered with the valid ones.
+static func _build_commands() -> Dictionary:
+	var name := "<name>"
 	var commands := {}
-	_add(commands, "door open", "door open " + doors, "Start opening", 1, _door_open)
-	_add(commands, "door close", "door close " + doors, "Start closing", 1, _door_close)
-	_add(commands, "light on", "light on " + rooms, "Switch that room's light on", 1, _light_on)
-	_add(commands, "light off", "light off " + rooms, "Switch it off", 1, _light_off)
-	_add(commands, "passenger add", "passenger add " + rooms, "Add a passenger to that room", 1, _passenger_add)
-	_add(commands, "passenger remove", "passenger remove " + rooms, "Remove a passenger from that room", 1, _passenger_remove)
+	_add(commands, "door open", "door open " + name, "Start opening", 1, _door_open)
+	_add(commands, "door close", "door close " + name, "Start closing", 1, _door_close)
+	_add(commands, "light on", "light on " + name, "Switch that room's light on", 1, _light_on)
+	_add(commands, "light off", "light off " + name, "Switch it off", 1, _light_off)
+	_add(commands, "passenger add", "passenger add " + name, "Add a passenger to that room", 1, _passenger_add)
+	_add(commands, "passenger remove", "passenger remove " + name, "Remove a passenger from that room", 1, _passenger_remove)
 	_add(commands, "pressure-control restart", "pressure-control restart", "Reboot pressure control", 0, _restart.bind("pressure-control"))
 	_add(commands, "hvac restart", "hvac restart", "Reboot the HVAC", 0, _restart.bind("hvac"))
 	_add(commands, "air-recycler restart", "air-recycler restart", "Reboot the recycler", 0, _restart.bind("air-recycler"))
 	_add(commands, "computer restart", "computer restart", "Reboot the computer", 0, _restart.bind(Ship.COMPUTER_ID))
-	_add(commands, "breaker reset", "breaker reset <breaker ID>", "Close a tripped breaker", 1, _breaker_reset)
+	_add(commands, "breaker reset", "breaker reset " + name, "Close a tripped breaker", 1, _breaker_reset)
 	_add(commands, "help", "help", "List the commands", 0, _help)
-	_add(commands, "debug trip", "debug trip <breaker ID>", "Trip a breaker", 1, _debug_trip)
-	_add(commands, "debug fault", "debug fault <system>", "Put a system in FAULT", 1, _debug_fault)
+	_add(commands, "debug trip", "debug trip " + name, "Trip a breaker", 1, _debug_trip)
+	_add(commands, "debug fault", "debug fault " + name, "Put a system in FAULT", 1, _debug_fault)
 	return commands
 
 
@@ -115,7 +114,7 @@ static func _help(ship: Ship, _args: PackedStringArray) -> String:
 ## One line per command. Unlike `run`, it never waits on the ship's computer.
 static func help_text(ship: Ship) -> String:
 	var lines := PackedStringArray()
-	var commands := _build_commands(ship)
+	var commands := _build_commands()
 	for key in commands:
 		lines.append("%s — %s" % [commands[key].usage, commands[key].effect])
 	return "\n".join(lines)

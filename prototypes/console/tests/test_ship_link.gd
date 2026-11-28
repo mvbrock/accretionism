@@ -44,9 +44,9 @@ func test_connect_unknown_ship() -> void:
 
 func test_ships_usage() -> void:
 	var link := _link()
-	assert_true(link.run("ships connect") == "usage: ships connect <kestrel|wren>", "got '%s'" % link.run("ships connect"))
-	assert_true(link.run("ships") == "usage: ships list | ships connect <ship name>", "got '%s'" % link.run("ships"))
-	assert_true(link.run("ships list now") == "usage: ships list | ships connect <ship name>", "got '%s'" % link.run("ships list now"))
+	assert_true(link.run("ships connect") == "usage: ships connect <name>", "got '%s'" % link.run("ships connect"))
+	assert_true(link.run("ships") == "usage: ships list | ships connect <name>", "got '%s'" % link.run("ships"))
+	assert_true(link.run("ships list now") == "usage: ships list | ships connect <name>", "got '%s'" % link.run("ships list now"))
 
 
 func test_ship_commands_need_a_connection() -> void:
@@ -59,7 +59,7 @@ func test_ship_commands_need_a_connection() -> void:
 
 func test_disconnected_help_lists_the_ships_commands() -> void:
 	var response := _link().run("help")
-	assert_true(response == "ships list — List the ships\nships connect <kestrel|wren> — Connect to that ship", "got '%s'" % response)
+	assert_true(response == "ships list — List the ships\nships connect <name> — Connect to that ship", "got '%s'" % response)
 
 
 func test_connected_commands_reach_only_that_ship() -> void:
