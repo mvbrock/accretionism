@@ -51,7 +51,14 @@ const TRANSPORTS: Array[Dictionary] = [
 	{"name": "Puffin", "service": "spare", "home": "Mars"},
 ]
 
-const SEATS := {"cycler": 400, "shuttle": 20, "tender": 20, "express": 8, "standby": 20, "spare": 20}
+const CYCLER_SEATS := 400
+const SEATS := {
+	Fleet.Service.SHUTTLE: 20,
+	Fleet.Service.TENDER: 20,
+	Fleet.Service.EXPRESS: 8,
+	Fleet.Service.STANDBY: 20,
+	Fleet.Service.SPARE: 20,
+}
 
 const WINDOW_DAYS := 800.0
 const CONNECTION_DAYS := 0.25

@@ -8,7 +8,7 @@ var _other := Transport.parked_at("Other Ship", EARTH)
 
 
 func _trip(ship: Transport, depart: float, arrive: float) -> Trip:
-	return Trip.new(ship, EARTH, MOON, depart, arrive, 20, "service")
+	return Trip.new(ship, EARTH, MOON, depart, arrive, 20, Trip.Kind.SERVICE)
 
 
 ## Departures 1, 3, 3, 8 and 20, the last a long one that is still flying on day 30.

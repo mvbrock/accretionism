@@ -220,7 +220,7 @@ func _board(party: Party, trip: Trip, t: float) -> void:
 	party.aboard = trip
 	if is_same(trip.from, party.must_leave):
 		party.must_leave = null
-	if trip.kind == "rescue":
+	if trip.kind == Trip.Kind.RESCUE:
 		party.write(t, "Evacuated from %s by %s" % [Fleet.target_name(party.place), trip.ship.name], "rescue")
 	else:
 		party.write(t, "Boarded %s at %s" % [trip.ship.name, Fleet.target_name(party.place)], "booked trip")

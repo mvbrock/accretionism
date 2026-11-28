@@ -10,7 +10,7 @@ const MEDICAL := "medical"
 const LIFE_SUPPORT := "life_support"
 const RESCUE_CAUSE := "rescue"
 
-const _STANDING_SERVICES := ["standby", "spare"]
+const _STANDING_SERVICES := [Fleet.Service.STANDBY, Fleet.Service.SPARE]
 
 
 static func install(sim: Sim) -> void:
@@ -165,11 +165,11 @@ static func _most_borrowable(sim: Sim, free: Array[Transport], cycler: Cycler) -
 static func _send_loans_home(sim: Sim, cycler: Cycler) -> void:
 	var free := _free_ships_at(sim, cycler)
 	var own_is_back := free.any(func(ship: Transport) -> bool:
-		return sim.fleet.service_of[ship] == "standby" and is_same(sim.fleet.home_of[ship], cycler))
+		return sim.fleet.service_of[ship] == Fleet.Service.STANDBY and is_same(sim.fleet.home_of[ship], cycler))
 	if not own_is_back:
 		return
 	for ship in free:
-		if sim.fleet.service_of[ship] == "standby" and not is_same(sim.fleet.home_of[ship], cycler):
+		if sim.fleet.service_of[ship] == Fleet.Service.STANDBY and not is_same(sim.fleet.home_of[ship], cycler):
 			sim.dispatcher.add_return(ship, sim.fleet.home_of[ship], sim.day)
 
 
@@ -195,7 +195,7 @@ static func _nearest_idle_spare(sim: Sim, cycler: Cycler) -> Transport:
 	var nearest: Transport = null
 	var earliest := INF
 	for ship in sim.fleet.transports:
-		if sim.fleet.service_of[ship] != "spare" or ship.state != Transport.State.AT_BODY or _has_trip_to_fly(sim, ship):
+		if sim.fleet.service_of[ship] != Fleet.Service.SPARE or ship.state != Transport.State.AT_BODY or _has_trip_to_fly(sim, ship):
 			continue
 		var solution := sim.fleet.solve_trip(ship.body, sim.day, cycler)
 		if solution.ok and solution.t_arrive < earliest:
@@ -206,7 +206,7 @@ static func _nearest_idle_spare(sim: Sim, cycler: Cycler) -> Transport:
 
 static func _cover_on_its_way_to(sim: Sim, cycler: Cycler) -> bool:
 	return sim.schedule.arriving_from(sim.day).any(func(trip: Trip) -> bool:
-		var is_cover := trip.kind == "rescue" and trip.booked == 0 and _STANDING_SERVICES.has(sim.fleet.service_of[trip.ship])
+		var is_cover := trip.kind == Trip.Kind.RESCUE and trip.booked == 0 and _STANDING_SERVICES.has(sim.fleet.service_of[trip.ship])
 		return is_cover and is_same(trip.to, cycler))
 
 

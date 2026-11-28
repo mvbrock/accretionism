@@ -11,7 +11,7 @@ static func build() -> Fleet:
 	for entry in Config.TRANSPORTS:
 		var transport := _transport_at(entry.name, entry.home, fleet.cyclers)
 		fleet.transports.append(transport)
-		fleet.service_of[transport] = entry.service
+		fleet.service_of[transport] = Fleet.Service[entry.service.to_upper()]
 		fleet.home_of[transport] = transport.host if transport.state == Transport.State.DOCKED else transport.body
 	return fleet
 

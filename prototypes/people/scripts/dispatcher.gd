@@ -36,11 +36,11 @@ func _init(fleet: Fleet, schedule: Schedule) -> void:
 		_plans[ship] = plan
 
 
-func _first_departure_stagger(service: String) -> float:
+func _first_departure_stagger(service: Fleet.Service) -> float:
 	match service:
-		"shuttle":
+		Fleet.Service.SHUTTLE:
 			return Config.SHUTTLE_STAGGER_DAYS
-		"express":
+		Fleet.Service.EXPRESS:
 			return Config.EXPRESS_STAGGER_DAYS
 	return 0.0
 
@@ -48,21 +48,21 @@ func _first_departure_stagger(service: String) -> float:
 func extend_to(day: float) -> void:
 	for ship in _fleet.transports:
 		match _fleet.service_of[ship]:
-			"shuttle":
+			Fleet.Service.SHUTTLE:
 				_plan_round_trips(ship, day, _SHUTTLE_BODIES, Config.SHUTTLE_TURNAROUND_DAYS)
-			"express":
+			Fleet.Service.EXPRESS:
 				_plan_round_trips(ship, day, _EXPRESS_BODIES, Config.EXPRESS_TURNAROUND_DAYS)
-			"tender":
+			Fleet.Service.TENDER:
 				_plan_tender_trips(ship, day)
 
 
 func add_rescue(ship: Transport, from: Variant, to: Variant, t0: float) -> Trip:
 	assert(is_same(_plans[ship].location, from), "%s will not be at %s" % [ship.name, Fleet.target_name(from)])
-	return _plan_trip(ship, to, t0, "rescue")
+	return _plan_trip(ship, to, t0, Trip.Kind.RESCUE)
 
 
 func add_return(ship: Transport, home: Variant, t0: float) -> Trip:
-	return _plan_trip(ship, home, t0, "return")
+	return _plan_trip(ship, home, t0, Trip.Kind.RETURN)
 
 
 func _plan_round_trips(ship: Transport, day: float, bodies: Array, turnaround: float) -> void:
@@ -102,7 +102,7 @@ func _flybys_at(planet: Orbits.Body, after_day: float, to_day: float) -> Array:
 	return flybys
 
 
-func _plan_trip(ship: Transport, destination: Variant, depart_day: float, kind := "service") -> Trip:
+func _plan_trip(ship: Transport, destination: Variant, depart_day: float, kind := Trip.Kind.SERVICE) -> Trip:
 	var plan := _plans[ship]
 	var solution := _fleet.solve_trip(plan.location, depart_day, destination)
 	assert(solution.ok, "%s has no route to %s" % [ship.name, Fleet.target_name(destination)])

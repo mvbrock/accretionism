@@ -23,7 +23,7 @@ func test_three_hundred_unique_ids() -> void:
 
 
 func test_cast_fits_a_cycler() -> void:
-	assert_true(Cast.PASSENGERS.size() <= Config.SEATS.cycler, "the whole cast fits aboard one cycler")
+	assert_true(Cast.PASSENGERS.size() <= Config.CYCLER_SEATS, "the whole cast fits aboard one cycler")
 
 
 func test_every_passenger_is_in_exactly_one_party() -> void:

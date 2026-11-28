@@ -32,13 +32,13 @@ func _aldrin_i(sim: Sim) -> Cycler:
 
 func _standby_of(sim: Sim, cycler: Cycler) -> Transport:
 	for ship in sim.fleet.transports:
-		if sim.fleet.service_of[ship] == "standby" and ship.state == Transport.State.DOCKED and is_same(ship.host, cycler):
+		if sim.fleet.service_of[ship] == Fleet.Service.STANDBY and ship.state == Transport.State.DOCKED and is_same(ship.host, cycler):
 			return ship
 	return null
 
 
 func _spares(sim: Sim) -> Array[Transport]:
-	return sim.fleet.transports.filter(func(ship: Transport) -> bool: return sim.fleet.service_of[ship] == "spare")
+	return sim.fleet.transports.filter(func(ship: Transport) -> bool: return sim.fleet.service_of[ship] == Fleet.Service.SPARE)
 
 
 ## Lets the sim take the rescue queues, which it does at the current instant.
@@ -46,12 +46,12 @@ func _settle(sim: Sim) -> void:
 	sim.advance_to(sim.day)
 
 
-func _trips_of_kind(sim: Sim, kind: String) -> Array[Trip]:
+func _trips_of_kind(sim: Sim, kind: Trip.Kind) -> Array[Trip]:
 	return sim.schedule.trips.filter(func(trip: Trip) -> bool: return trip.kind == kind)
 
 
 func _rescue_by(sim: Sim, ship: Transport) -> Trip:
-	return _trips_of_kind(sim, "rescue").filter(func(trip: Trip) -> bool: return trip.ship == ship)[0]
+	return _trips_of_kind(sim, Trip.Kind.RESCUE).filter(func(trip: Trip) -> bool: return trip.ship == ship)[0]
 
 
 func _serious(sim: Sim, party: Party) -> void:
@@ -83,7 +83,7 @@ func test_medical_rescue_to_nearest_hospital() -> void:
 	_settle(sim)
 	assert_true(party.route.size() == 1, "the party is booked onto one trip")
 	var trip := party.route[0]
-	assert_true(trip.kind == "rescue" and trip.ship == standby and is_same(trip.from, cycler), "the standby flies the rescue off its cycler")
+	assert_true(trip.kind == Trip.Kind.RESCUE and trip.ship == standby and is_same(trip.from, cycler), "the standby flies the rescue off its cycler")
 	assert_true(is_same(trip.to, _soonest_body(sim, cycler)), "to the hospital reached soonest")
 	assert_near(trip.depart_day, sim.day, 1e-9, "it leaves at once")
 	assert_true(is_same(party.destination, trip.to), "the hospital is the party's destination")
@@ -104,7 +104,7 @@ func test_life_support_rescue_lands_and_replans() -> void:
 	Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
 	_settle(sim)
 	var trip := party.route[0]
-	assert_true(trip.kind == "rescue" and is_same(trip.to, _soonest_body(sim, cycler)), "it is rescued to the body reached soonest")
+	assert_true(trip.kind == Trip.Kind.RESCUE and is_same(trip.to, _soonest_body(sim, cycler)), "it is rescued to the body reached soonest")
 	sim.advance_to(sim.day + 0.001)
 	assert_true(party.must_leave == null, "boarding the rescue ends the order to leave")
 	var destination := party.destination
@@ -138,7 +138,7 @@ func test_party_never_split() -> void:
 	var sim := _quiet_sim()
 	var cycler := _aldrin_i(sim)
 	var standby := _standby_of(sim, cycler)
-	var seats := Config.SEATS["standby"]
+	var seats := Config.SEATS[Fleet.Service.STANDBY]
 	var line: Array[Party] = []
 	var used := 0
 	for party in _parties_on(sim, cycler):
@@ -181,13 +181,13 @@ func test_party_too_big_for_the_seats_stays_queued() -> void:
 	var sim := _quiet_sim()
 	var cycler := _aldrin_i(sim)
 	var party := _parties_on(sim, cycler)[0]
-	while party.size() <= Config.SEATS["standby"]:
+	while party.size() <= Config.SEATS[Fleet.Service.STANDBY]:
 		party.members.append(Passenger.new())
 	expect_error("too few seats")
 	Rescues.request(sim, party, "life_support")
 	_settle(sim)
 	assert_true(party.route.is_empty() and party.state == Party.State.HELD and party.awaiting_rescue, "the party stays queued")
-	assert_true(_trips_of_kind(sim, "rescue").is_empty(), "no rescue is flown")
+	assert_true(_trips_of_kind(sim, Trip.Kind.RESCUE).is_empty(), "no rescue is flown")
 
 
 func test_rescue_to_another_body_writes_the_reroute() -> void:
@@ -219,7 +219,7 @@ func test_spare_sent_when_no_standby() -> void:
 	var second := riders[1]
 	_serious(sim, second)
 	_settle(sim)
-	var sent := _trips_of_kind(sim, "rescue").filter(func(trip: Trip) -> bool: return sim.fleet.service_of[trip.ship] == "spare")
+	var sent := _trips_of_kind(sim, Trip.Kind.RESCUE).filter(func(trip: Trip) -> bool: return sim.fleet.service_of[trip.ship] == Fleet.Service.SPARE)
 	assert_true(sent.size() == 1, "one spare is sent")
 	var trip: Trip = sent[0]
 	assert_true(is_same(trip.to, cycler) and trip.booked == 0, "to the cycler, with no passengers")
@@ -233,10 +233,10 @@ func test_spare_sent_when_no_standby() -> void:
 	assert_true(trip.ship == nearest, "it is the spare that arrives soonest")
 	assert_true(second.route.is_empty() and second.state == Party.State.HELD, "the party waits for it")
 	_settle(sim)
-	assert_true(_trips_of_kind(sim, "rescue").filter(func(t: Trip) -> bool: return sim.fleet.service_of[t.ship] == "spare").size() == 1,
+	assert_true(_trips_of_kind(sim, Trip.Kind.RESCUE).filter(func(t: Trip) -> bool: return sim.fleet.service_of[t.ship] == Fleet.Service.SPARE).size() == 1,
 			"no second spare is sent")
 	sim.advance_to(trip.arrive_day + 0.001)
-	assert_true(second.route.size() == 1 and second.route[0].ship == nearest and second.route[0].kind == "rescue", "once docked the spare takes the party")
+	assert_true(second.route.size() == 1 and second.route[0].ship == nearest and second.route[0].kind == Trip.Kind.RESCUE, "once docked the spare takes the party")
 	assert_true(is_same(second.route[0].from, cycler), "off the cycler")
 
 
@@ -249,7 +249,7 @@ func test_standby_returns_to_its_cycler() -> void:
 	_settle(sim)
 	var rescue := party.route[0]
 	var back := sim.schedule.next_trip_of(standby, rescue.depart_day)
-	assert_true(back != null and back.kind == "return", "a return trip is scheduled")
+	assert_true(back != null and back.kind == Trip.Kind.RETURN, "a return trip is scheduled")
 	assert_true(is_same(back.from, rescue.to) and is_same(back.to, cycler), "from the stop back to the cycler")
 	assert_near(back.depart_day, rescue.arrive_day + Config.RESCUE_TURNAROUND_DAYS, 1e-9, "after the turnaround")
 	sim.advance_to(back.arrive_day + 0.001)
@@ -262,8 +262,8 @@ func test_change_of_mind_never_rescues() -> void:
 	for attempt in 5:
 		Incidents.change_mind(sim, party)
 	_settle(sim)
-	assert_true(_trips_of_kind(sim, "rescue").is_empty(), "no rescue is flown")
-	assert_true(party.route.is_empty() or party.route[0].kind == "service", "the party waits for a flyby")
+	assert_true(_trips_of_kind(sim, Trip.Kind.RESCUE).is_empty(), "no rescue is flown")
+	assert_true(party.route.is_empty() or party.route[0].kind == Trip.Kind.SERVICE, "the party waits for a flyby")
 	assert_true(not party.awaiting_rescue, "and is not in a queue")
 
 
@@ -294,7 +294,7 @@ func test_life_support_cancels_planned_tender_exit() -> void:
 	Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
 	assert_true(not party.route.has(planned) and planned.booked <= booked_before - party.size(), "the seats on the tender are freed")
 	_settle(sim)
-	assert_true(party.awaiting_rescue or (not party.route.is_empty() and party.route[0].kind == "rescue"), "the party is rescued instead")
+	assert_true(party.awaiting_rescue or (not party.route.is_empty() and party.route[0].kind == Trip.Kind.RESCUE), "the party is rescued instead")
 
 
 func test_rescue_departs_the_same_in_big_and_small_steps() -> void:

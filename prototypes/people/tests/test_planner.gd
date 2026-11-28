@@ -8,7 +8,7 @@ var _ship := Transport.parked_at("Test Ship", EARTH)
 
 
 func _trip(from: Variant, to: Variant, depart: float, arrive: float, seats := 20) -> Trip:
-	return Trip.new(_ship, from, to, depart, arrive, seats, "service")
+	return Trip.new(_ship, from, to, depart, arrive, seats, Trip.Kind.SERVICE)
 
 
 func _schedule(trips: Array[Trip]) -> Schedule:

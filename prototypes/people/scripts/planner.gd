@@ -29,7 +29,7 @@ static func plan(schedule: Schedule, from: Variant, ready_day: float, to: Varian
 	for trip in schedule.departing_after(start_day):
 		if trip.depart_day > earliest.get(to, INF):
 			break
-		if trip.kind != "service" or trip.blocked or trip.seats_left() < party_size or not earliest.has(trip.from):
+		if trip.kind != Trip.Kind.SERVICE or trip.blocked or trip.seats_left() < party_size or not earliest.has(trip.from):
 			continue
 		var needs_connection: bool = arrived_by.has(trip.from) or start_needs_connection
 		var connection: float = Config.CONNECTION_DAYS if needs_connection else 0.0

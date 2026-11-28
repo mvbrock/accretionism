@@ -12,7 +12,7 @@ func _quiet_sim() -> Sim:
 func _quiet_sim_without_rescue_ships() -> Sim:
 	var sim := _quiet_sim()
 	for ship in sim.fleet.transports:
-		if ["standby", "spare"].has(sim.fleet.service_of[ship]):
+		if [Fleet.Service.STANDBY, Fleet.Service.SPARE].has(sim.fleet.service_of[ship]):
 			ship.state = Transport.State.IN_TRANSIT
 			ship.t_arrive = INF
 	return sim
@@ -361,7 +361,7 @@ func test_ship_course_unchanged() -> void:
 		var ship := struck.fleet.transports[i]
 		var control_ship := control.fleet.transports[i]
 		# Standbys and spares are sent out on rescues by a life-support fault on a cycler.
-		if ["standby", "spare"].has(struck.fleet.service_of[ship]):
+		if [Fleet.Service.STANDBY, Fleet.Service.SPARE].has(struck.fleet.service_of[ship]):
 			continue
 		assert_true(ship.state == control_ship.state and ship.target == control_ship.target, "%s keeps its trips" % ship.name)
 		assert_true(struck.fleet.position_of(ship, 60.0) == control.fleet.position_of(control_ship, 60.0), "%s is where it would be" % ship.name)

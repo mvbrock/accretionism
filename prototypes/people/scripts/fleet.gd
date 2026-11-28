@@ -3,13 +3,15 @@ extends RefCounted
 ## All ships plus the dispatch rules. Arrival times are worked out exactly at
 ## departure, so advancing the clock by any amount can't skip an arrival.
 
+enum Service { SHUTTLE, TENDER, EXPRESS, STANDBY, SPARE }
+
 const _BODIES := [Orbits.Body.EARTH, Orbits.Body.MOON, Orbits.Body.MARS]
 
 var cyclers: Array[Cycler] = []
 var transports: Array[Transport] = []
 var day := 0.0
-## Each transport's service: "shuttle", "tender", "express", "standby" or "spare".
-var service_of: Dictionary[Transport, String] = {}
+## Each transport's service.
+var service_of: Dictionary[Transport, Service] = {}
 ## Where each transport started: its body or the cycler it is docked to.
 var home_of: Dictionary[Transport, Variant] = {}
 

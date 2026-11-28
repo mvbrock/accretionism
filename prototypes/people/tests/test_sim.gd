@@ -196,8 +196,8 @@ func test_progress_formula_and_held_dash() -> void:
 	var sim := Sim.new(false, false)
 	var party := sim.parties[0]
 	var ship := Transport.parked_at("Test Ship", Orbits.Body.EARTH)
-	var first := Trip.new(ship, Orbits.Body.EARTH, Orbits.Body.MOON, 10.0, 20.0, 20, "service")
-	var last := Trip.new(ship, Orbits.Body.MOON, Orbits.Body.MARS, 25.0, 50.0, 20, "service")
+	var first := Trip.new(ship, Orbits.Body.EARTH, Orbits.Body.MOON, 10.0, 20.0, 20, Trip.Kind.SERVICE)
+	var last := Trip.new(ship, Orbits.Body.MOON, Orbits.Body.MARS, 25.0, 50.0, 20, Trip.Kind.SERVICE)
 	party.journey_start = 10.0
 	party.route = [first, last] as Array[Trip]
 	sim.day = 20.0
