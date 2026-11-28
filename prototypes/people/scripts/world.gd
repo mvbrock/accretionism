@@ -5,7 +5,7 @@ extends RefCounted
 
 
 static func build() -> Fleet:
-	_apply_settings()
+	apply_settings()
 	var fleet := Fleet.new()
 	fleet.day = Config.WARMUP_START
 	for entry in Config.CYCLERS:
@@ -18,7 +18,7 @@ static func build() -> Fleet:
 	return fleet
 
 
-static func _apply_settings() -> void:
+static func apply_settings() -> void:
 	var angles := {}
 	for body in Orbits.Body.values():
 		angles[body] = Config.EPOCH_ANGLES_DEG[Orbits.body_name(body)]

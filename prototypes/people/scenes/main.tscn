@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ui/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/ui/passenger_table.gd" id="2_table"]
+[ext_resource type="Script" path="res://scripts/ui/detail_panel.gd" id="3_detail"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -78,8 +79,8 @@ hide_root = true
 select_mode = 1
 script = ExtResource("2_table")
 
-[node name="DetailPanel" type="Label" parent="Layout/Body"]
+[node name="DetailPanel" type="VBoxContainer" parent="Layout/Body"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(360, 0)
+custom_minimum_size = Vector2(480, 0)
 layout_mode = 2
-text = "Select a passenger"
+script = ExtResource("3_detail")

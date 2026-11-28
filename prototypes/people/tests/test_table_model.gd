@@ -138,3 +138,22 @@ func test_history_growth_highlights_the_row() -> void:
 	assert_true(table.get_root().get_children().any(func(row: TreeItem) -> bool:
 		return row.get_metadata(0) == touched and row.get_custom_bg_color(0) == PassengerTable.HIGHLIGHT_COLOR), "the touched row is highlighted")
 	touched.history.pop_back()
+
+
+func test_scroll_follows_only_explicit_selection() -> void:
+	var sim := SharedSim.get_sim()
+	var table := _table(sim)
+	table.size = Vector2(600, 300)
+	var last: Passenger = sim.passengers_by_id.values()[-1]
+	table.show_selected(last)
+	await physics_frames(2)
+	assert_true(table.get_scroll().y > 0.0, "an explicit selection scrolls to the row")
+	table.scroll_to_item(table.get_root().get_first_child()) # the user scrolling away
+	table._last_reapply_msec = 0
+	table.refresh(sim)
+	await physics_frames(2)
+	assert_true(table.get_scroll().y == 0.0, "a periodic refresh leaves the scroll alone")
+	table.set_sort(0, false)
+	table.refresh(sim)
+	await physics_frames(2)
+	assert_true(table.get_scroll().y > 0.0, "a sort change scrolls back to the selection")

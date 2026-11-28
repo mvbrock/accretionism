@@ -14,7 +14,7 @@ func test_main_scene_loads_and_ticks() -> void:
 	var main := _main()
 	assert_true(main.table.get_root().get_child_count() == 300, "one row per passenger")
 	assert_true(main.table.columns == 6, "six columns")
-	assert_true(main.get_node("%DetailPanel").text == "Select a passenger", "the panel placeholder shows")
+	assert_true(main.detail_panel.shown == null, "the panel starts empty")
 	main.clock.paused = false
 	main.clock.speed_index = 1
 	var before := main.sim.day

@@ -21,6 +21,8 @@ var _filter := ""
 var _seen_history: Dictionary[Passenger, int] = {}
 var _highlight_until_msec: Dictionary[Passenger, int] = {}
 var _last_reapply_msec := 0
+## Set by an explicit selection, sort or filter change; the next selection pass scrolls to the row.
+var _scroll_pending := false
 
 
 func _ready() -> void:
@@ -66,6 +68,7 @@ func set_sort(column: int, ascending: bool) -> void:
 	_sort_ascending = ascending
 	_show_titles()
 	_last_reapply_msec = 0
+	_scroll_pending = true
 
 
 ## Matches any cell, ignoring case. A selected passenger the filter hides stays
@@ -73,11 +76,13 @@ func set_sort(column: int, ascending: bool) -> void:
 func set_filter(text: String) -> void:
 	_filter = text.strip_edges().to_lower()
 	_last_reapply_msec = 0
+	_scroll_pending = true
 
 
-## Highlights `passenger`'s row, or clears the highlight for null. Doesn't emit passenger_selected.
+## Highlights `passenger`'s row and scrolls to it, or clears the highlight for null. Doesn't emit passenger_selected.
 func show_selected(passenger: Passenger) -> void:
 	_selected = passenger
+	_scroll_pending = true
 	_select_row()
 
 
@@ -120,7 +125,9 @@ func _select_row() -> void:
 	deselect_all()
 	if _selected != null and _items.has(_selected) and _items[_selected].visible:
 		_items[_selected].select(0)
-		scroll_to_item(_items[_selected])
+		if _scroll_pending:
+			scroll_to_item(_items[_selected])
+	_scroll_pending = false
 	set_block_signals(false)
 
 

@@ -9,4 +9,6 @@ static var _sim: Sim
 static func get_sim() -> Sim:
 	if _sim == null:
 		_sim = Sim.new()
+	# Orbit tests reconfigure static settings; the sim must run on its own.
+	World.apply_settings()
 	return _sim

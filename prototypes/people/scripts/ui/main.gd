@@ -10,6 +10,7 @@ var clock := SimClock.new()
 @onready var clock_label: Label = %ClockLabel
 @onready var filter: LineEdit = %Filter
 @onready var table: PassengerTable = %Table
+@onready var detail_panel: DetailPanel = %DetailPanel
 
 
 func _ready() -> void:
@@ -19,6 +20,9 @@ func _ready() -> void:
 	clock.day = sim.day
 	table.show_passengers(sim.passengers_by_id.values())
 	table.refresh(sim)
+	table.passenger_selected.connect(func(passenger: Passenger) -> void: detail_panel.show_passenger(sim, passenger))
+	detail_panel.passenger_clicked.connect(_select_from_panel)
+	detail_panel.show_passenger(sim, null)
 	play_pause_button.pressed.connect(_toggle_pause)
 	speed_button.pressed.connect(_next_speed)
 	filter.text_changed.connect(table.set_filter)
@@ -49,6 +53,7 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 func _process(delta: float) -> void:
 	sim.advance_to(clock.tick(delta))
 	table.refresh(sim)
+	detail_panel.refresh(sim)
 	_show_clock()
 
 
@@ -62,6 +67,11 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_tree().quit()
+
+
+func _select_from_panel(passenger: Passenger) -> void:
+	table.show_selected(passenger)
+	detail_panel.show_passenger(sim, passenger)
 
 
 func _toggle_pause() -> void:
