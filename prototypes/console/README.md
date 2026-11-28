@@ -28,7 +28,7 @@ status is the worst level anywhere on the ship:
 |---|---|---|
 | NORMAL | green | everything works |
 | WARNING | yellow | equipment is down: a tripped breaker, or a system in FAULT or without power |
-| DANGER | orange | a change that could cause harm: a reading outside its normal band, or a door left open onto an open hatch |
+| DANGER | orange | a change that could cause harm: a reading outside its normal band (the log also records a door left open onto an open hatch as DANGER) |
 | CRITICAL | red | death is imminent: a reading past its critical limit, a room open to vacuum, or an empty tank |
 
 ## Ships

@@ -215,7 +215,7 @@ Each room has one light with a switch that is on or off. A light shines only whe
 
 The breaker IDs are the names in the first column. Breakers come from the ship's rooms and openings: a room adds its `light-<room id>` breaker and a door or hatch adds a breaker with its own id, alongside the three fixed system breakers. The skiff has nine breakers and the Wheel 95 (43 lights, 48 doors, 1 hatch and 3 systems). Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
 
-A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows breaker states and draws (see Screen), and the whole ship's total.
+A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows the selected room's breakers with their states and draws, and the SYSTEMS panel the whole ship's total (see Screen).
 
 ### Random trips
 
@@ -293,14 +293,16 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │      └────────┘   └─────────────┘   └───────────┘                  │
 │                        │         (the ship in 3D; drag to orbit, wheel to zoom)               │
 │                        │                                                                      │
-│                        │ ┌HOLD──────BREAKERS──────┐ SYSTEMS            TANKS               │
-│                        │ │0.4 kPa   light-hold ■ 40 W│ pressure-control  O₂ ██████░░ 78 %   │
-│                        │ │18.9 °C   cabin-hold ■ 5 W │ hvac         RUN  N₂ ███████░ 91 %   │
-│                        │ │O₂ —      hatch      ■ 5 W │ air-recycler BOOT                    │
-│                        │ │N₂ —                       │ computer     RUN                     │
-│                        │  CO₂ —                           hvac ■ 200 W  air-recycler ■ 50 W    │
-│                        │  passengers 0                    light-cabin □ TRIP                   │
-│ > door open hatch      │  light ○                         total 3.1 kW                         │
+│                        │ ┌────────────────────────────────┐                                   │
+│                        │ │HOLD         BREAKERS           │ SYSTEMS            TANKS          │
+│                        │ │0.4 kPa      light-hold   ■ 40 W│ pressure-control  O₂ ██████░░ 78 %│
+│                        │ │18.9 °C      cabin-hold   ■ 5 W │ hvac         RUN  N₂ ███████░ 91 %│
+│                        │ │O₂ —         hatch        ■ 5 W │ air-recycler BOOT                 │
+│                        │ │N₂ —                            │ computer     RUN                  │
+│                        │ │CO₂ —                           │ total 3.1 kW                      │
+│                        │ │passengers 0                    │                                   │
+│                        │ │light ○                         │                                   │
+│ > door open hatch      │ └────────────────────────────────┘                                   │
 │ sent to skiff; ...     │                                                                      │
 │ uplink: ... — 3:12 left│  LOG                                                                 │
 │ ███████░░░             │  00:41:52  hold: exposed to vacuum                                  │
@@ -336,7 +338,7 @@ Four levels, each with its colour:
 |---|---|---|
 | NORMAL | green | everything works |
 | WARNING | yellow | equipment is down: a tripped breaker, or a system in FAULT or NO POWER |
-| DANGER | orange | a change that could cause harm: a reading outside its normal band, or a door left open onto an open hatch |
+| DANGER | orange | a change that could cause harm: a reading outside its normal band (the log also records a door left open onto an open hatch as DANGER) |
 | CRITICAL | red | death is imminent: a reading past its critical limit, a room exposed to vacuum, or an empty tank |
 
 Readings are never yellow:
