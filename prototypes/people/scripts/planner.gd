@@ -68,6 +68,8 @@ static func cancel(party: Party) -> void:
 ## the trip that leaves it is a leg of the cycler.
 static func legs(party: Party) -> Array[Dictionary]:
 	var trips: Array[Trip] = party.done_trips.duplicate()
+	if party.aboard != null and not party.route.has(party.aboard):
+		trips.append(party.aboard) # a CRITICAL patient's party riding with no route
 	for trip in party.route:
 		if not trips.has(trip):
 			trips.append(trip)

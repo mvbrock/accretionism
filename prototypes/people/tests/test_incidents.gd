@@ -179,6 +179,27 @@ func test_critical_rides_past_stops_then_reroutes() -> void:
 	assert_true(rerouted.size() == 1, "it is re-routed once, when stable")
 
 
+func test_critical_stable_ending_while_docked_at_body_gets_off_there() -> void:
+	var sim := _quiet_sim()
+	var party := _party_where(sim, func(p: Party) -> bool:
+		if p.aboard == null or p.aboard.to is Cycler:
+			return false
+		var next := sim.schedule.next_trip_of(p.aboard.ship, p.aboard.arrive_day)
+		return next != null and next.depart_day > p.aboard.arrive_day + 0.01)
+	var trip := party.aboard
+	var next := sim.schedule.next_trip_of(trip.ship, trip.arrive_day)
+	next.booked = next.seats
+	Incidents.start_emergency(sim, party, party.members[0], CONDITION, Incidents.Severity.CRITICAL)
+	party.stable_until = (trip.arrive_day + next.depart_day) / 2.0
+	sim.advance_to(trip.arrive_day + 0.001)
+	assert_true(party.aboard == next, "it is riding on, docked")
+	sim.advance_to(party.stable_until + 0.001)
+	assert_true(party.aboard == null and is_same(party.place, trip.to), "it gets off at the body the ship is docked at")
+	assert_true(next.booked == next.seats, "its seats on the next trip are given back")
+	assert_true(party.hospital_until > sim.day and party.state == Party.State.HELD, "the hospital stay starts there")
+	assert_true(_entry_index(party, "Admitted to hospital at %s" % Fleet.target_name(trip.to)) != -1, "the admission is written")
+
+
 func test_critical_on_cycler_is_stabilized_in_infirmary() -> void:
 	var sim := _quiet_sim()
 	var party := _party_where(sim, func(p: Party) -> bool: return p.aboard == null and p.place is Cycler)

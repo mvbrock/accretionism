@@ -197,7 +197,7 @@ func _arrive(trip: Trip, t: float) -> void:
 	for party in parties:
 		if party.aboard != trip:
 			continue
-		# A tie counts as still stable: the stable_until timer fires right after this arrival.
+		# A tie counts as still stable: the stable_until timer fires right after and the party steps off.
 		if party.stable_until >= t and schedule.next_trip_of(trip.ship, t) != null:
 			_ride_on(party, trip, t)
 		else:
@@ -209,6 +209,7 @@ func _arrive(trip: Trip, t: float) -> void:
 func _ride_on(party: Party, trip: Trip, t: float) -> void:
 	var next := schedule.next_trip_of(trip.ship, t)
 	party.done_trips.append(trip)
+	party.place = trip.to
 	party.aboard = next
 	next.booked += party.size()
 	party.write(t, "Staying aboard %s past %s: %s's %s emergency" % [
@@ -245,6 +246,13 @@ func begin_hospital_stay(party: Party) -> void:
 	party.write(day, "Admitted to hospital at %s" % Fleet.target_name(party.place), "medical emergency")
 
 
+## A riding party whose ship has not left its stop gets off there, where its place already is.
+func _step_off_if_docked(party: Party) -> void:
+	if party.aboard != null and not _in_flight.has(party.aboard):
+		party.aboard.booked -= party.size()
+		party.aboard = null
+
+
 ## Sends the party back to where it was going before the emergency.
 func _discharge(party: Party, t: float) -> void:
 	var back_to: Orbits.Body = party.medical_return
@@ -269,6 +277,7 @@ func _fire_timer(party: Party, kind: String, t: float) -> void:
 		"arrived_until":
 			_set_off(party, _other_body(party.place), t, "new journey")
 		"stable_until":
+			_step_off_if_docked(party)
 			Incidents.send_to_hospital(self, party)
 		"hospital_until":
 			_discharge(party, t)

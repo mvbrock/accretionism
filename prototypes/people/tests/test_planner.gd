@@ -144,3 +144,15 @@ func test_legs_mark_cycler_ride() -> void:
 	party.done_trips = [done, out]
 	var aboard := Planner.legs(party)
 	assert_true(aboard[2].status == "done" and aboard[3].status == "current", "aboard the last tender")
+
+
+func test_legs_show_riding_party_aboard_with_no_route() -> void:
+	var party := _party(1)
+	var ridden := _trip(EARTH, MOON, 1.0, 2.0)
+	var riding := _trip(MOON, EARTH, 3.0, 4.0)
+	party.done_trips = [ridden]
+	party.aboard = riding
+	var legs := Planner.legs(party)
+	assert_true(legs.size() == 2, "the trip it is aboard shows even though no route holds it")
+	assert_true(legs[0].status == "done" and legs[1].status == "current", "and is the current leg")
+	assert_true(legs[1].from_name == "Moon" and legs[1].to_name == "Earth", "with its stops")

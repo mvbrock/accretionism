@@ -90,23 +90,49 @@ func test_fleet_replay_never_errors() -> void:
 func test_bookings_match_routes() -> void:
 	var sim := Sim.new()
 	sim.advance_to(150.0)
+	_assert_bookings_match(sim)
+
+
+func _is_aboard_with_next_trip(sim: Sim, party: Party) -> bool:
+	return party.aboard != null and sim.schedule.next_trip_of(party.aboard.ship, party.aboard.arrive_day) != null
+
+
+func test_bookings_match_routes_with_riding_patient() -> void:
+	var sim := Sim.new(true, false)
+	var party := _party_where(sim, func(p: Party) -> bool: return _is_aboard_with_next_trip(sim, p))
+	var trip := party.aboard
+	var next := sim.schedule.next_trip_of(trip.ship, trip.arrive_day)
+	next.booked = next.seats
+	Incidents.start_emergency(sim, party, party.members[0], "Heart condition", Incidents.Severity.CRITICAL)
+	_assert_bookings_match(sim)
+	sim.advance_to(trip.arrive_day + 0.001)
+	assert_true(party.aboard == next and party.route.is_empty(), "the patient's party rides on with no route")
+	_assert_bookings_match(sim)
+	sim.advance_to(party.stable_until + 0.001)
+	_assert_bookings_match(sim)
+
+
+## Every unfinished trip's booked seats equal the party sizes routed on it or aboard it.
+## A trip can hold more than its seats only while a party on a medical route is aboard.
+func _assert_bookings_match(sim: Sim) -> void:
 	for party in sim.parties:
 		for trip in party.route:
 			assert_true(not party.done_trips.has(trip), "party %d has a flown trip on its route" % party.id)
 		if party.aboard != null:
-			assert_true(party.route.has(party.aboard), "party %d is aboard a trip that is not on its route" % party.id)
+			var is_riding := party.route.is_empty() and party.stable_until > sim.day
+			assert_true(party.route.has(party.aboard) or is_riding, "party %d is aboard a trip that is not on its route" % party.id)
 	for trip in sim.schedule.trips:
 		if trip.arrive_day <= sim.day:
 			continue
 		var booked := 0
-		var carries_patient := false
+		var carries_medical_party := false
 		for party in sim.parties:
 			if party.route.has(trip) or party.aboard == trip:
 				booked += party.size()
-				carries_patient = carries_patient or party.stable_until > -INF
+				carries_medical_party = carries_medical_party or party.medical_return != null
 		assert_true(trip.booked == booked, "%s's trip on day %.2f has %d seats booked for %d travelling" % [
 			trip.ship.name, trip.depart_day, trip.booked, booked])
-		assert_true(trip.booked <= trip.seats or carries_patient, "no trip is overbooked, except for a stabilizing patient's party")
+		assert_true(trip.booked <= trip.seats or carries_medical_party, "no trip is overbooked, except with a party on a medical route")
 
 
 func test_arrival_then_new_journey() -> void:
