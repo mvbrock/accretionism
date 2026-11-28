@@ -322,22 +322,23 @@ func test_rescue_departs_the_same_in_big_and_small_steps() -> void:
 		assert_true(a.state == b.state, "%s ends in the same state" % a.name)
 
 
-## One seed can open with an unlucky run of incidents, so the share is the mean over a few.
+func _assert_standby_gap_small(sim: Sim, label: String) -> void:
+	var before := Rescues.standby_gap_days(sim)
+	sim.advance_to(800.0)
+	var after := Rescues.standby_gap_days(sim)
+	for cycler in sim.fleet.cyclers:
+		var share: float = (after[cycler] - before[cycler]) / 800.0
+		assert_true(share < 0.25, "%s: %s has a standby or spare docked for most of 800 days (gap %.2f)" % [label, cycler.name, share])
+
+
+## The run the app shows, on Config.SEED.
 func test_standby_gap_small() -> void:
-	var seeds := [1, 2, 3, 4]
-	var sims: Array[Sim] = []
-	var before: Array[Dictionary] = []
-	for seed_value in seeds:
+	_assert_standby_gap_small(Sim.new(), "seed %d" % Config.SEED)
+
+
+func test_standby_gap_small_on_other_seeds() -> void:
+	for seed_value in [2, 3, 4]:
 		var sim := Sim.new(false)
 		sim.rng.seed = seed_value
 		sim.advance_to(0.0)
-		before.append(Rescues.standby_gap_days(sim))
-		sim.advance_to(800.0)
-		sims.append(sim)
-	for index in sims[0].fleet.cyclers.size():
-		var total := 0.0
-		for i in seeds.size():
-			var cycler := sims[i].fleet.cyclers[index]
-			total += Rescues.standby_gap_days(sims[i])[cycler] - before[i][cycler]
-		var share := total / (800.0 * seeds.size())
-		assert_true(share < 0.25, "%s has a standby or spare docked for most of 800 days (mean gap %.2f)" % [sims[0].fleet.cyclers[index].name, share])
+		_assert_standby_gap_small(sim, "seed %d" % seed_value)

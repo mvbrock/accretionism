@@ -107,7 +107,7 @@ static func _mark_due(sim: Sim, cycler: Cycler) -> void:
 
 
 ## Sends transports docked to the cycler out with the queue, one trip at a time.
-## Then it lets transports on loan fly home and keeps a replacement coming
+## Then it lets standbys on loan fly home and keeps a replacement coming
 ## while none is docked.
 static func _serve(sim: Sim, cycler: Cycler) -> void:
 	var queue := _queue(sim, cycler)
@@ -186,7 +186,10 @@ static func _most_borrowable(sim: Sim, free: Array[Transport], cycler: Cycler) -
 	return free[0]
 
 
-## Once a cycler's own standby is docked again, a transport covering for it flies home.
+## Once a cycler's own standby is docked again, a standby covering for it flies home.
+## A covering spare stays as a second standby: flights to and from a cycler far
+## out on its leg can take 80 days each way, so a spare sent home is often still
+## on its way when the next cover is needed. Docked here, it can be lent onward.
 static func _send_loans_home(sim: Sim, cycler: Cycler) -> void:
 	var free := _free_ships_at(sim, cycler)
 	var own_is_back := free.any(func(ship: Transport) -> bool:
@@ -194,7 +197,7 @@ static func _send_loans_home(sim: Sim, cycler: Cycler) -> void:
 	if not own_is_back:
 		return
 	for ship in free:
-		if not is_same(sim.fleet.home_of[ship], cycler):
+		if sim.fleet.service_of[ship] == "standby" and not is_same(sim.fleet.home_of[ship], cycler):
 			sim.dispatcher.add_return(ship, sim.fleet.home_of[ship], sim.day)
 
 
