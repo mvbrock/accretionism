@@ -109,7 +109,7 @@ func test_bookings_match_routes_with_riding_patient() -> void:
 	var party := _party_where(sim, func(p: Party) -> bool: return _is_aboard_with_next_trip(sim, p))
 	var trip := party.aboard
 	var next := sim.schedule.next_trip_of(trip.ship, trip.arrive_day)
-	next.booked = next.seats
+	next.seats = next.booked
 	Incidents.start_emergency(sim, party, party.members[0], "Heart condition", Incidents.Severity.CRITICAL)
 	_assert_bookings_match(sim)
 	sim.advance_to(trip.arrive_day + 0.001)

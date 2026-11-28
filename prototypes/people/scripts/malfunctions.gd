@@ -72,11 +72,19 @@ static func _roll_ships(sim: Sim, _day: int) -> void:
 	for ship in sim.fleet.ships():
 		if sim.docking_failure_until.has(ship):
 			continue
+		var docking_chance := _docking_failure_chance(sim, ship)
 		var roll := sim.rng.randf()
-		if roll < Config.DOCKING_FAILURE_CHANCE:
+		if roll < docking_chance:
 			strike(sim, ship, DOCKING_FAILURE)
-		elif roll < Config.DOCKING_FAILURE_CHANCE + Config.LIFE_SUPPORT_CHANCE:
+		elif roll < docking_chance + Config.LIFE_SUPPORT_CHANCE:
 			strike(sim, ship, LIFE_SUPPORT_FAULT)
+
+
+## A failure blocks a cycler's whole flyby, so a cycler rolls one only in the days approaching it.
+static func _docking_failure_chance(sim: Sim, ship: Variant) -> float:
+	if ship is Cycler and ship.leg_at(sim.day).end_day - sim.day > Config.CYCLER_DOCKING_WINDOW_DAYS:
+		return 0.0
+	return Config.DOCKING_FAILURE_CHANCE
 
 
 ## The ship's current or next trip cannot dock where it arrives, and neither can the
