@@ -49,7 +49,6 @@ static func plan(schedule: Schedule, from: Variant, ready_day: float, to: Varian
 	return chain + path
 
 
-## The body of `bodies` reached soonest, or null when none is reachable.
 static func soonest_body(schedule: Schedule, from: Variant, ready_day: float, party_size: int,
 		first_trip: Trip, bodies: Array) -> Variant:
 	var soonest: Variant = null
@@ -62,8 +61,7 @@ static func soonest_body(schedule: Schedule, from: Variant, ready_day: float, pa
 	return soonest
 
 
-## Like `plan`, but the route stops at `via` on the way to `to`. When `to` can't be
-## reached from `via`, the route ends at `via`.
+## When `to` can't be reached from `via`, the route ends at `via`.
 static func plan_via(schedule: Schedule, from: Variant, ready_day: float, via: Variant, to: Variant,
 		party_size: int, first_trip: Trip = null) -> Array[Trip]:
 	var to_via := plan(schedule, from, ready_day, via, party_size, first_trip)
@@ -81,7 +79,6 @@ static func book(party: Party, trips: Array[Trip]) -> void:
 		trip.booked += party.size()
 
 
-## Frees the seats of the trips the party has not boarded, and keeps the trip it is aboard.
 static func cancel(party: Party) -> void:
 	for trip in party.route:
 		if trip != party.aboard:

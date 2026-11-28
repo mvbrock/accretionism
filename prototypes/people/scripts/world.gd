@@ -1,7 +1,5 @@
 class_name World
 extends RefCounted
-## Builds the fleet from Config, with every ship at its home on the warm-up's
-## first day.
 
 
 static func build() -> Fleet:

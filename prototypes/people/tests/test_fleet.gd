@@ -9,7 +9,6 @@ const MOON_TRIP_DAYS := 384400.0 / LOCAL_SPEED
 const POSITION_TOLERANCE_KM := 1000.0
 
 
-## Six cyclers (Aldrin I..VI, phases 0..650 step 130, alternating UP/DOWN) and no transports.
 func _fleet_with_cyclers() -> Fleet:
 	Orbits.configure({EARTH: 0.0, MOON: 0.0, MARS: 45.0})
 	var fleet := Fleet.new()

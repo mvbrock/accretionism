@@ -15,11 +15,8 @@ var done_trips: Array[Trip] = []
 var state := State.HELD
 ## The Orbits.Body or Cycler the party is at while not aboard a transport.
 var place: Variant
-## The transport trip the party is on now, or null.
 var aboard: Trip
-## Where a medical emergency sends the party back to, or null.
 var medical_return: Variant
-## Whose emergency the party is dealing with, and the condition behind it.
 var patient: Passenger
 var patient_condition := ""
 var stable_until := -INF
@@ -38,7 +35,6 @@ func size() -> int:
 	return members.size()
 
 
-## Whether a medical emergency has the party on a stable period, a hospital stay or the way to either.
 func is_on_medical_route(now: float) -> bool:
 	return medical_return != null or stable_until > now or hospital_until > now
 

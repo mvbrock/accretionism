@@ -1,6 +1,5 @@
 class_name Main
 extends Control
-## Wires the clock, the filter and the table. Space pauses, Esc quits.
 
 var sim: Sim
 var clock := SimClock.new()
@@ -30,8 +29,8 @@ func _ready() -> void:
 	_show_clock()
 
 
-## On a HiDPI display (such as Retina, scale 2) the window is sized in physical
-## pixels, so without this the UI would render at 1/scale of its intended size.
+## Without this, a HiDPI display (such as Retina, scale 2) sizes the window in physical
+## pixels and the UI renders at 1/scale of its intended size.
 func _match_display_scale() -> void:
 	var scale := DisplayServer.screen_get_scale()
 	if scale <= 1.0:
@@ -42,8 +41,6 @@ func _match_display_scale() -> void:
 	window.move_to_center()
 
 
-## The window size that shows `base` logical pixels at `scale`, shrunk
-## proportionally to fit within `usable`.
 static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -> Vector2i:
 	var wanted := Vector2(base) * scale
 	var fit := minf(1.0, minf(usable.x / wanted.x, usable.y / wanted.y))

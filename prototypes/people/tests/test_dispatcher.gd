@@ -93,8 +93,6 @@ func test_tender_meets_every_flyby() -> void:
 	assert_true(flybys_checked > 0, "the window has flybys")
 
 
-## True when one tender flies to `cycler` arriving before `flyby` and flies on
-## its next trip from the cycler back to `planet`, departing after `flyby`.
 func _some_tender_meets(planned: Dictionary, cycler: Cycler, planet: Orbits.Body, flyby: float) -> bool:
 	for trip: Trip in planned.schedule.trips:
 		if planned.fleet.service_of[trip.ship] != "tender" or not is_same(trip.to, cycler) or trip.arrive_day >= flyby:

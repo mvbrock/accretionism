@@ -27,7 +27,6 @@ func show_passenger(sim: Sim, passenger: Passenger) -> void:
 	_rebuild(sim)
 
 
-## Follows the clock: rebuilds if anything but the progress figure changed.
 func refresh(sim: Sim) -> void:
 	if shown == null:
 		return
@@ -56,7 +55,7 @@ func _rebuild(sim: Sim) -> void:
 	_add_history(shown)
 
 
-## Everything the panel shows except the progress figure.
+## Compared to decide whether to rebuild, so it leaves out the progress figure, which changes every frame.
 func _content(sim: Sim, passenger: Passenger) -> String:
 	var party := sim.parties[passenger.party_id]
 	var arrived := passenger.relationships.map(func(relation: Dictionary) -> bool: return _has_arrived(sim, relation.other))

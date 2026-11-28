@@ -13,7 +13,6 @@ static func install(sim: Sim) -> void:
 	sim.on_daily.append(_roll_ships)
 
 
-## What a party aboard `trip` reads when it rides past the stop its ship cannot dock at.
 static func ride_on_text(trip: Trip) -> String:
 	var failed: Variant = trip.docking_failure_on
 	if failed is Cycler:
@@ -21,7 +20,6 @@ static func ride_on_text(trip: Trip) -> String:
 	return "Docking failure on %s; staying aboard past %s" % [failed.name, Fleet.target_name(trip.to)]
 
 
-## Strikes `ship`, a Cycler or a Transport, with a malfunction of `kind`.
 static func strike(sim: Sim, ship: Variant, kind: String) -> void:
 	match kind:
 		DOCKING_FAILURE:
@@ -38,8 +36,6 @@ static func strike(sim: Sim, ship: Variant, kind: String) -> void:
 			push_error("Nothing handles the %s malfunction" % kind)
 
 
-## The trips off `cycler` after today that have not been blocked, a group for each
-## flyby, soonest flyby first.
 static func exit_groups(sim: Sim, cycler: Cycler) -> Array[Array]:
 	var groups: Array[Array] = []
 	var group_of_flyby := {}
@@ -54,13 +50,11 @@ static func exit_groups(sim: Sim, cycler: Cycler) -> Array[Array]:
 	return groups
 
 
-## The trips off `cycler` at its next flyby, or none.
 static func next_exit_group(sim: Sim, cycler: Cycler) -> Array:
 	var groups := exit_groups(sim, cycler)
 	return [] if groups.is_empty() else groups[0]
 
 
-## Tries again to leave the cycler, after a flyby with no room.
 static func resume_exit(sim: Sim, party: Party) -> void:
 	var is_waiting := party.state == Party.State.HELD and party.route.is_empty() and party.aboard == null \
 			and party.place is Cycler and not party.is_on_medical_route(sim.day) and not party.awaiting_rescue
@@ -107,7 +101,6 @@ static func _fail_transport_docking(sim: Sim, ship: Transport) -> void:
 	_close_and_replan(sim, ship, closed)
 
 
-## Every trip to or from the cycler, from now to its next flyby and the tenders' linger after it.
 static func _fail_cycler_docking(sim: Sim, cycler: Cycler) -> void:
 	var until: float = cycler.leg_at(sim.day).end_day + Config.TENDER_LINGER_DAYS
 	var closed: Array[Trip] = []
@@ -124,8 +117,7 @@ static func _fail_cycler_docking(sim: Sim, cycler: Cycler) -> void:
 	_close_and_replan(sim, cycler, closed)
 
 
-## Closes the trips to planning and re-plans every party booked on one. Parties aboard
-## a trip that cannot dock ride on; the sim moves them at the stop.
+## Parties aboard a trip that cannot dock ride on; the sim moves them at the stop.
 static func _close_and_replan(sim: Sim, ship: Variant, closed: Array[Trip]) -> void:
 	for trip in closed:
 		trip.blocked = true
@@ -136,7 +128,6 @@ static func _close_and_replan(sim: Sim, ship: Variant, closed: Array[Trip]) -> v
 			sim.replan(party, party.destination, sim.day, CAUSE)
 
 
-## Everyone aboard gets off at the trip's stop, then plans from there.
 static func _fault_transport_life_support(sim: Sim, ship: Transport) -> void:
 	var trip := sim.trip_in_flight(ship)
 	if trip == null:
@@ -159,8 +150,7 @@ static func _fault_cycler_life_support(sim: Sim, cycler: Cycler) -> void:
 				_leave_cycler(sim, party, cycler)
 
 
-## Plans the party off the cycler by the next trip with seats for it, to the body
-## reached soonest. When the next flyby has no room it stays aboard and tries again at the flyby after.
+## When the next flyby has no room, the party stays aboard and tries again at the flyby after.
 static func _leave_cycler(sim: Sim, party: Party, cycler: Cycler) -> void:
 	party.must_leave = cycler
 	Planner.cancel(party)

@@ -21,13 +21,13 @@ static func row(sim: Sim, passenger: Passenger) -> PackedStringArray:
 	])
 
 
-## Progress as a number and every other column as its text.
+## Progress sorts as a number, not as its text.
 static func sort_key(sim: Sim, passenger: Passenger, column: int) -> Variant:
 	if column == PROGRESS_COLUMN:
 		return sim.progress(sim.parties[passenger.party_id])
 	return row(sim, passenger)[column]
 
 
-## To two decimals, rounded down, so 100.00% shows only on arrival.
+## Rounded down, so 100.00% shows only on arrival.
 static func percent(fraction: float) -> String:
 	return "%.2f%%" % (floorf(fraction * 10000.0) / 100.0)

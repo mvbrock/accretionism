@@ -21,7 +21,6 @@ var _filter := ""
 var _seen_history: Dictionary[Passenger, int] = {}
 var _highlight_until_msec: Dictionary[Passenger, int] = {}
 var _last_reapply_msec := 0
-## Set by an explicit selection, sort or filter change; the next selection pass scrolls to the row.
 var _scroll_pending := false
 
 
@@ -71,15 +70,14 @@ func set_sort(column: int, ascending: bool) -> void:
 	_scroll_pending = true
 
 
-## Matches any cell, ignoring case. A selected passenger the filter hides stays
-## selected and shows again when the filter lets them back in.
+## A selected passenger the filter hides stays selected and shows again when the filter lets them back in.
 func set_filter(text: String) -> void:
 	_filter = text.strip_edges().to_lower()
 	_last_reapply_msec = 0
 	_scroll_pending = true
 
 
-## Highlights `passenger`'s row and scrolls to it, or clears the highlight for null. Doesn't emit passenger_selected.
+## Doesn't emit passenger_selected.
 func show_selected(passenger: Passenger) -> void:
 	_selected = passenger
 	_scroll_pending = true

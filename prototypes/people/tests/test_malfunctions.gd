@@ -209,7 +209,6 @@ func test_life_support_cycler_plans_trip_off() -> void:
 	assert_true(other.route == other_route, "a party on another cycler is not affected")
 
 
-## Every cycler with someone on it.
 func _occupied_cyclers(sim: Sim) -> Array[Cycler]:
 	var cyclers: Array[Cycler] = []
 	for party in sim.parties:
@@ -218,7 +217,6 @@ func _occupied_cyclers(sim: Sim) -> Array[Cycler]:
 	return cyclers
 
 
-## The parties on a cycler whose plain plan to where they are going would not leave at its next open flyby.
 func _would_ride_past(sim: Sim, riders: Array) -> Array:
 	return riders.filter(func(p: Party) -> bool:
 		var plain := Planner.plan(sim.schedule, p.place, sim.day, p.destination, p.size())

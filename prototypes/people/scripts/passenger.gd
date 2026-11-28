@@ -19,7 +19,6 @@ var conditions: Array[Dictionary] = []
 ## Each is {other, kind}: `other` is a passenger id, `kind` is what this
 ## passenger is to them.
 var relationships: Array[Dictionary] = []
-## Each is {day, text, cause}.
 var history: Array[Dictionary] = []
 
 

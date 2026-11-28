@@ -119,7 +119,6 @@ func test_bookings_match_routes_with_riding_patient() -> void:
 	_assert_bookings_match(sim)
 
 
-## Every unfinished trip's booked seats equal the party sizes routed on it or aboard it.
 ## A trip can hold more than its seats only while a party on a medical route is aboard.
 func _assert_bookings_match(sim: Sim) -> void:
 	for party in sim.parties:

@@ -20,7 +20,6 @@ func ships() -> Array:
 	return cyclers + transports
 
 
-## Name of a target, which is either an Orbits.Body or a Cycler.
 static func target_name(target: Variant) -> String:
 	if target is Cycler:
 		return target.name
@@ -41,8 +40,7 @@ func position_of(t: Transport, at_day: float) -> Vector2:
 			return flown_point
 
 
-## Bodies in Earth, Moon, Mars order, then cyclers in fleet order, leaving out
-## where `t` is. A ship in flight keeps its destination, so it has none.
+## A ship in flight keeps its destination, so it has no valid targets.
 func valid_targets(t: Transport) -> Array:
 	var targets: Array = []
 	if t.state == Transport.State.IN_TRANSIT:
@@ -56,7 +54,6 @@ func valid_targets(t: Transport) -> Array:
 	return targets
 
 
-## Trip duration if `t` left now, or -1 if the target is invalid or unreachable.
 func estimate_days(t: Transport, target: Variant) -> float:
 	if not valid_targets(t).has(target):
 		return -1.0
@@ -80,7 +77,6 @@ func solve_trip(from: Variant, t0: float, target: Variant) -> Dictionary:
 		leg_km = _leg_speed(is_local) * duration}
 
 
-## Sends `t` from where it is parked or docked to `target`.
 func depart(t: Transport, target: Variant) -> bool:
 	if not valid_targets(t).has(target):
 		return false
@@ -102,8 +98,7 @@ func depart(t: Transport, target: Variant) -> bool:
 	return true
 
 
-## Share of the trip flown, 0 to 1, or -1 when `t` isn't in flight. A trip
-## is flown at a constant speed, so this is also the share of its time.
+## A trip is flown at a constant speed, so the share of time is also the share of distance.
 func progress(t: Transport) -> float:
 	if t.state != Transport.State.IN_TRANSIT:
 		return -1.0
@@ -126,14 +121,12 @@ func _arrive(t: Transport) -> void:
 		t.body = t.target
 
 
-## `func(day: float) -> Vector2` giving the target's position on any day.
 func _target_path(target: Variant) -> Callable:
 	if target is Cycler:
 		return func(at_day: float) -> Vector2: return target.position(at_day)
 	return func(at_day: float) -> Vector2: return Orbits.body_position(target, at_day)
 
 
-## The cycler `t` is docked to, or the body it is parked at.
 func _from_of(t: Transport) -> Variant:
 	return t.host if t.state == Transport.State.DOCKED else t.body
 
@@ -156,13 +149,11 @@ func _leg_speed(is_local: bool) -> float:
 	return Units.LOCAL_SPEED_KM_PER_DAY if is_local else Units.TRANSPORT_SPEED_KM_PER_DAY
 
 
-## `from`'s position on `at_day`, in the frame the new leg is flown in.
 func _leg_point(from: Variant, at_day: float, is_local: bool) -> Vector2:
 	var point := _from_position(from, at_day)
 	return point - Orbits.body_position(Orbits.Body.EARTH, at_day) if is_local else point
 
 
-## The target's path in the frame the leg is flown in.
 func _leg_target_path(target: Variant, is_local: bool) -> Callable:
 	var sun_frame_path := _target_path(target)
 	if not is_local:

@@ -24,8 +24,6 @@ var rng := RandomNumberGenerator.new()
 ## Called with `(sim, int_day)` once for each whole day crossed, after held
 ## parties retry their routes.
 var on_daily: Array[Callable] = []
-## Each ship under a docking failure, and the day the failure ends. A ship in it is
-## under a malfunction.
 var docking_failure_until := {}
 ## Each cycler's FIFO queue of parties waiting for a rescue transport, and the
 ## simulated days it has had no standby or spare docked. Rescues owns both.
@@ -40,14 +38,10 @@ var dispatcher: Dispatcher
 ## Schedule trips before this index have already departed.
 var _next_departure := 0
 var _in_flight: Array[Trip] = []
-## Parties waiting at their starting body for their first journey.
 var _not_started: Array[Party] = []
 var _next_whole_day := floori(Config.WARMUP_START) + 1
 
 
-## With `warmup`, runs from the warm-up's first day to day 0. Without it the sim
-## stays at that first day with the parties loaded and nothing planned.
-## `incidents` turns on the daily event rolls.
 func _init(warmup := true, incidents := true) -> void:
 	fleet = World.build()
 	schedule = Schedule.new()
@@ -80,9 +74,6 @@ func advance_to(new_day: float) -> void:
 	day = new_day
 
 
-## Plans the party's route from where it is to `to`, ready to leave on `ready_day`,
-## and books it, stopping at `via` on the way when it is given. With no route the
-## party is HELD at its place.
 func replan(party: Party, to: Variant, ready_day: float, cause: String, via: Variant = null) -> void:
 	party.destination = to
 	if _book_route(party, ready_day, via):
@@ -92,9 +83,8 @@ func replan(party: Party, to: Variant, ready_day: float, cause: String, via: Var
 		party.write(day, "No route available; waiting", cause)
 
 
-## How far through the journey the party is, 0 to 1. The share is of the time
-## from the journey's start to the expected arrival, which is when the last booked
-## trip ends. -1 when the party has no route and has not arrived.
+## Measured against the expected arrival, when the last booked trip ends. -1 when the
+## party has no route and has not arrived.
 func progress(party: Party) -> float:
 	if party.state == Party.State.ARRIVED:
 		return 1.0
@@ -104,7 +94,6 @@ func progress(party: Party) -> float:
 	return clampf((day - party.journey_start) / (expected_arrival - party.journey_start), 0.0, 1.0)
 
 
-## The ship the passenger is aboard, or the body or cycler they are at.
 func location_name(passenger: Passenger) -> String:
 	var party := parties[passenger.party_id]
 	if party.aboard != null:
@@ -112,7 +101,6 @@ func location_name(passenger: Passenger) -> String:
 	return Fleet.target_name(party.place)
 
 
-## The trip `ship` is flying now, or null.
 func trip_in_flight(ship: Transport) -> Trip:
 	for trip in _in_flight:
 		if trip.ship == ship:
@@ -140,14 +128,11 @@ func _book_route(party: Party, ready_day: float, via: Variant = null) -> bool:
 	return true
 
 
-## Whether the party is still aboard the cycler it is ordered off.
 func _is_ordered_off(party: Party) -> bool:
 	return party.must_leave != null and party.aboard == null and is_same(party.place, party.must_leave)
 
 
-## The earliest point not yet processed that falls on or before `limit`, or an
-## empty dictionary. Each is {t, order, seq, kind, ...}: `seq` orders points
-## that share a time and an order.
+## `seq` orders points that share a time and an order.
 func _next_point(limit: float) -> Dictionary:
 	var best := {}
 	for candidate in _candidate_points(limit):
@@ -173,7 +158,7 @@ func _candidate_points(limit: float) -> Array[Dictionary]:
 	return points
 
 
-## Timers that fire on or before `limit`. A timer set for a day already past fires now.
+## A timer set for a day already past fires now.
 func _timer_points(limit: float) -> Array[Dictionary]:
 	var points: Array[Dictionary] = []
 	for party in _not_started:
@@ -190,7 +175,6 @@ func _timer_points(limit: float) -> Array[Dictionary]:
 	return points
 
 
-## A timer of `subject`, a party or a ship.
 func _timer_point(subject: Variant, kind: String, fires_on: float, seq: int) -> Dictionary:
 	return {t = maxf(fires_on, day), order = Order.TIMER, seq = seq, kind = kind, subject = subject}
 
@@ -299,7 +283,6 @@ func _mark_arrived(party: Party, t: float) -> void:
 	party.write(t, "Arrived at %s" % Fleet.target_name(party.place), "journey complete")
 
 
-## Admits the party to the hospital at the body it is at, for the length of a stay.
 func begin_hospital_stay(party: Party) -> void:
 	Planner.cancel(party)
 	party.destination = party.place
@@ -315,7 +298,6 @@ func _step_off_if_docked(party: Party) -> void:
 		party.aboard = null
 
 
-## Sends the party back to where it was going before the emergency.
 func _discharge(party: Party, t: float) -> void:
 	var back_to: Orbits.Body = party.medical_return
 	if is_same(party.place, back_to):
@@ -361,7 +343,6 @@ func _set_off(party: Party, to: Orbits.Body, t: float, cause: String) -> void:
 	replan(party, to, t, cause)
 
 
-## One of the bodies other than `place`, picked with the sim's rng.
 func _other_body(place: Orbits.Body) -> Orbits.Body:
 	var others: Array = Orbits.Body.values().filter(func(body: Orbits.Body) -> bool: return body != place)
 	return others[rng.randi_range(0, others.size() - 1)]
@@ -378,7 +359,6 @@ func _new_day(t: float) -> void:
 		roll.call(self, whole_day)
 
 
-## Whether the party is waiting on a timer that must run out before it retries a route.
 func _is_on_hold(party: Party, t: float) -> bool:
 	return party.stable_until > t or party.hospital_until > t or party.exit_retry_at > t or party.awaiting_rescue
 

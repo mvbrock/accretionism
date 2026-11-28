@@ -36,7 +36,6 @@ func _init(fleet: Fleet, schedule: Schedule) -> void:
 		_plans[ship] = plan
 
 
-## Ships of one service at the same body leave this many days apart at the start.
 func _first_departure_stagger(service: String) -> float:
 	match service:
 		"shuttle":
@@ -46,7 +45,6 @@ func _first_departure_stagger(service: String) -> float:
 	return 0.0
 
 
-## Plans each service's trips that depart on or before `day`.
 func extend_to(day: float) -> void:
 	for ship in _fleet.transports:
 		match _fleet.service_of[ship]:
@@ -58,27 +56,20 @@ func extend_to(day: float) -> void:
 				_plan_tender_trips(ship, day)
 
 
-## Plans a trip that carries a rescued party, or flies a spare to a cycler, from
-## where the ship will be to `to`, leaving on `t0`.
 func add_rescue(ship: Transport, from: Variant, to: Variant, t0: float) -> Trip:
 	assert(is_same(_plans[ship].location, from), "%s will not be at %s" % [ship.name, Fleet.target_name(from)])
 	return _plan_trip(ship, to, t0, "rescue")
 
 
-## Plans the ship's flight back to `home`, a cycler or a body, from where its last
-## trip left it.
 func add_return(ship: Transport, home: Variant, t0: float) -> Trip:
 	return _plan_trip(ship, home, t0, "return")
 
 
-## Trips departing on or after `day_from` and before `day_to`.
 func transport_trips_due(day_from: float, day_to: float) -> Array[Trip]:
 	return _schedule.trips.filter(
 		func(trip: Trip) -> bool: return trip.depart_day >= day_from and trip.depart_day < day_to)
 
 
-## The ship flies between the two `bodies`, waiting `turnaround` days after
-## each arrival.
 func _plan_round_trips(ship: Transport, day: float, bodies: Array, turnaround: float) -> void:
 	var plan := _plans[ship]
 	while plan.free_day <= day:
@@ -87,8 +78,6 @@ func _plan_round_trips(ship: Transport, day: float, bodies: Array, turnaround: f
 		plan.free_day = trip.arrive_day + turnaround
 
 
-## For each flyby at its planet the tender flies out to the cycler and back,
-## unless it is still away.
 func _plan_tender_trips(ship: Transport, day: float) -> void:
 	var plan := _plans[ship]
 	var planet: Orbits.Body = plan.location
@@ -118,7 +107,6 @@ func _flybys_at(planet: Orbits.Body, after_day: float, to_day: float) -> Array:
 	return flybys
 
 
-## Plans and schedules one trip from where the ship will be, and leaves it there.
 func _plan_trip(ship: Transport, destination: Variant, depart_day: float, kind := "service") -> Trip:
 	var plan := _plans[ship]
 	var solution := _fleet.solve_trip(plan.location, depart_day, destination)

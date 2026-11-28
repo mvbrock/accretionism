@@ -10,7 +10,6 @@ const MEDICAL := "medical"
 const LIFE_SUPPORT := "life_support"
 const RESCUE_CAUSE := "rescue"
 
-## The kinds of transport that wait docked to a cycler for a rescue.
 const _STANDING_SERVICES := ["standby", "spare"]
 
 
@@ -20,9 +19,6 @@ static func install(sim: Sim) -> void:
 	sim.on_daily.append(_count_gaps)
 
 
-## Puts the party, which is on a cycler, in its queue for a rescue to the body that
-## suits `reason`, "medical" or "life_support". The queue is taken before time moves on.
-## A party already queued keeps its place and takes the new reason.
 static func request(sim: Sim, party: Party, reason: String) -> void:
 	assert(party.aboard == null and party.place is Cycler, "only a party on a cycler is rescued")
 	var cycler: Cycler = party.place
@@ -43,7 +39,6 @@ static func request(sim: Sim, party: Party, reason: String) -> void:
 	_mark_due(sim, cycler)
 
 
-## The body of `bodies` that a transport leaving `cycler` today reaches soonest.
 static func nearest_body(sim: Sim, cycler: Cycler, bodies: Array) -> Orbits.Body:
 	var nearest: Orbits.Body = bodies[0]
 	var earliest := INF
@@ -55,13 +50,10 @@ static func nearest_body(sim: Sim, cycler: Cycler, bodies: Array) -> Orbits.Body
 	return nearest
 
 
-## Whether a rescue for the cycler can be had: a transport docked there, or one
-## that is flying to it or could.
 static func can_serve(sim: Sim, cycler: Cycler) -> bool:
 	return _free_ship_at(sim, cycler) != null or _cover_on_its_way_to(sim, cycler) or _cover_ship_for(sim, cycler) != null
 
 
-## The simulated days each cycler has had no standby or spare docked, so far.
 static func standby_gap_days(sim: Sim) -> Dictionary[Cycler, float]:
 	var gaps: Dictionary[Cycler, float] = {}
 	for cycler in sim.fleet.cyclers:
@@ -69,7 +61,6 @@ static func standby_gap_days(sim: Sim) -> Dictionary[Cycler, float]:
 	return gaps
 
 
-## Takes every queue that has been added to or whose transport has docked.
 static func serve_due(sim: Sim) -> void:
 	var due := sim.rescues_due.duplicate()
 	sim.rescues_due.clear()
@@ -106,9 +97,6 @@ static func _mark_due(sim: Sim, cycler: Cycler) -> void:
 		sim.rescues_due.append(cycler)
 
 
-## Sends transports docked to the cycler out with the queue, one trip at a time.
-## Then it lets standbys on loan fly home and keeps a replacement coming
-## while none is docked.
 static func _serve(sim: Sim, cycler: Cycler) -> void:
 	var queue := _queue(sim, cycler)
 	var ship := _free_ship_at(sim, cycler)
@@ -121,9 +109,6 @@ static func _serve(sim: Sim, cycler: Cycler) -> void:
 		_send_cover(sim, cycler)
 
 
-## The ship departs now with the first party and as many after it as fit, for the
-## first party's target. It flies back after the turnaround. Returns false, leaving
-## the queue as it was, when no queued party fits the ship's seats.
 static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) -> bool:
 	var target: Orbits.Body = queue[0].target
 	var seats: int = Config.SEATS[sim.fleet.service_of[ship]]
@@ -151,7 +136,6 @@ static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) 
 	return true
 
 
-## Flies a transport to the cycler with no passengers, to stand by there.
 static func _send_cover(sim: Sim, cycler: Cycler) -> void:
 	var ship := _cover_ship_for(sim, cycler)
 	if ship != null:
@@ -178,7 +162,7 @@ static func _cover_ship_for(sim: Sim, cycler: Cycler) -> Transport:
 	return lender
 
 
-## A transport on loan from elsewhere, if the cycler has one, so its own standby stays.
+## Prefers a loaned transport, so the cycler's own standby stays.
 static func _most_borrowable(sim: Sim, free: Array[Transport], cycler: Cycler) -> Transport:
 	for ship in free:
 		if not is_same(sim.fleet.home_of[ship], cycler):
@@ -186,10 +170,9 @@ static func _most_borrowable(sim: Sim, free: Array[Transport], cycler: Cycler) -
 	return free[0]
 
 
-## Once a cycler's own standby is docked again, a standby covering for it flies home.
-## A covering spare stays as a second standby: flights to and from a cycler far
-## out on its leg can take 80 days each way, so a spare sent home is often still
-## on its way when the next cover is needed. Docked here, it can be lent onward.
+## A covering spare stays as a second standby rather than flying home: flights to and
+## from a cycler far out on its leg can take 80 days each way, so a spare sent home is
+## often still on its way when the next cover is needed. Docked here, it can be lent onward.
 static func _send_loans_home(sim: Sim, cycler: Cycler) -> void:
 	var free := _free_ships_at(sim, cycler)
 	var own_is_back := free.any(func(ship: Transport) -> bool:
@@ -209,7 +192,6 @@ static func _is_standing_docked(sim: Sim, ship: Transport, cycler: Cycler) -> bo
 	return _STANDING_SERVICES.has(sim.fleet.service_of[ship]) and ship.state == Transport.State.DOCKED and is_same(ship.host, cycler)
 
 
-## A standby or spare docked to the cycler with no trip yet to fly.
 static func _free_ship_at(sim: Sim, cycler: Cycler) -> Transport:
 	var free := _free_ships_at(sim, cycler)
 	return free[0] if not free.is_empty() else null
@@ -220,7 +202,6 @@ static func _free_ships_at(sim: Sim, cycler: Cycler) -> Array[Transport]:
 		return _is_standing_docked(sim, ship, cycler) and not _has_trip_to_fly(sim, ship))
 
 
-## A spare parked at a body with no trip to fly, which arrives at the cycler soonest.
 static func _nearest_idle_spare(sim: Sim, cycler: Cycler) -> Transport:
 	var nearest: Transport = null
 	var earliest := INF
@@ -234,13 +215,12 @@ static func _nearest_idle_spare(sim: Sim, cycler: Cycler) -> Transport:
 	return nearest
 
 
-## Whether a transport is flying to the cycler with no passengers, to stand by there.
 static func _cover_on_its_way_to(sim: Sim, cycler: Cycler) -> bool:
 	return sim.schedule.trips.any(func(trip: Trip) -> bool:
 		var is_cover := trip.kind == "rescue" and trip.booked == 0 and _STANDING_SERVICES.has(sim.fleet.service_of[trip.ship])
 		return is_cover and is_same(trip.to, cycler) and trip.arrive_day >= sim.day)
 
 
-## Whether the ship has a trip planned that is yet to leave, one that starts at this instant included.
+## A trip departing at this very instant still counts as yet to leave.
 static func _has_trip_to_fly(sim: Sim, ship: Transport) -> bool:
 	return sim.schedule.trips.any(func(trip: Trip) -> bool: return trip.ship == ship and trip.depart_day >= sim.day)

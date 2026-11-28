@@ -7,7 +7,6 @@ const EPOCH_ANGLES_DEG := {"Earth": 0, "Moon": 0, "Mars": 45}
 const CYCLE_DAYS := 780.0
 const SHORT_LEG_DAYS := 146.0
 
-## Name, direction and phase day of each cycler.
 const CYCLERS := [
 	{"name": "Aldrin I", "direction": "UP", "phase_day": 0},
 	{"name": "Aldrin II", "direction": "DOWN", "phase_day": 130},
@@ -61,32 +60,24 @@ const ARRIVED_LINGER_DAYS := 10.0
 
 const SHUTTLE_TURNAROUND_DAYS := 0.5
 const EXPRESS_TURNAROUND_DAYS := 3.0
-## A rescue transport waits this long at its stop before flying back to its cycler.
 const RESCUE_TURNAROUND_DAYS := 1.0
 ## The i-th ship of a service at one body first departs i times this after the warm-up starts.
 const SHUTTLE_STAGGER_DAYS := 0.35
 const EXPRESS_STAGGER_DAYS := 12.0
-## A tender leaves its planet this long before a flyby, and leaves the cycler
-## this long after it.
 const TENDER_LEAD_DAYS := 1.0
 const TENDER_LINGER_DAYS := 1.0
 
-## Daily chance that a party changes its mind, by reason for travel. A party
-## uses the highest chance among its members.
 const CHANGE_OF_MIND := {"VISIT": 0.004, "WORK": 0.002, "RETURNING": 0.002, "MEDICAL": 0.001, "EMIGRATION": 0.0005}
-## From this age, each year raises the risk of an emergency and its severity.
 const AGE_RISK_START_YEAR := 40
 ## A condition's daily chance is multiplied by 1 + (age - AGE_RISK_START_YEAR) * this.
 const AGE_RISK_PER_YEAR := 0.02
 ## The chance an emergency is CRITICAL: the base, plus this for each year of age past the start year.
 const CRITICAL_BASE := 0.2
 const CRITICAL_PER_YEAR := 0.005
-## Daily chance, per ship, of each kind of malfunction.
 const DOCKING_FAILURE_CHANCE := 0.003
 const LIFE_SUPPORT_CHANCE := 0.002
 ## A cycler rolls docking failure only this many days before a flyby, so
 ## roughly one flyby in ten is blocked.
 const CYCLER_DOCKING_WINDOW_DAYS := 25.0
-## The range, in whole days, of a CRITICAL patient's stable period and of a hospital stay.
 const STABLE_DAYS := [5, 20]
 const HOSPITAL_STAY_DAYS := [7, 21]

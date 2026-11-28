@@ -6,7 +6,6 @@ extends RefCounted
 enum Severity { SERIOUS, CRITICAL }
 
 const _CAUSE := "medical emergency"
-## Earth, the Moon and Mars have hospitals.
 const HOSPITAL_BODIES: Array[Orbits.Body] = [Orbits.Body.EARTH, Orbits.Body.MOON, Orbits.Body.MARS]
 
 
@@ -15,14 +14,12 @@ static func install(sim: Sim) -> void:
 	sim.on_daily.append(_roll_emergencies)
 
 
-## A condition's name inside a sentence: "Heart condition" becomes "heart condition", "COPD" stays.
 static func in_sentence(condition: String) -> String:
 	if condition == condition.to_upper():
 		return condition
 	return condition.substr(0, 1).to_lower() + condition.substr(1)
 
 
-## Gives the party a new destination, picked from the other bodies, and plans it.
 static func change_mind(sim: Sim, party: Party) -> void:
 	var options: Array = Orbits.Body.values().filter(func(body: Orbits.Body) -> bool:
 		return body != party.destination and not (_is_at_body(party) and is_same(body, party.place)))
@@ -36,7 +33,6 @@ static func roll_severity(rng: RandomNumberGenerator, patient: Passenger) -> Sev
 	return Severity.CRITICAL if rng.randf() < critical_chance else Severity.SERIOUS
 
 
-## Starts an emergency for `patient`, who has `condition`, and acts on the whole party.
 static func start_emergency(sim: Sim, party: Party, patient: Passenger, condition: String, severity: Severity) -> void:
 	party.medical_return = party.destination
 	party.patient = patient
@@ -47,8 +43,6 @@ static func start_emergency(sim: Sim, party: Party, patient: Passenger, conditio
 		send_to_hospital(sim, party)
 
 
-## Re-routes the party to the hospital that is soonest reached. A party at a body
-## is already at a hospital, so its stay starts at once.
 static func send_to_hospital(sim: Sim, party: Party) -> void:
 	var hospital: Orbits.Body
 	if _is_at_body(party):
@@ -84,7 +78,6 @@ static func _roll_emergencies(sim: Sim, _day: int) -> void:
 			_roll_party_emergency(sim, party)
 
 
-## Rolls each member's conditions in order. The first to strike starts the emergency, and the rest are not rolled.
 static func _roll_party_emergency(sim: Sim, party: Party) -> void:
 	for member in party.members:
 		for condition in member.conditions:
@@ -94,8 +87,6 @@ static func _roll_party_emergency(sim: Sim, party: Party) -> void:
 				return
 
 
-## Whether the party can have a change of mind or an emergency today: it has set
-## off, is not arrived, is not already on a medical route and is not waiting for a rescue.
 static func _rolls_events(sim: Sim, party: Party) -> bool:
 	return party.state != Party.State.ARRIVED and party.journey_start <= sim.day and not party.is_on_medical_route(sim.day) \
 			and not party.awaiting_rescue
@@ -112,7 +103,7 @@ static func _years_at_risk(passenger: Passenger) -> int:
 	return maxi(0, passenger.age - Config.AGE_RISK_START_YEAR)
 
 
-## The party can't be moved: it stays where it is until the stable period ends.
+## A critical patient can't be moved, so the party stays where it is until the stable period ends.
 static func _stabilize(sim: Sim, party: Party) -> void:
 	Planner.cancel(party)
 	party.state = Party.State.HELD

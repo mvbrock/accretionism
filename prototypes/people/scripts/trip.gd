@@ -1,6 +1,5 @@
 class_name Trip
 extends RefCounted
-## One planned transport flight, with its seats.
 
 var ship: Transport
 ## An Orbits.Body or a Cycler.
@@ -10,7 +9,6 @@ var depart_day: float
 var arrive_day: float
 var seats: int
 var booked := 0
-## Closed to planning.
 var blocked := false
 ## The ship whose docking failure stops anyone getting off at this trip's arrival, or null.
 var docking_failure_on: Variant = null

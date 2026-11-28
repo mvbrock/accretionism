@@ -51,7 +51,6 @@ func _is_event_entry(entry: Dictionary) -> bool:
 	return entry.text.begins_with("Changed plans") or entry.text.contains("emergency;")
 
 
-## The change-of-mind and emergency entries of `party`'s first member from index `from` on.
 func _count_new_event_entries_of(party: Party, from: int) -> int:
 	return party.members[0].history.slice(from).filter(_is_event_entry).size()
 

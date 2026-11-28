@@ -50,7 +50,6 @@ func _trips_of_kind(sim: Sim, kind: String) -> Array[Trip]:
 	return sim.schedule.trips.filter(func(trip: Trip) -> bool: return trip.kind == kind)
 
 
-## The first rescue trip `ship` flies.
 func _rescue_by(sim: Sim, ship: Transport) -> Trip:
 	return _trips_of_kind(sim, "rescue").filter(func(trip: Trip) -> bool: return trip.ship == ship)[0]
 
@@ -59,7 +58,6 @@ func _serious(sim: Sim, party: Party) -> void:
 	Incidents.start_emergency(sim, party, party.members[0], CONDITION, Incidents.Severity.SERIOUS)
 
 
-## The body reached soonest from the cycler today.
 func _soonest_body(sim: Sim, cycler: Cycler) -> Orbits.Body:
 	var best: Orbits.Body = EARTH
 	var best_day := INF

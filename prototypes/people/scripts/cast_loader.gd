@@ -1,6 +1,5 @@
 class_name CastLoader
 extends RefCounted
-## Turns the constants in Cast into passengers and parties.
 
 const INVERSE_KIND := {
 	"SPOUSE": "SPOUSE", "PARENT": "CHILD", "CHILD": "PARENT",
@@ -8,7 +7,6 @@ const INVERSE_KIND := {
 }
 
 
-## Every party waits at its starting body with no route.
 static func load() -> Array[Party]:
 	var passengers := _passengers()
 	_link_relationships(passengers)
