@@ -16,8 +16,8 @@ var reason: Reason
 var party_id: int
 ## Each is {name, chance}, the chance being the daily chance of an emergency.
 var conditions: Array[Dictionary] = []
-## Each is {other, kind}: `other` is a passenger id, `kind` is what this
-## passenger is to them.
+## Each is {other, kind}: `other` is a passenger id, `kind` is what `other`
+## is to this passenger.
 var relationships: Array[Dictionary] = []
 var history: Array[Dictionary] = []
 

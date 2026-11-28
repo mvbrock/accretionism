@@ -62,7 +62,7 @@ func test_children_travel_with_a_parent() -> void:
 				continue
 			var has_parent_aboard := party.members.any(func(other: Passenger) -> bool:
 				return member.relationships.any(func(relationship: Dictionary) -> bool:
-					return relationship.other == other.id and relationship.kind == Passenger.Kind.CHILD))
+					return relationship.other == other.id and relationship.kind == Passenger.Kind.PARENT))
 			assert_true(has_parent_aboard, "%s is under 16 and travels with a parent" % member.id)
 
 
@@ -128,6 +128,21 @@ func test_inverse_relationships_added() -> void:
 				var back := other.relationships.filter(func(r: Dictionary) -> bool: return r.other == member.id)
 				assert_true(back.size() == 1 and back[0].kind == inverse[relationship.kind], "%s has the inverse of %s" % [other.id, member.id])
 	assert_true(total == 2 * Cast.RELATIONSHIPS.size(), "each relationship is listed on both sides")
+
+
+func test_each_relationship_reads_from_the_passengers_side() -> void:
+	var parties := _loaded_parties()
+	var inverse := {"SPOUSE": "SPOUSE", "PARENT": "CHILD", "CHILD": "PARENT", "SIBLING": "SIBLING", "FRIEND": "FRIEND", "COLLEAGUE": "COLLEAGUE"}
+	var seen := {}
+	for entry in Cast.RELATIONSHIPS:
+		seen[entry.kind] = true
+		var a := _passenger_by_id(parties, entry.a)
+		var b := _passenger_by_id(parties, entry.b)
+		var b_sees: Array = b.relationships.filter(func(r: Dictionary) -> bool: return r.other == a.id)
+		var a_sees: Array = a.relationships.filter(func(r: Dictionary) -> bool: return r.other == b.id)
+		assert_true(b_sees.size() == 1 and b_sees[0].kind == Passenger.Kind[entry.kind], "%s sees %s as their %s" % [b.id, a.id, entry.kind])
+		assert_true(a_sees.size() == 1 and a_sees[0].kind == Passenger.Kind[inverse[entry.kind]], "%s sees %s as their %s" % [a.id, b.id, inverse[entry.kind]])
+	assert_true(seen.size() == 5, "the cast uses spouse, parent, sibling, friend and colleague")
 
 
 func test_party_write_reaches_every_member() -> void:

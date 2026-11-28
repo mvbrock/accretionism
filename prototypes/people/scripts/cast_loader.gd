@@ -32,10 +32,11 @@ static func _passengers() -> Dictionary[String, Passenger]:
 	return passengers
 
 
+## A cast entry says what `a` is to `b`; each side's list holds what the other is to them.
 static func _link_relationships(passengers: Dictionary[String, Passenger]) -> void:
 	for entry in Cast.RELATIONSHIPS:
-		passengers[entry.a].relationships.append({"other": entry.b, "kind": Passenger.Kind[entry.kind]})
-		passengers[entry.b].relationships.append({"other": entry.a, "kind": Passenger.Kind[INVERSE_KIND[entry.kind]]})
+		passengers[entry.b].relationships.append({"other": entry.a, "kind": Passenger.Kind[entry.kind]})
+		passengers[entry.a].relationships.append({"other": entry.b, "kind": Passenger.Kind[INVERSE_KIND[entry.kind]]})
 
 
 static func _party(index: int, entry: Dictionary, passengers: Dictionary[String, Passenger]) -> Party:

@@ -87,3 +87,12 @@ func test_arrived_relation_still_listed() -> void:
 	party.state = before
 	assert_true(_links(panel).any(func(l: LinkButton) -> bool: return l.get_meta("passenger") == other), "the arrived relation is still a link")
 	assert_true(_texts(panel).any(func(text: String) -> bool: return text.contains("(arrived)")), "it is marked arrived")
+
+
+func test_parent_and_child_see_each_other_by_what_the_other_is() -> void:
+	var sim := SharedSim.get_sim()
+	var parent := sim.passengers_by_id["P-00001"]
+	var child := sim.passengers_by_id["P-00002"]
+	assert_true(_texts(_panel(parent)).any(func(text: String) -> bool: return text.contains("child")), "parent's panel lists the child as child")
+	assert_true(_texts(_panel(child)).any(func(text: String) -> bool: return text.contains("parent")), "child's panel lists the parent as parent")
+	assert_true(not _texts(_panel(child)).any(func(text: String) -> bool: return text.contains("child")), "child's panel never says child")
