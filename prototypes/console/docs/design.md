@@ -195,7 +195,7 @@ When its breaker is reset, a system goes to BOOTING, then RUNNING. Boot times: p
 - With no power, an opening stays where it is, partly open included, and rejects commands.
 - **Auto-close.** When a hatch starts opening, every powered door that is open or opening starts closing. The doors take 2 s and the hatch 6 s, so a little air from the next room escapes before its door seals. The rule lives in the door controllers, so it works while the computer is down.
 - A door without power when a hatch opens stays open. That, or a door reopened by command while a hatch is open, is how the whole ship vents. The auto-close fires only when a hatch starts opening, so a command to reopen a door is obeyed, and the log warns that the door opened onto an open hatch.
-- When a hatch opens with a door left open, the dashboard shows a warning and the log records it.
+- When a hatch opens with a door left open, the log records it as DANGER.
 
 ### Lights
 
@@ -215,7 +215,7 @@ Each room has one light with a switch that is on or off. A light shines only whe
 
 The breaker IDs are the names in the first column. Breakers come from the ship's rooms and openings: a room adds its `light-<room id>` breaker and a door or hatch adds a breaker with its own id, alongside the three fixed system breakers. The skiff has nine breakers and the Wheel 95 (43 lights, 48 doors, 1 hatch and 3 systems). Breaker IDs are unique, so an opening cannot be named after a system (`pressure-control`, `hvac`, `air-recycler` or `computer`) or start with `light-`. The random draws go in the order room lights, openings, systems.
 
-A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows breaker states and draws (see Screen), and the whole ship's total.
+A breaker is CLOSED (powered) or TRIPPED. The BREAKERS panel shows the selected room's breakers with their states and draws, and the SYSTEMS panel the whole ship's total (see Screen).
 
 ### Random trips
 
@@ -235,14 +235,14 @@ The console starts disconnected. Disconnected, only these work; any other comman
 | Command | Effect |
 |---|---|
 | `ships list` | List the ships |
-| `ships connect <ship name>` | Connect to that ship. Its dashboard replaces "NO SHIP CONNECTED" |
+| `ships connect <ship name>` | Connect to that ship. Its dashboard replaces the ship table |
 | `help` | List these two |
 
-Connected, every command below except `help` goes to that ship, `help` is answered by the console and also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
+Connected, every command below except `help` goes to that ship, `help` is answered by the console and also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard at once. It works even with a command in flight, and even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
 
 ### Ship commands
 
-A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, a param, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to skiff; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints as `reply to '<line>': <reply>` when it lands, naming the command it answers. Before sending, the console checks the line's syntax against the ship's command table: an unknown command or the wrong number of arguments is answered at once with the interpreter's own `unknown command` or `usage:` text, and nothing is sent, whatever the computer's state; the ship checks argument values (room, door, breaker ids) on arrival. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` says `waiting on '<line>'; disconnect when the reply is in`. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
+A ship command is transmitted. It reaches the ship after the ship's `transmission_s` (default 480 s, a param, never negative), runs there at that sim time, and its reply takes `transmission_s` more to come back. On sending, the console prints `sent to <ship>; reply in <round trip>`, such as `sent to skiff; reply in 16:00` (`m:ss`, or `h:mm:ss` from an hour up), and the reply prints as `reply to '<line>': <reply>` when it lands, naming the command it answers. Before sending, the console checks the line's syntax against the ship's command table: an unknown command or the wrong number of arguments is answered at once with the interpreter's own `unknown command` or `usage:` text, and nothing is sent, whatever the computer's state; the ship checks argument values (room, door, breaker ids) on arrival. The computer's refusal while it reboots or is in FAULT is decided on arrival and is the reply. One command is in flight at a time: another ship command says `waiting on '<line>'; one command at a time`, and `disconnect` works at once: a command still on its uplink lands and runs on its ship anyway (`disconnected from <ship>; '<line>' still lands, but its reply is lost`), and a reply on its downlink is dropped (`disconnected from <ship>; the reply to '<line>' is lost`). The link is then free for another ship. `ships` commands, `disconnect` and `help` never travel. Every ship keeps running on the clock throughout.
 
 | Command | Effect |
 |---|---|
@@ -257,7 +257,7 @@ A ship command is transmitted. It reaches the ship after the ship's `transmissio
 | `air-recycler restart` | Reboot the recycler |
 | `computer restart` | Reboot the computer |
 | `breaker reset <breaker ID>` | Close a tripped breaker |
-| `help` | List the commands, with the ship's door and room ids in place of `<door id>` and `<room id>` |
+| `help` | List the commands, one per line, with each argument shown as `<name>`; an unknown name is answered with the valid ones |
 | `debug trip <breaker ID>` | Trip a breaker, for testing and demos |
 | `debug fault <system>` | Put a system in FAULT, for testing and demos |
 
@@ -293,14 +293,16 @@ unknown command 'door shut'. Type 'help' for commands
 │                        │      └────────┘   └─────────────┘   └───────────┘                  │
 │                        │         (the ship in 3D; drag to orbit, wheel to zoom)               │
 │                        │                                                                      │
-│                        │  HOLD          SYSTEMS           BREAKERS           TANKS            │
-│                        │  0.4 kPa       pressure-control  light-hold   ■ 40 W  O₂ ██████░░ 78 %│
-│                        │  18.9 °C       hvac         RUN  cabin-hold   ■ 5 W   N₂ ███████░ 91 %│
-│                        │  O₂ —          air-recycler BOOT hatch        ■ 5 W                   │
-│                        │  N₂ —          computer     RUN  pressure-control ■ 300 W             │
-│                        │  CO₂ —                           hvac ■ 200 W  air-recycler ■ 50 W    │
-│                        │  passengers 0                    light-cabin □ TRIP                   │
-│ > door open hatch      │  light ○                         total 3.1 kW                         │
+│                        │ ┌────────────────────────────────┐                                   │
+│                        │ │HOLD         BREAKERS           │ SYSTEMS            TANKS          │
+│                        │ │0.4 kPa      light-hold   ■ 40 W│ pressure-control  O₂ ██████░░ 78 %│
+│                        │ │18.9 °C      cabin-hold   ■ 5 W │ hvac         RUN  N₂ ███████░ 91 %│
+│                        │ │O₂ —         hatch        ■ 5 W │ air-recycler BOOT                 │
+│                        │ │N₂ —                            │ computer     RUN                  │
+│                        │ │CO₂ —                           │ total 3.1 kW                      │
+│                        │ │passengers 0                    │                                   │
+│                        │ │light ○                         │                                   │
+│ > door open hatch      │ └────────────────────────────────┘                                   │
 │ sent to skiff; ...     │                                                                      │
 │ uplink: ... — 3:12 left│  LOG                                                                 │
 │ ███████░░░             │  00:41:52  hold: exposed to vacuum                                  │
@@ -312,15 +314,16 @@ unknown command 'door shut'. Type 'help' for commands
 
 The sketch isn't to scale: the console takes the left 40% of the window, on a darker panel, and the dashboard the right 60%.
 
-- **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
+- **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED" over the ship table, and the console says how to connect. The table has one row per ship: its name, its class (`Ring`, `Skiff`, `Tug`, `Freighter`, `Wheel`), its status and a Connect button. The status is the worst level anywhere on the ship (a room reading, a tank, a system, a breaker), shown as its name in its colour: NORMAL, WARNING, DANGER or CRITICAL (see Status levels). It is always live, even while a ship's computer reboots or is in FAULT, when that ship's dashboard would be frozen. Connect does what typing `ships connect <ship name>` does, and the line echoes in the console. The clock bar stays above the table, with Pause/Play, Speed and the sim time but no alarm or Disconnect, so the clock can be paused and sped up with no ship connected.
 - **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
-- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
+- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, the most serious current alarm, and a Disconnect button in the top-right corner that does what typing `disconnect` does. Space toggles pause unless the command line has focus.
 - **3D view:** the connected ship, orthographic, under the clock bar and filling about half the dashboard's height. Each room is a see-through box tinted by its status, and the selected room's box is brighter. Each door and hatch is a panel on its wall, coloured by its state: closed, open, moving or without power. Each room's name is flat text at the room's centre that moves with the room and always faces the screen. A name that overlaps a higher-priority name is hidden until the view or the selection changes.
 - **View controls:** left-drag orbits the camera round the ship, the wheel zooms, and a click (press and release without dragging) selects the room under the cursor, or the room whose name is under it. Where rooms stand in front of one another, the nearest wins, and a room that holds the camera is not picked. While the computer reboots or is in FAULT the dashboard is frozen and clicks do nothing.
 - **Selection:** the first room of the ship is selected at start.
-- **ROOM panel:** the left-most panel, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—".
-- **Systems and tanks** panels, as above.
-- **BREAKERS panel:** it lists, in this order, the selected room's breakers (its light, then the doors and hatches in its walls), the system breakers, then every tripped breaker anywhere on the ship that is not already listed. Each row shows the breaker's id with its state and draw. Selecting another room changes the list. The total under it is the whole ship's draw.
+- **ROOM panel:** the left-most panel, framed with the BREAKERS panel in one thin border, headed by the selected room's name in its status color. It shows pressure, temperature, O₂ and N₂ share, ppCO₂, the passenger count, and the light. Below 1 kPa the shares show "—".
+- **BREAKERS panel:** next to ROOM, it lists only the selected room's breakers: its light, then the doors and hatches in its walls. Each row shows the breaker's id with its state and draw. Selecting another room changes the list. System breakers aren't listed; a system without power shows NO POWER in SYSTEMS, and `breaker reset <system>` still works.
+- **SYSTEMS panel:** after the border, the three systems and the computer, then the whole ship's total draw.
+- **TANKS panel:** last.
 - **Scrolling:** the panels sit in a scroll area under the 3D view, so a long breaker list scrolls instead of shrinking the view.
 - **Log:** the last 50 events with sim timestamps. It holds the ship's own events (system state changes, rooms exposed or sealed, warnings, breaker trips and empty tanks), not commands.
 - **Command line:** a column down the left side of the window, the left 40% of its width and the full height, on a darker panel, with the dashboard taking the right 60%. It has focus at start. Commands and their responses fill the scrollback, with the input at the bottom of the column. Between them sit two progress bars, `uplink` and `downlink`, each with a label: idle, or the command with its time left (`uplink: door open hatch — 3:12 left`). While the uplink runs the downlink reads `waiting`; while the reply comes back the uplink stays full and reads `sent`. Both read idle when disconnected. The console is separate hardware linked to one ship, so it stays visible and usable while the computer reboots or is in FAULT. The reboot overlay and the STALE label cover only the dashboard.
@@ -329,7 +332,18 @@ All text is 19 px, matching `prototypes/transit`, and the UI scales with the dis
 
 ### Status levels
 
-| Reading | Nominal | Warning | Danger |
+Four levels, each with its colour:
+
+| Level | Colour | Means |
+|---|---|---|
+| NORMAL | green | everything works |
+| WARNING | yellow | equipment is down: a tripped breaker, or a system in FAULT or NO POWER |
+| DANGER | orange | a change that could cause harm: a reading outside its normal band (the log also records a door left open onto an open hatch as DANGER) |
+| CRITICAL | red | death is imminent: a reading past its critical limit, a room exposed to vacuum, or an empty tank |
+
+Readings are never yellow:
+
+| Reading | Normal | Danger | Critical |
 |---|---|---|---|
 | Pressure | 95–105 kPa | 70–95 or above 105 kPa | below 70 kPa |
 | ppO₂ | 19–23.5 kPa | 16–19 or 23.5–30 kPa | below 16 or above 30 kPa |
@@ -337,7 +351,7 @@ All text is 19 px, matching `prototypes/transit`, and the UI scales with the dis
 | Temperature | 18–26 °C | 10–18 or 26–32 °C | below 10 or above 32 °C |
 | Tank | above 25 % | 5–25 % | below 5 % |
 
-Colors: nominal is green, warning is amber and danger is red. A system in FAULT or NO POWER, and a tripped breaker, show amber.
+A room's level is the worst of its readings and its own breakers, so a tripped light or door breaker makes it at least WARNING; a door's breaker counts for both its rooms. The log colours its events the same way. A moving door is cyan in the 3D view, so it is never read as a status.
 
 ## Code structure
 
@@ -372,7 +386,7 @@ Colors: nominal is green, warning is amber and danger is red. A system in FAULT 
   - adding a passenger raising a sealed room's CO₂ faster, a passenger adding `heat.passenger_w` of heat, and removing the last one stopping breathing in that room
   - each room's passenger count, in the model and on the main screen after `passenger add`
   - the 3D view: a box and a name per room, a panel per opening, status tints, picking, orbit, zoom and click
-  - the BREAKERS panel: the selected room's breakers, then the systems, then a breaker tripped elsewhere, and the list changing with the selection
+  - the BREAKERS panel: only the selected room's breakers, and the list changing with the selection
   - each command's success and error responses
   - the same commands from the same start always giving the same state
 

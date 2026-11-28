@@ -4,9 +4,9 @@ func _open_door(ship: Ship, id: String) -> void:
 	ship.set_opening(id, true)
 	ship.advance(2.0)
 
-func _has_warning(ship: Ship, text: String) -> bool:
+func _has_danger(ship: Ship, text: String) -> bool:
 	for entry in ship.events.entries:
-		if entry.text == text and entry.level == EventLog.Level.WARNING:
+		if entry.text == text and entry.level == EventLog.Level.DANGER:
 			return true
 	return false
 
@@ -40,7 +40,7 @@ func test_unpowered_door_stays_open() -> void:
 	var outcome := ship.set_opening("hatch", true)
 	assert_true(outcome.left_open == ["d2"], "left_open is d2: %s" % [outcome.left_open])
 	assert_true(outcome.auto_closed.is_empty(), "nothing auto-closed")
-	assert_true(_has_warning(ship, "d2: no power, left open with hatch opening"), "warning logged")
+	assert_true(_has_danger(ship, "d2: no power, left open with hatch opening"), "warning logged")
 	ship.advance(120.0)
 	assert_true(ship.room("main").pressure() < 1000.0, "main below 1 kPa")
 
@@ -63,7 +63,7 @@ func test_reopening_door_onto_open_hatch_warns() -> void:
 	var outcome := ship.set_opening("d2", true)
 	assert_true(outcome.result == Opening.CommandResult.STARTED, "d2 started")
 	assert_true(outcome.onto_open_hatch, "onto_open_hatch")
-	assert_true(_has_warning(ship, "d2: opened onto an open hatch"), "warning logged")
+	assert_true(_has_danger(ship, "d2: opened onto an open hatch"), "warning logged")
 
 func test_hatch_tripped_half_open_vents_at_half_rate() -> void:
 	var ship := ShipFixture.make()

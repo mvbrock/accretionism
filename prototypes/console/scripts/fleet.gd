@@ -27,6 +27,11 @@ static func standard() -> Fleet:
 	})
 
 
+## Every ship runs on the one clock, so any ship's time is the fleet's; 0 with no ships.
+func time_s() -> float:
+	return (ships.values()[0] as Ship).time_s if not ships.is_empty() else 0.0
+
+
 func names() -> PackedStringArray:
 	return PackedStringArray(ships.keys())
 

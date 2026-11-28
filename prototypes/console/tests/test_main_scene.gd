@@ -28,7 +28,7 @@ func test_starts_disconnected() -> void:
 	var main := _disconnected_main()
 	assert_true(main.ship == null, "no ship is connected")
 	assert_true(main.dashboard == null, "no dashboard is built")
-	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+	assert_true(main.ship_table.visible, "the ship table shows")
 	var text := main.console.scrollback.get_parsed_text()
 	assert_true(text.contains(Main.GREETING), "the console says how to connect, got '%s'" % text)
 
@@ -37,7 +37,7 @@ func test_connect_shows_that_ships_dashboard() -> void:
 	var main := _disconnected_main()
 	main.console.line_submitted.emit("ships connect wren")
 	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
-	assert_true(not main.no_ship_label.visible, "the placeholder hides")
+	assert_true(not main.ship_table.visible, "the ship table hides")
 	assert_true(main.dashboard != null and main.dashboard.ship_view.room_box("treehouse") != null, "the dashboard shows wren's rooms")
 	assert_true(main.console.scrollback.get_parsed_text().contains("connected to wren"), "the response prints")
 
@@ -47,7 +47,7 @@ func test_disconnect_takes_the_dashboard_away() -> void:
 	main.console.line_submitted.emit("disconnect")
 	assert_true(main.ship == null, "no ship is connected")
 	assert_true(main.dashboard == null, "the dashboard is gone")
-	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+	assert_true(main.ship_table.visible, "the ship table shows")
 
 
 func test_disconnect_clears_the_reboot_overlay() -> void:
@@ -77,7 +77,7 @@ func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
 	assert_true(main.stale_label.visible, "STALE shows")
 	assert_true(main.dashboard.ship_view.room_box("cargo") != null, "the rooms are drawn")
 	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the ROOM panel has a room, got '%s'" % main.dashboard.room_heading.text)
-	assert_true(main.dashboard._clock_label.text != "", "the clock shows")
+	assert_true(main.dashboard.clock_bar.clock_label.text != "", "the clock shows")
 
 
 func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
@@ -89,6 +89,53 @@ func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
 	assert_true(not is_instance_valid(old), "the old dashboard is freed")
 	await _click_room(main, "cargo")
 	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
+
+
+func test_ship_table_lists_each_ship_with_its_class() -> void:
+	var main := _disconnected_main()
+	var cells := main.ship_table.grid.get_children().map(
+			func(node: Node) -> String: return (node as Label).text if node is Label else "")
+	assert_true(cells.slice(4, 7) == ["kestrel", "ThreeRoom", "NORMAL"], "kestrel's row, got %s" % [cells])
+	assert_true(cells.slice(8, 11) == ["wren", "FourRoom", "NORMAL"], "wren's row, got %s" % [cells])
+
+
+func test_ship_table_status_turns_yellow_then_red() -> void:
+	var main := _disconnected_main()
+	var kestrel: Ship = main.fleet.ships.kestrel
+	kestrel.power.trip(Ship.light_breaker_id("cockpit"))
+	main.refresh()
+	var label := main.ship_table.status_label("kestrel")
+	assert_true(label.get_theme_color("font_color") == DashboardView.YELLOW, "a tripped breaker is yellow")
+	assert_true(label.text == "WARNING", "got '%s'" % label.text)
+	_vent(kestrel.room("cargo"))
+	main.refresh()
+	assert_true(label.get_theme_color("font_color") == DashboardView.RED, "a vented room is red")
+	assert_true(label.text == "CRITICAL", "got '%s'" % label.text)
+	assert_true(main.ship_table.status_label("wren").get_theme_color("font_color") == DashboardView.GREEN, "wren stays green")
+
+
+func test_connect_button_connects_to_that_ship() -> void:
+	var main := _disconnected_main()
+	main.ship_table.connect_button("wren").pressed.emit()
+	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
+	assert_true(main.console.scrollback.get_parsed_text().contains("> ships connect wren"), "the command echoes")
+
+
+func test_disconnect_button_disconnects() -> void:
+	var main := _main()
+	main.dashboard.clock_bar.disconnect_button.pressed.emit()
+	assert_true(main.ship == null, "no ship is connected")
+	assert_true(main.ship_table.visible, "the ship table is back")
+	assert_true(main.console.scrollback.get_parsed_text().contains("> disconnect"), "the command echoes")
+
+
+func test_disconnect_button_works_with_a_command_in_flight() -> void:
+	var main := _main()
+	main.ship.transmission_s = 10.0
+	main.console.line_submitted.emit("door open hatch")
+	main.dashboard.clock_bar.disconnect_button.pressed.emit()
+	assert_true(main.ship == null, "disconnected at once")
+	assert_true(main.ship_table.visible, "the ship table is back")
 
 
 func test_every_ship_runs_while_disconnected() -> void:
@@ -403,11 +450,27 @@ func test_space_pauses_only_without_console_focus() -> void:
 	assert_true(main.clock.paused, "Space without focus pauses")
 
 
+func test_clock_bar_shows_and_works_while_disconnected() -> void:
+	var main := _disconnected_main()
+	var bar := main.ship_table.clock_bar
+	assert_true(bar.is_visible_in_tree(), "the clock bar shows")
+	assert_true(not bar.disconnect_button.visible, "there is nothing to disconnect from")
+	var was_paused := main.clock.paused
+	bar.pause_pressed.emit()
+	assert_true(main.clock.paused != was_paused, "Pause/Play toggles the clock")
+	assert_true(bar.pause_button.text == ("Play" if main.clock.paused else "Pause"), "got '%s'" % bar.pause_button.text)
+	bar.speed_pressed.emit()
+	assert_true(main.clock.speed_index == 1 and bar.speed_button.text == "Speed: 1 min/s", "got '%s'" % bar.speed_button.text)
+	main.clock.paused = false
+	main._process(1.0)
+	assert_true(bar.clock_label.text == "T+00:01:00", "the sim time runs, got '%s'" % bar.clock_label.text)
+
+
 func test_clock_bar_buttons() -> void:
 	var main := _main()
-	main.dashboard.pause_pressed.emit()
+	main.dashboard.clock_bar.pause_pressed.emit()
 	assert_true(main.clock.paused, "Pause pauses")
-	main.dashboard.speed_pressed.emit()
+	main.dashboard.clock_bar.speed_pressed.emit()
 	assert_true(main.clock.speed_index == 1, "Speed steps to 1 min/s")
 	main.set_process(true)
 	main.clock.paused = false
@@ -464,11 +527,11 @@ func test_clock_bar_button_text() -> void:
 	main.clock.speed_index = 2
 	main.clock.paused = false
 	main.refresh()
-	assert_true(main.dashboard.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.pause_button.text)
-	assert_true(main.dashboard.speed_button.text == "Speed: 1 hour/s", "speed shows 1 hour/s, got '%s'" % main.dashboard.speed_button.text)
+	assert_true(main.dashboard.clock_bar.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.clock_bar.pause_button.text)
+	assert_true(main.dashboard.clock_bar.speed_button.text == "Speed: 1 hour/s", "speed shows 1 hour/s, got '%s'" % main.dashboard.clock_bar.speed_button.text)
 	main.clock.paused = true
 	main.refresh()
-	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)
+	assert_true(main.dashboard.clock_bar.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.clock_bar.pause_button.text)
 
 
 func _status(main: Main) -> LinkStatus:
@@ -524,10 +587,12 @@ func test_the_view_keeps_half_the_dashboard_on_the_wheel() -> void:
 	own(dashboard)
 	dashboard.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	dashboard.size = Vector2(900, 900)
+	dashboard.clock_bar.show_clock(SimClock.new())
 	dashboard.show_ship(WheelShip.new())
 	await tree.process_frame
 	await tree.process_frame
-	assert_true(dashboard.ship_view.size.y >= 0.45 * dashboard.size.y, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, dashboard.size.y])
+	var below_clock_bar := dashboard.size.y - dashboard.clock_bar.size.y
+	assert_true(dashboard.ship_view.size.y >= 0.45 * below_clock_bar, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, below_clock_bar])
 
 
 func _listed_breakers(dashboard: DashboardView) -> Array[String]:
@@ -538,7 +603,7 @@ func _listed_breakers(dashboard: DashboardView) -> Array[String]:
 	return listed
 
 
-func test_the_breakers_panel_lists_the_selected_rooms_breakers_then_the_systems() -> void:
+func test_the_breakers_panel_lists_only_the_selected_rooms_breakers() -> void:
 	var dashboard := DashboardView.new()
 	own(dashboard)
 	var wheel := WheelShip.new()
@@ -548,22 +613,32 @@ func test_the_breakers_panel_lists_the_selected_rooms_breakers_then_the_systems(
 	var want: Array[String] = ["light-a0"]
 	for door in wheel.doors_of("a0"):
 		want.append(door.id)
-	want.append_array(Ship.SYSTEM_BREAKER_IDS)
 	assert_true(_listed_breakers(dashboard) == want, "got %s, want %s" % [_listed_breakers(dashboard), want])
 	assert_true(DashboardModel.total_draw_text(wheel) == dashboard._total_label.text, "the total stays the whole ship's")
 
 
-func test_the_breakers_panel_lists_a_breaker_tripped_in_another_room() -> void:
+func test_the_breakers_panel_leaves_out_a_breaker_tripped_elsewhere() -> void:
 	var dashboard := DashboardView.new()
 	own(dashboard)
 	var wheel := WheelShip.new()
 	dashboard.show_ship(wheel)
 	dashboard.select_room("a0")
 	wheel.breaker_trip("light-c5")
+	wheel.breaker_trip("hvac")
 	dashboard.show_ship(wheel)
 	var listed := _listed_breakers(dashboard)
-	assert_true(listed.has("light-c5") and listed.back() == "light-c5", "the tripped breaker is listed last, got %s" % [listed])
-	assert_true(not listed.has("light-c6"), "a closed breaker elsewhere is not listed")
+	assert_true(not listed.has("light-c5") and not listed.has("hvac"), "got %s" % [listed])
+
+
+func test_breakers_sit_beside_the_room_in_one_border_then_systems_then_tanks() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	var top := dashboard.panels.get_children()
+	assert_true(top[0] is PanelContainer, "the bordered box comes first")
+	var boxed := top[0].get_child(0).get_children().map(func(column: Node) -> String: return (column.get_child(0) as Label).text)
+	var rest := top.slice(1).map(func(column: Node) -> String: return (column.get_child(0) as Label).text)
+	assert_true(boxed == ["ROOM", "BREAKERS"], "got %s" % [boxed])
+	assert_true(rest == ["SYSTEMS", "TANKS"], "got %s" % [rest])
 
 
 func test_selecting_another_room_changes_the_breakers_listed() -> void:

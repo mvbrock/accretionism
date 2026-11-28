@@ -6,8 +6,9 @@ extends RefCounted
 ## or the wrong argument count; every other line is sent to that
 ## ship's command interpreter. It takes the ship's `transmission_s` to arrive, runs
 ## then, and its reply takes as long to come back. One line is in flight at a time.
-## `disconnect` works even while the ship's computer is down, since the link is the
-## console's, not the ship's.
+## `disconnect` works at once, even while the ship's computer is down, since the link is the
+## console's, not the ship's. A command already sent still lands and runs on its ship, but its
+## reply is lost.
 
 const NOT_CONNECTED := "not connected to a ship; type 'ships list' to see them, 'ships connect <ship name>' to connect"
 
@@ -23,6 +24,9 @@ var _reply := ""
 var _now_s := 0.0
 var _leg_start_s := 0.0
 var _leg_end_s := 0.0
+## Commands sent before a disconnect, still travelling: {ship, line, land_s}. They run when they
+## land and their replies are dropped.
+var _detached: Array[Dictionary] = []
 
 
 func _init(fleet_to_link: Fleet) -> void:
@@ -39,21 +43,45 @@ func ship() -> Ship:
 func advance(sim_seconds: float, step_s: float) -> PackedStringArray:
 	var replies := PackedStringArray()
 	var end_s := _now_s + sim_seconds
-	while _phase != Phase.IDLE and _leg_end_s <= end_s + Units.SECONDS_EPSILON:
-		var landing_s := maxf(_leg_end_s, _now_s)
+	while _next_landing_s() <= end_s + Units.SECONDS_EPSILON:
+		var landing_s := maxf(_next_landing_s(), _now_s)
 		fleet.advance(landing_s - _now_s, step_s)
 		_now_s = landing_s
-		if _phase == Phase.UPLINK:
-			_reply = _run_on_ship(_line)
-			_start_leg(Phase.DOWNLINK)
-		else:
-			replies.append("reply to '%s': %s" % [_line, _reply])
-			_phase = Phase.IDLE
-			_line = ""
-			_reply = ""
+		_land_detached()
+		if _phase != Phase.IDLE and _leg_end_s <= _now_s + Units.SECONDS_EPSILON:
+			_land_leg(replies)
 	fleet.advance(end_s - _now_s, step_s)
 	_now_s = end_s
 	return replies
+
+
+func _next_landing_s() -> float:
+	var next_s := _leg_end_s if _phase != Phase.IDLE else INF
+	for sent in _detached:
+		next_s = minf(next_s, sent.land_s)
+	return next_s
+
+
+func _land_detached() -> void:
+	for sent in _detached.duplicate():
+		if sent.land_s <= _now_s + Units.SECONDS_EPSILON:
+			_detached.erase(sent)
+			_run_on(sent.ship, sent.line)
+
+
+func _land_leg(replies: PackedStringArray) -> void:
+	if _phase == Phase.UPLINK:
+		_reply = _run_on(ship(), _line)
+		_start_leg(Phase.DOWNLINK)
+		return
+	replies.append("reply to '%s': %s" % [_line, _reply])
+	_end_leg()
+
+
+func _end_leg() -> void:
+	_phase = Phase.IDLE
+	_line = ""
+	_reply = ""
 
 
 func in_flight() -> bool:
@@ -97,7 +125,7 @@ func _respond_disconnected(words: PackedStringArray) -> String:
 		"help":
 			return "\n".join([
 				"ships list — List the ships",
-				"ships connect <%s> — Connect to that ship" % "|".join(fleet.names()),
+				"ships connect <name> — Connect to that ship",
 			])
 		"ships":
 			return _ships(words)
@@ -116,19 +144,24 @@ func _ships(words: PackedStringArray) -> String:
 		ship_name = words[2]
 		return "connected to " + ship_name
 	if sub == "connect":
-		return "usage: ships connect <%s>" % "|".join(fleet.names())
-	return "usage: ships list | ships connect <ship name>"
+		return "usage: ships connect <name>"
+	return "usage: ships list | ships connect <name>"
 
 
 func _respond_connected(words: PackedStringArray, line: String) -> String:
 	if words[0] == "disconnect":
 		if words.size() != 1:
 			return "usage: disconnect"
-		if in_flight():
-			return "waiting on '%s'; disconnect when the reply is in" % _line
-		var left := ship_name
+		var response := "disconnected from " + ship_name
+		match _phase:
+			Phase.UPLINK:
+				_detached.append({"ship": ship(), "line": _line, "land_s": _leg_end_s})
+				response += "; '%s' still lands, but its reply is lost" % _line
+			Phase.DOWNLINK:
+				response += "; the reply to '%s' is lost" % _line
+		_end_leg()
 		ship_name = ""
-		return "disconnected from " + left
+		return response
 	if words[0] == "ships":
 		return "connected to %s; type 'disconnect' first" % ship_name
 	if words.size() == 1 and words[0] == "help":
@@ -144,12 +177,12 @@ func _respond_connected(words: PackedStringArray, line: String) -> String:
 
 
 ## Runs on the ship as the uplink lands. The computer's refusal is the reply.
-func _run_on_ship(line: String) -> String:
+func _run_on(target: Ship, line: String) -> String:
 	var words := CommandInterpreter.words(line)
-	var refusal := CommandInterpreter.computer_refusal(ship(), " ".join(words.slice(0, 2)))
+	var refusal := CommandInterpreter.computer_refusal(target, " ".join(words.slice(0, 2)))
 	if refusal != "":
 		return refusal + "; 'disconnect' also works"
-	return CommandInterpreter.run(ship(), line)
+	return CommandInterpreter.run(target, line)
 
 
 func _start_leg(phase: Phase) -> void:

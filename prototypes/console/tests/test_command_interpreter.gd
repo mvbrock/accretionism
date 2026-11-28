@@ -1,6 +1,6 @@
 extends TestCase
 
-const USAGE_DOOR_OPEN := "usage: door open <d1|d2|hatch>"
+const USAGE_DOOR_OPEN := "usage: door open <name>"
 
 func _run(ship: Ship, line: String) -> String:
 	return CommandInterpreter.run(ship, line)
@@ -17,11 +17,11 @@ func test_four_room_ship_commands_work() -> void:
 	_check(ship, "door open d0", "d0: opening (2 s)")
 	_check(ship, "light off treehouse", "treehouse light: off")
 
-func test_help_lists_rooms_and_openings_from_the_data() -> void:
+func test_help_names_arguments_without_listing_ids() -> void:
 	var help := _run(_four_room_ship(), "help")
-	assert_true(help.contains("door open <d0|d1|d2|hatch>"), "doors in help")
-	assert_true(help.contains("light on <treehouse|cockpit|main|cargo>"), "rooms in help")
-	_check(_four_room_ship(), "door open", "usage: door open <d0|d1|d2|hatch>")
+	assert_true(help.contains("door open <name>") and help.contains("light on <name>") and help.contains("breaker reset <name>"), help)
+	assert_true(not help.contains("treehouse") and not help.contains("|"), "no ids are listed, got %s" % help)
+	_check(_four_room_ship(), "door open", "usage: door open <name>")
 
 func test_unknown_breaker_lists_the_ships_breakers() -> void:
 	var text := _run(_four_room_ship(), "breaker reset zz")
@@ -133,11 +133,11 @@ func test_unknown_system() -> void:
 
 func test_wrong_argument_count() -> void:
 	var ship := ShipFixture.make()
-	_check(ship, "light on", "usage: light on <cockpit|main|cargo>")
+	_check(ship, "light on", "usage: light on <name>")
 	_check(ship, "hvac restart now", "usage: hvac restart")
-	_check(ship, "breaker reset", "usage: breaker reset <breaker ID>")
-	_check(ship, "debug trip", "usage: debug trip <breaker ID>")
-	_check(ship, "debug fault", "usage: debug fault <system>")
+	_check(ship, "breaker reset", "usage: breaker reset <name>")
+	_check(ship, "debug trip", "usage: debug trip <name>")
+	_check(ship, "debug fault", "usage: debug fault <name>")
 	_check(ship, "help me", "usage: help")
 
 func test_passenger_add_and_remove() -> void:
@@ -157,10 +157,10 @@ func test_passenger_unknown_room() -> void:
 
 func test_passenger_usage() -> void:
 	var ship := ShipFixture.make()
-	_check(ship, "passenger add", "usage: passenger add <cockpit|main|cargo>")
-	_check(ship, "passenger remove", "usage: passenger remove <cockpit|main|cargo>")
-	_check(ship, "passenger add main cargo", "usage: passenger add <cockpit|main|cargo>")
-	_check(ship, "passenger remove main cargo", "usage: passenger remove <cockpit|main|cargo>")
+	_check(ship, "passenger add", "usage: passenger add <name>")
+	_check(ship, "passenger remove", "usage: passenger remove <name>")
+	_check(ship, "passenger add main cargo", "usage: passenger add <name>")
+	_check(ship, "passenger remove main cargo", "usage: passenger remove <name>")
 
 func test_passenger_blocked_while_computer_down() -> void:
 	var ship := ShipFixture.make()
@@ -180,20 +180,20 @@ func test_system_restart_unknown_system() -> void:
 
 func test_help() -> void:
 	var expected := "\n".join([
-		"door open <d1|d2|hatch> — Start opening",
-		"door close <d1|d2|hatch> — Start closing",
-		"light on <cockpit|main|cargo> — Switch that room's light on",
-		"light off <cockpit|main|cargo> — Switch it off",
-		"passenger add <cockpit|main|cargo> — Add a passenger to that room",
-		"passenger remove <cockpit|main|cargo> — Remove a passenger from that room",
+		"door open <name> — Start opening",
+		"door close <name> — Start closing",
+		"light on <name> — Switch that room's light on",
+		"light off <name> — Switch it off",
+		"passenger add <name> — Add a passenger to that room",
+		"passenger remove <name> — Remove a passenger from that room",
 		"pressure-control restart — Reboot pressure control",
 		"hvac restart — Reboot the HVAC",
 		"air-recycler restart — Reboot the recycler",
 		"computer restart — Reboot the computer",
-		"breaker reset <breaker ID> — Close a tripped breaker",
+		"breaker reset <name> — Close a tripped breaker",
 		"help — List the commands",
-		"debug trip <breaker ID> — Trip a breaker",
-		"debug fault <system> — Put a system in FAULT",
+		"debug trip <name> — Trip a breaker",
+		"debug fault <name> — Put a system in FAULT",
 	])
 	_check(ShipFixture.make(), "help", expected)
 

@@ -4,7 +4,8 @@ extends RefCounted
 
 const CAPACITY := 50
 
-enum Level { INFO, WARNING, DANGER }
+## The same meanings as Status.Level, with INFO in place of NORMAL.
+enum Level { INFO, WARNING, DANGER, CRITICAL }
 
 var entries: Array[Dictionary] = []
 

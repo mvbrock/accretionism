@@ -4,14 +4,14 @@ extends VBoxContainer
 ## systems, breakers, tanks and the log. Built in code; show_ship() redraws it
 ## from a Ship.
 
-signal pause_pressed
-signal speed_pressed
 signal room_clicked(room_id: String)
 signal room_selected
 
 const GREEN := Color("5fd068")
-const AMBER := Color("f0b030")
+const YELLOW := Color("e8d84a")
+const ORANGE := Color("f08c30")
 const RED := Color("ee5050")
+const SELECTED_ROOM_BORDER_COLOR := Color(1, 1, 1, 0.35)
 const BAR_CELLS := 8
 ## The height left after the clock bar is split in these shares between the 3D view, the panels
 ## (which scroll when long) and the log, so the view keeps about half however long the panels are.
@@ -20,16 +20,12 @@ const PANELS_SHARE := 0.8
 const LOG_SHARE := 0.5
 const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]
 
-var clock_bar: HBoxContainer
-var pause_button: Button
-var speed_button: Button
+var clock_bar: ClockBar
 var ship_view: ShipView3D
 var panels: Control
 ## The id of the room the ROOM panel shows; "" until a ship is shown.
 var selected_room := ""
 var room_heading: Label
-var _clock_label: Label
-var _alarm_label: Label
 var _room_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
@@ -42,7 +38,7 @@ var _log_text := ""
 
 func _init() -> void:
 	add_theme_constant_override("separation", 10)
-	clock_bar = _build_clock_bar()
+	clock_bar = ClockBar.new(true)
 	add_child(clock_bar)
 	panels = _build_panels()
 	var panels_scroll := ScrollContainer.new()
@@ -61,11 +57,6 @@ func _init() -> void:
 	add_child(_log)
 
 
-func show_clock(clock: SimClock) -> void:
-	pause_button.text = "Play" if clock.paused else "Pause"
-	speed_button.text = "Speed: %s" % clock.speed_label()
-
-
 func show_ship(ship: Ship) -> void:
 	if ship_view == null:
 		ship_view = ShipView3D.new(ship)
@@ -76,10 +67,8 @@ func show_ship(ship: Ship) -> void:
 		move_child(ship_view, 1)
 		_build_breaker_labels(ship)
 		selected_room = ship.rooms[0].id
-	_clock_label.text = DashboardModel.clock_text(ship.time_s)
-	var alarm := DashboardModel.top_alarm(ship)
-	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
-	_alarm_label.add_theme_color_override("font_color", status_color(alarm.level))
+	clock_bar.show_time(ship.time_s)
+	clock_bar.show_alarm(DashboardModel.top_alarm(ship))
 	ship_view.show_ship(ship, selected_room)
 	_show_room_panel(DashboardModel.room_tile(ship, selected_room))
 	for id in _system_labels:
@@ -104,28 +93,6 @@ func select_room(room_id: String) -> void:
 	room_selected.emit()
 
 
-func _build_clock_bar() -> HBoxContainer:
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 14)
-	pause_button = _clock_button(pause_pressed)
-	speed_button = _clock_button(speed_pressed)
-	_clock_label = Label.new()
-	_alarm_label = Label.new()
-	_alarm_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_alarm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	for node in [pause_button, speed_button, _clock_label, _alarm_label]:
-		bar.add_child(node)
-	return bar
-
-
-## No focus, so clicking it never takes the command line's focus away.
-func _clock_button(pressed_signal: Signal) -> Button:
-	var button := Button.new()
-	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(func() -> void: pressed_signal.emit())
-	return button
-
-
 ## One label per breaker of the ship; _show_breakers lists some of them.
 func _build_breaker_labels(ship: Ship) -> void:
 	for id in ship.power.breaker_ids:
@@ -143,17 +110,35 @@ func _build_panels() -> Control:
 		var label := Label.new()
 		room.add_child(label)
 		_room_labels[key] = label
-	row.add_child(room)
-	row.add_child(_column("SYSTEMS", Ship.SYSTEM_IDS, _system_labels))
 	var breakers := _column("BREAKERS", [], _breaker_labels)
 	_breaker_grid = GridContainer.new()
 	_breaker_grid.columns = 1
 	breakers.add_child(_breaker_grid)
+	row.add_child(_selected_room_box([room, breakers]))
+	var systems := _column("SYSTEMS", Ship.SYSTEM_IDS, _system_labels)
 	_total_label = Label.new()
-	breakers.add_child(_total_label)
-	row.add_child(breakers)
+	systems.add_child(_total_label)
+	row.add_child(systems)
 	row.add_child(_column("TANKS", Units.TANK_GASES, _tank_labels))
 	return row
+
+
+## A thin border round the panels that describe the selected room.
+func _selected_room_box(columns: Array) -> PanelContainer:
+	var box := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.draw_center = false
+	style.border_color = SELECTED_ROOM_BORDER_COLOR
+	style.set_border_width_all(1)
+	style.set_content_margin_all(8)
+	box.add_theme_stylebox_override("panel", style)
+	box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 24)
+	for column in columns:
+		row.add_child(column)
+	box.add_child(row)
+	return box
 
 
 func _column(title: String, ids: Array[String], labels: Dictionary) -> VBoxContainer:
@@ -211,8 +196,10 @@ func _show_log(ship: Ship) -> void:
 func _log_color(level: EventLog.Level) -> Color:
 	match level:
 		EventLog.Level.WARNING:
-			return AMBER
+			return YELLOW
 		EventLog.Level.DANGER:
+			return ORANGE
+		EventLog.Level.CRITICAL:
 			return RED
 	return Color.WHITE
 
@@ -220,7 +207,9 @@ func _log_color(level: EventLog.Level) -> Color:
 static func status_color(level: Status.Level) -> Color:
 	match level:
 		Status.Level.WARNING:
-			return AMBER
+			return YELLOW
 		Status.Level.DANGER:
+			return ORANGE
+		Status.Level.CRITICAL:
 			return RED
 	return GREEN

@@ -18,6 +18,18 @@ Pause/Play and Speed (real time, 1 min/s, 1 hour/s) buttons. Up and down recall 
 | Left-drag in the 3D view | Orbit the camera round the ship |
 | Mouse wheel in the 3D view | Zoom |
 | Click a room, or its name | Select it: its readings show in the ROOM panel and its breakers in the BREAKERS panel |
+| Connect, in the ship table | Same as `ships connect <ship name>` |
+| Disconnect, top right | Same as `disconnect` |
+
+Disconnected, the dashboard's place shows a table of the ships: name, class, status and a Connect button. The
+status is the worst level anywhere on the ship:
+
+| Level | Colour | Means |
+|---|---|---|
+| NORMAL | green | everything works |
+| WARNING | yellow | equipment is down: a tripped breaker, or a system in FAULT or without power |
+| DANGER | orange | a change that could cause harm: a reading outside its normal band (the log also records a door left open onto an open hatch as DANGER) |
+| CRITICAL | red | death is imminent: a reading past its critical limit, a room open to vacuum, or an empty tank |
 
 ## Ships
 
@@ -54,7 +66,7 @@ The console starts disconnected. Connect to a ship to see its dashboard and comm
 |---|---|
 | `ships list` | List the ships (only while disconnected) |
 | `ships connect <ship name>` | Connect to that ship (only while disconnected) |
-| `disconnect` | Disconnect from the ship; works even while its computer is down |
+| `disconnect` | Disconnect from the ship at once, even while its computer is down or a command is in flight |
 
 Connected, `ships`, `disconnect` and `help` answer at once, and the other commands below go to that ship.
 A command takes the ship's `transmission_s` (8 minutes) to arrive and runs
@@ -62,7 +74,8 @@ then; its reply takes as long to come back. The console prints `sent to <ship>; 
 it sends, and `reply to '<line>': <reply>` when the reply lands. The console checks the line first: an
 unknown command or the wrong number of arguments is answered at once with the usual `unknown command` or
 `usage:` text and nothing is sent; the ship still checks the values (room, door and breaker ids). One
-command is in flight at a time, and `disconnect` waits for the reply. Two bars under the scrollback show the
+command is in flight at a time. Disconnecting with one in flight drops its reply; a command still on its
+way up lands and runs anyway. Two bars under the scrollback show the
 command's progress, each with the time left: `uplink` while it travels to the ship, `downlink` while the
 reply comes back.
 
@@ -95,10 +108,10 @@ higher-priority one shows again when the view or selection changes. Below it are
 when long, and the log:
 
 - ROOM: the selected room's readings.
-- SYSTEMS: the three life-support systems and the computer.
-- BREAKERS: the selected room's breakers (its light and the doors and hatches in its walls), then the system
-  breakers, then every tripped breaker anywhere on the ship that is not already listed, each with its state and
-  draw. The total is the whole ship's.
+- BREAKERS: the selected room's breakers only (its light and the doors and hatches in its walls), each with its
+  state and draw. A thin border frames ROOM and BREAKERS together. A tripped light or door breaker turns its
+  rooms yellow.
+- SYSTEMS: the three life-support systems and the computer, and the whole ship's total draw.
 - TANKS: O₂ and N₂.
 
 ## How it works

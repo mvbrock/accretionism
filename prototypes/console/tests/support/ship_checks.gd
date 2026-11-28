@@ -82,7 +82,7 @@ static func open_all_doors(ship: Ship) -> void:
 	ship.advance(_DOOR_SETTLE_S)
 
 
-## Doors open, hatches shut, one day at `step_s`: every room must stay inside the nominal bands.
+## Doors open, hatches shut, one day at `step_s`: every room must stay inside the normal bands.
 static func steady_state_problems(ship: Ship, step_s: float) -> Array[String]:
 	open_all_doors(ship)
 	ship.advance(STEADY_STATE_S, step_s)
@@ -99,7 +99,7 @@ static func steady_state_problems(ship: Ship, step_s: float) -> Array[String]:
 			"temperature_c": Units.celsius(room.temperature),
 		}
 		for band in _BANDS:
-			if Status.classify(readings[band], ship.params.status[band]) != Status.Level.NOMINAL:
+			if Status.classify(readings[band], ship.params.status[band]) != Status.Level.NORMAL:
 				problems.append("%s %s %.3f" % [room.id, band, readings[band]])
 	return problems
 
