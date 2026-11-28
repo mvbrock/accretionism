@@ -207,7 +207,8 @@ func test_critical_on_cycler_is_stabilized_in_infirmary() -> void:
 	assert_true(party.members[0].history.back().text == "%s emergency; stabilized in the infirmary" % CONDITION, "the entry says so")
 	assert_true(party.state == Party.State.HELD and party.place is Cycler, "it stays on the cycler")
 	sim.advance_to(party.stable_until + 0.01)
-	assert_true(party.stable_until == -INF and party.state == Party.State.TRAVELLING and not party.route.is_empty(), "when stable it leaves by the next tender")
+	assert_true(party.stable_until == -INF and party.state == Party.State.TRAVELLING and not party.route.is_empty(), "when stable it is on its way off")
+	assert_true(party.route[0].kind == "rescue", "by a rescue transport, since the cycler has a standby docked")
 
 
 func test_hospital_then_back_to_previous_destination() -> void:

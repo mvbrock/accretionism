@@ -6,7 +6,8 @@ extends RefCounted
 enum Severity { SERIOUS, CRITICAL }
 
 const _CAUSE := "medical emergency"
-const _HOSPITAL_BODIES: Array[Orbits.Body] = [Orbits.Body.EARTH, Orbits.Body.MOON, Orbits.Body.MARS]
+## Earth, the Moon and Mars have hospitals.
+const HOSPITAL_BODIES: Array[Orbits.Body] = [Orbits.Body.EARTH, Orbits.Body.MOON, Orbits.Body.MARS]
 
 
 static func install(sim: Sim) -> void:
@@ -49,7 +50,13 @@ static func start_emergency(sim: Sim, party: Party, patient: Passenger, conditio
 ## Re-routes the party to the hospital that is soonest reached. A party at a body
 ## is already at a hospital, so its stay starts at once.
 static func send_to_hospital(sim: Sim, party: Party) -> void:
-	var hospital: Orbits.Body = party.place if _is_at_body(party) else _nearest_hospital(sim, party)
+	var hospital: Orbits.Body
+	if _is_at_body(party):
+		hospital = party.place
+	elif _is_on_cycler(party):
+		hospital = Rescues.nearest_body(sim, party.place, HOSPITAL_BODIES)
+	else:
+		hospital = _nearest_hospital(sim, party)
 	var body := Fleet.target_name(hospital)
 	for member in party.members:
 		if member == party.patient:
@@ -59,9 +66,9 @@ static func send_to_hospital(sim: Sim, party: Party) -> void:
 				body, party.patient.full_name, in_sentence(party.patient_condition)], _CAUSE)
 	if _is_at_body(party):
 		sim.begin_hospital_stay(party)
+	elif _is_on_cycler(party):
+		Rescues.request(sim, party, Rescues.MEDICAL)
 	else:
-		# TASK 8: a party on a cycler (aboard == null and place is a Cycler) is rescued, so call
-		# Rescues.request here for it. Until then it plans normally and leaves by the next tender.
 		sim.replan(party, hospital, sim.day, _CAUSE)
 
 
@@ -88,9 +95,10 @@ static func _roll_party_emergency(sim: Sim, party: Party) -> void:
 
 
 ## Whether the party can have a change of mind or an emergency today: it has set
-## off, is not arrived and is not already on a medical route.
+## off, is not arrived, is not already on a medical route and is not waiting for a rescue.
 static func _rolls_events(sim: Sim, party: Party) -> bool:
-	return party.state != Party.State.ARRIVED and party.journey_start <= sim.day and not party.is_on_medical_route(sim.day)
+	return party.state != Party.State.ARRIVED and party.journey_start <= sim.day and not party.is_on_medical_route(sim.day) \
+			and not party.awaiting_rescue
 
 
 static func _change_of_mind_chance(party: Party) -> float:
@@ -121,9 +129,13 @@ static func _stabilize(sim: Sim, party: Party) -> void:
 ## The body of Earth, the Moon and Mars the party reaches soonest. With no route
 ## to any of them it picks the first, so the party waits for a route to open.
 static func _nearest_hospital(sim: Sim, party: Party) -> Orbits.Body:
-	var nearest: Variant = Planner.soonest_body(sim.schedule, party.place, sim.day, party.size(), party.aboard, _HOSPITAL_BODIES)
-	return _HOSPITAL_BODIES[0] if nearest == null else nearest
+	var nearest: Variant = Planner.soonest_body(sim.schedule, party.place, sim.day, party.size(), party.aboard, HOSPITAL_BODIES)
+	return HOSPITAL_BODIES[0] if nearest == null else nearest
 
 
 static func _is_at_body(party: Party) -> bool:
 	return party.aboard == null and not party.place is Cycler
+
+
+static func _is_on_cycler(party: Party) -> bool:
+	return party.aboard == null and party.place is Cycler

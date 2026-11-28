@@ -10,6 +10,8 @@ var transports: Array[Transport] = []
 var day := 0.0
 ## Each transport's service: "shuttle", "tender", "express", "standby" or "spare".
 var service_of: Dictionary[Transport, String] = {}
+## Where each transport started: its body or the cycler it is docked to.
+var home_of: Dictionary[Transport, Variant] = {}
 
 
 ## Cyclers then transports, each in fleet order: the order of the table's rows

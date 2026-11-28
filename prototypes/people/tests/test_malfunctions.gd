@@ -7,6 +7,17 @@ func _quiet_sim() -> Sim:
 	return Sim.new(true, false)
 
 
+## A quiet sim whose standby transports and spares are all away for good, so a
+## life-support fault on a cycler sends its riders off by tender rather than by rescue.
+func _quiet_sim_without_rescue_ships() -> Sim:
+	var sim := _quiet_sim()
+	for ship in sim.fleet.transports:
+		if ["standby", "spare"].has(sim.fleet.service_of[ship]):
+			ship.state = Transport.State.IN_TRANSIT
+			ship.t_arrive = INF
+	return sim
+
+
 func _party_where(sim: Sim, condition: Callable) -> Party:
 	for party in sim.parties:
 		if condition.call(party):
@@ -185,7 +196,7 @@ func test_forced_exit_at_destination_arrives() -> void:
 
 
 func test_life_support_cycler_plans_trip_off() -> void:
-	var sim := _quiet_sim()
+	var sim := _quiet_sim_without_rescue_ships()
 	var party := _party_where(sim, func(p: Party) -> bool: return _is_on_cycler(p) and not p.route.is_empty())
 	var cycler: Cycler = party.place
 	var other := _party_where(sim, func(p: Party) -> bool: return _is_on_cycler(p) and p.place != cycler and not p.route.is_empty())
@@ -223,7 +234,7 @@ func _assert_leaving_at_next_open_flyby(sim: Sim, riders: Array) -> void:
 
 
 func test_exit_order_survives_docking_failure() -> void:
-	var sim := _quiet_sim()
+	var sim := _quiet_sim_without_rescue_ships()
 	var riders := sim.parties.filter(_is_on_cycler)
 	for cycler in _occupied_cyclers(sim):
 		Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
@@ -233,7 +244,7 @@ func test_exit_order_survives_docking_failure() -> void:
 
 
 func test_exit_order_survives_change_of_mind() -> void:
-	var sim := _quiet_sim()
+	var sim := _quiet_sim_without_rescue_ships()
 	var riders := sim.parties.filter(_is_on_cycler)
 	for cycler in _occupied_cyclers(sim):
 		Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
@@ -250,7 +261,7 @@ func test_exit_order_survives_change_of_mind() -> void:
 
 
 func test_exit_order_cleared_once_off() -> void:
-	var sim := _quiet_sim()
+	var sim := _quiet_sim_without_rescue_ships()
 	var party := _party_where(sim, _is_on_cycler)
 	var cycler: Cycler = party.place
 	Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
@@ -260,7 +271,7 @@ func test_exit_order_cleared_once_off() -> void:
 
 
 func test_tenders_full_stays_aboard() -> void:
-	var sim := _quiet_sim()
+	var sim := _quiet_sim_without_rescue_ships()
 	var party := _party_where(sim, func(p: Party) -> bool: return _is_on_cycler(p))
 	var cycler: Cycler = party.place
 	var groups := Malfunctions.exit_groups(sim, cycler)
@@ -346,5 +357,8 @@ func test_ship_course_unchanged() -> void:
 	for i in struck.fleet.transports.size():
 		var ship := struck.fleet.transports[i]
 		var control_ship := control.fleet.transports[i]
+		# Standbys and spares are sent out on rescues by a life-support fault on a cycler.
+		if ["standby", "spare"].has(struck.fleet.service_of[ship]):
+			continue
 		assert_true(ship.state == control_ship.state and ship.target == control_ship.target, "%s keeps its trips" % ship.name)
 		assert_true(struck.fleet.position_of(ship, 60.0) == control.fleet.position_of(control_ship, 60.0), "%s is where it would be" % ship.name)

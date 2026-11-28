@@ -5,7 +5,7 @@ extends RefCounted
 ## time order, so the same run comes out of one big step or many small ones.
 
 ## What kind of point it is. At one instant, a lower value goes first.
-enum Order { ARRIVAL, DEPARTURE, TIMER, DAILY }
+enum Order { ARRIVAL, DEPARTURE, TIMER, DAILY, RESCUE }
 
 ## The parties' own timers, each a field of Party holding the day it fires.
 ## A fired timer is reset to -INF, so a timer still set is a hold on its party.
@@ -27,8 +27,16 @@ var on_daily: Array[Callable] = []
 ## Each ship under a docking failure, and the day the failure ends. A ship in it is
 ## under a malfunction.
 var docking_failure_until := {}
+## Each cycler's FIFO queue of parties waiting for a rescue transport, and the
+## simulated days it has had no standby or spare docked. Rescues owns both.
+var rescue_queues: Dictionary[Cycler, Array] = {}
+var standby_gap: Dictionary[Cycler, float] = {}
+## Cyclers whose rescue queue is looked at before time moves on, so every request
+## made at one instant is served together.
+var rescues_due: Array[Cycler] = []
+## Adds trips the dispatcher was not asked for at set-up, such as rescues.
+var dispatcher: Dispatcher
 
-var _dispatcher: Dispatcher
 ## Schedule trips before this index have already departed.
 var _next_departure := 0
 var _in_flight: Array[Trip] = []
@@ -43,8 +51,8 @@ var _next_whole_day := floori(Config.WARMUP_START) + 1
 func _init(warmup := true, incidents := true) -> void:
 	fleet = World.build()
 	schedule = Schedule.new()
-	_dispatcher = Dispatcher.new(fleet, schedule)
-	_dispatcher.extend_to(Config.WARMUP_START + Config.WINDOW_DAYS)
+	dispatcher = Dispatcher.new(fleet, schedule)
+	dispatcher.extend_to(Config.WARMUP_START + Config.WINDOW_DAYS)
 	rng.seed = Config.SEED
 	parties = CastLoader.load()
 	for party in parties:
@@ -55,6 +63,7 @@ func _init(warmup := true, incidents := true) -> void:
 	if incidents:
 		Incidents.install(self)
 		Malfunctions.install(self)
+		Rescues.install(self)
 	if warmup:
 		advance_to(0.0)
 
@@ -159,6 +168,8 @@ func _candidate_points(limit: float) -> Array[Dictionary]:
 	points.append_array(_timer_points(limit))
 	if _next_whole_day <= limit:
 		points.append({t = float(_next_whole_day), order = Order.DAILY, seq = 0, kind = "daily"})
+	if not rescues_due.is_empty():
+		points.append({t = day, order = Order.RESCUE, seq = 0, kind = "rescue"})
 	return points
 
 
@@ -202,6 +213,8 @@ func _process(point: Dictionary) -> void:
 			_fire_timer(point.subject, point.kind, point.t)
 		Order.DAILY:
 			_new_day(point.t)
+		Order.RESCUE:
+			Rescues.serve_due(self)
 
 
 func _depart(trip: Trip, t: float) -> void:
@@ -223,7 +236,10 @@ func _board(party: Party, trip: Trip, t: float) -> void:
 	party.aboard = trip
 	if is_same(trip.from, party.must_leave):
 		party.must_leave = null
-	party.write(t, "Boarded %s at %s" % [trip.ship.name, Fleet.target_name(party.place)], "booked trip")
+	if trip.kind == "rescue":
+		party.write(t, "Evacuated from %s by %s" % [Fleet.target_name(party.place), trip.ship.name], "rescue")
+	else:
+		party.write(t, "Boarded %s at %s" % [trip.ship.name, Fleet.target_name(party.place)], "booked trip")
 
 
 func _arrive(trip: Trip, t: float) -> void:
@@ -244,6 +260,7 @@ func _arrive(trip: Trip, t: float) -> void:
 			party.state = Party.State.TRAVELLING
 		else:
 			_disembark(party, trip, t)
+	Rescues.on_arrival(self, trip)
 
 
 ## The party stays aboard and takes the ship's `next` trip, which it books even
@@ -353,7 +370,7 @@ func _other_body(place: Orbits.Body) -> Orbits.Body:
 func _new_day(t: float) -> void:
 	var whole_day := _next_whole_day
 	_next_whole_day += 1
-	_dispatcher.extend_to(t + Config.WINDOW_DAYS)
+	dispatcher.extend_to(t + Config.WINDOW_DAYS)
 	for party in parties:
 		if party.state == Party.State.HELD and not _is_on_hold(party, t):
 			_retry_route(party, t)
@@ -363,7 +380,7 @@ func _new_day(t: float) -> void:
 
 ## Whether the party is waiting on a timer that must run out before it retries a route.
 func _is_on_hold(party: Party, t: float) -> bool:
-	return party.stable_until > t or party.hospital_until > t or party.exit_retry_at > t
+	return party.stable_until > t or party.hospital_until > t or party.exit_retry_at > t or party.awaiting_rescue
 
 
 func _retry_route(party: Party, t: float) -> void:

@@ -30,6 +30,8 @@ var exit_retry_at := -INF
 ## The cycler the party is ordered off, or null. Every route planned while it is
 ## still aboard leaves at the soonest flyby that has room.
 var must_leave: Cycler
+## Waiting in a cycler's rescue queue. It keeps no route until a transport takes it.
+var awaiting_rescue := false
 
 
 func size() -> int:

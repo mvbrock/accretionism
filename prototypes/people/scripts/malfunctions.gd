@@ -44,7 +44,7 @@ static func exit_groups(sim: Sim, cycler: Cycler) -> Array[Array]:
 	var groups: Array[Array] = []
 	var group_of_flyby := {}
 	for trip in sim.schedule.trips:
-		if not is_same(trip.from, cycler) or trip.blocked or trip.depart_day <= sim.day:
+		if not is_same(trip.from, cycler) or trip.kind != "service" or trip.blocked or trip.depart_day <= sim.day:
 			continue
 		var flyby: float = cycler.leg_at(trip.depart_day).start_day
 		if not group_of_flyby.has(flyby):
@@ -63,7 +63,7 @@ static func next_exit_group(sim: Sim, cycler: Cycler) -> Array:
 ## Tries again to leave the cycler, after a flyby with no room.
 static func resume_exit(sim: Sim, party: Party) -> void:
 	var is_waiting := party.state == Party.State.HELD and party.route.is_empty() and party.aboard == null \
-			and party.place is Cycler and not party.is_on_medical_route(sim.day)
+			and party.place is Cycler and not party.is_on_medical_route(sim.day) and not party.awaiting_rescue
 	if is_waiting:
 		_leave_cycler(sim, party, party.place)
 
@@ -85,7 +85,7 @@ static func _fail_transport_docking(sim: Sim, ship: Transport) -> void:
 	var arriving := sim.trip_in_flight(ship)
 	if arriving == null:
 		arriving = sim.schedule.next_trip_of(ship, sim.day)
-	if arriving == null:
+	if arriving == null or arriving.kind != "service":
 		return
 	var following := sim.schedule.next_trip_of(ship, arriving.arrive_day)
 	var closed: Array[Trip] = [arriving]
@@ -104,6 +104,8 @@ static func _fail_cycler_docking(sim: Sim, cycler: Cycler) -> void:
 	var until: float = cycler.leg_at(sim.day).end_day + Config.TENDER_LINGER_DAYS
 	var closed: Array[Trip] = []
 	for trip in sim.schedule.trips:
+		if trip.kind != "service":
+			continue
 		var arrives: bool = is_same(trip.to, cycler) and trip.arrive_day >= sim.day and trip.depart_day <= until
 		var leaves: bool = is_same(trip.from, cycler) and trip.depart_day >= sim.day and trip.depart_day <= until
 		if arrives and trip.docking_failure_on == null:
@@ -141,9 +143,12 @@ static func _fault_transport_life_support(sim: Sim, ship: Transport) -> void:
 
 static func _fault_cycler_life_support(sim: Sim, cycler: Cycler) -> void:
 	for party in sim.parties:
-		if party.aboard == null and is_same(party.place, cycler) and party.stable_until < sim.day:
-			# TASK 8: swap in Rescues.request here for a party that cannot wait for a flyby.
-			_leave_cycler(sim, party, cycler)
+		if party.aboard == null and is_same(party.place, cycler) and party.stable_until < sim.day and not party.awaiting_rescue:
+			if Rescues.can_serve(sim, cycler):
+				party.write(sim.day, "Life-support fault on %s; waiting for a rescue" % cycler.name, CAUSE)
+				Rescues.request(sim, party, Rescues.LIFE_SUPPORT)
+			else:
+				_leave_cycler(sim, party, cycler)
 
 
 ## Plans the party off the cycler by the next trip with seats for it, to the body

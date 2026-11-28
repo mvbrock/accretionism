@@ -61,6 +61,8 @@ const ARRIVED_LINGER_DAYS := 10.0
 
 const SHUTTLE_TURNAROUND_DAYS := 0.5
 const EXPRESS_TURNAROUND_DAYS := 3.0
+## A rescue transport waits this long at its stop before flying back to its cycler.
+const RESCUE_TURNAROUND_DAYS := 1.0
 ## The i-th ship of a service at one body first departs i times this after the warm-up starts.
 const SHUTTLE_STAGGER_DAYS := 0.35
 const EXPRESS_STAGGER_DAYS := 12.0
