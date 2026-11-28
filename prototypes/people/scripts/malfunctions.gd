@@ -39,8 +39,8 @@ static func strike(sim: Sim, ship: Variant, kind: String) -> void:
 static func exit_groups(sim: Sim, cycler: Cycler) -> Array[Array]:
 	var groups: Array[Array] = []
 	var group_of_flyby := {}
-	for trip in sim.schedule.trips:
-		if not is_same(trip.from, cycler) or trip.kind != "service" or trip.blocked or trip.depart_day <= sim.day:
+	for trip in sim.schedule.departing_after(sim.day):
+		if not is_same(trip.from, cycler) or trip.kind != "service" or trip.blocked:
 			continue
 		var flyby: float = cycler.leg_at(trip.depart_day).start_day
 		if not group_of_flyby.has(flyby):
@@ -99,10 +99,10 @@ static func _fail_transport_docking(sim: Sim, ship: Transport) -> void:
 static func _fail_cycler_docking(sim: Sim, cycler: Cycler) -> void:
 	var until: float = cycler.leg_at(sim.day).end_day + Config.TENDER_LINGER_DAYS
 	var closed: Array[Trip] = []
-	for trip in sim.schedule.trips:
+	for trip in sim.schedule.arriving_from(sim.day):
 		if trip.kind != "service":
 			continue
-		var arrives: bool = is_same(trip.to, cycler) and trip.arrive_day >= sim.day and trip.depart_day <= until
+		var arrives: bool = is_same(trip.to, cycler) and trip.depart_day <= until
 		var leaves: bool = is_same(trip.from, cycler) and trip.depart_day >= sim.day and trip.depart_day <= until
 		if arrives and trip.docking_failure_on == null:
 			trip.docking_failure_on = cycler

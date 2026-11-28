@@ -48,8 +48,8 @@ func test_unstarted_sim_plans_nothing() -> void:
 func test_same_seed_same_run() -> void:
 	var first := Sim.new()
 	var second := Sim.new()
-	first.advance_to(200.0)
-	second.advance_to(200.0)
+	first.advance_to(300.0)
+	second.advance_to(300.0)
 	assert_true(_histories(first) == _histories(second), "the same seed gives the same histories")
 	var set_off_again := 0
 	for party in first.parties:

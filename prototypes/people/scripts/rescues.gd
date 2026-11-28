@@ -205,11 +205,11 @@ static func _nearest_idle_spare(sim: Sim, cycler: Cycler) -> Transport:
 
 
 static func _cover_on_its_way_to(sim: Sim, cycler: Cycler) -> bool:
-	return sim.schedule.trips.any(func(trip: Trip) -> bool:
+	return sim.schedule.arriving_from(sim.day).any(func(trip: Trip) -> bool:
 		var is_cover := trip.kind == "rescue" and trip.booked == 0 and _STANDING_SERVICES.has(sim.fleet.service_of[trip.ship])
-		return is_cover and is_same(trip.to, cycler) and trip.arrive_day >= sim.day)
+		return is_cover and is_same(trip.to, cycler))
 
 
 ## A trip departing at this very instant still counts as yet to leave.
 static func _has_trip_to_fly(sim: Sim, ship: Transport) -> bool:
-	return sim.schedule.trips.any(func(trip: Trip) -> bool: return trip.ship == ship and trip.depart_day >= sim.day)
+	return sim.schedule.has_departure_of(ship, sim.day)
