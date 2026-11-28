@@ -7,7 +7,6 @@ extends Control
 ## the skiff, opens the hatch and selects the hold, saves venting.png at 20 s, closes it, saves refilled.png at 120 s, then quits)
 
 const GREETING := "Not connected. Type 'ships list' to see the ships, 'ships connect <ship name>' to connect."
-const NO_SHIP_TEXT := "NO SHIP CONNECTED"
 const OVERLAY_TEXT := "COMPUTER REBOOTING"
 const STALE_TEXT := "STALE"
 const WINDOW_MARGIN_PX := 12
@@ -29,7 +28,7 @@ var dashboard: DashboardView
 var console: Console
 var console_panel: PanelContainer
 var stage: Control
-var no_ship_label: Label
+var ship_table: ShipTable
 var overlay: Label
 var stale_label: Label
 
@@ -75,11 +74,12 @@ static func scaled_window_size(base: Vector2i, scale: float, usable: Vector2i) -
 
 ## The one place that reads the computer's state. Running: redraw. Booting: the
 ## overlay covers the panels. Fault: the panels stay as they were, marked stale.
-## Disconnected: no dashboard, only NO SHIP CONNECTED.
+## Disconnected: no dashboard, only the ship table.
 func refresh() -> void:
 	console.link_status.show_link(link)
-	no_ship_label.visible = ship == null
+	ship_table.visible = ship == null
 	if ship == null:
+		ship_table.show_fleet(fleet)
 		overlay.visible = false
 		stale_label.visible = false
 		return
@@ -139,9 +139,10 @@ func _build_ui() -> void:
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage.size_flags_stretch_ratio = DASHBOARD_SHARE
 	split.add_child(stage)
-	no_ship_label = _make_banner(NO_SHIP_TEXT, Control.PRESET_FULL_RECT, 32)
-	no_ship_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.4))
-	stage.add_child(no_ship_label)
+	ship_table = ShipTable.new(fleet)
+	ship_table.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	ship_table.connect_pressed.connect(func(ship_name: String) -> void: run_line("ships connect " + ship_name))
+	stage.add_child(ship_table)
 	overlay = _make_banner(OVERLAY_TEXT, Control.PRESET_FULL_RECT, 48)
 	overlay.add_theme_stylebox_override("normal", _scrim())
 	stage.add_child(overlay)
@@ -166,6 +167,7 @@ func _show_dashboard() -> void:
 	stage.move_child(dashboard, 0)
 	dashboard.pause_pressed.connect(_toggle_pause)
 	dashboard.speed_pressed.connect(_next_speed)
+	dashboard.disconnect_pressed.connect(run_line.bind("disconnect"))
 	dashboard.room_clicked.connect(_on_room_clicked)
 	dashboard.room_selected.connect(refresh)
 	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)

@@ -92,6 +92,20 @@ static func total_draw_text(ship: Ship) -> String:
 	return "total %.1f kW" % (ship.total_draw_w() / 1000.0)
 
 
+## The ship's type as the ship table shows it: its class name without `Ship`, such as `Skiff`.
+static func ship_class(ship: Ship) -> String:
+	return (ship.get_script() as Script).get_global_name().trim_suffix("Ship")
+
+
+## The ship table's status: the top alarm, or NOMINAL when there is none. Its level is the worst
+## of every room, tank, system and breaker on the ship.
+static func ship_status(ship: Ship) -> Dictionary:
+	var alarm := top_alarm(ship)
+	if alarm.level == Status.Level.NOMINAL:
+		return {"text": "NOMINAL", "level": Status.Level.NOMINAL}
+	return alarm
+
+
 static func top_alarm(ship: Ship) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	for room in ship.rooms:

@@ -28,7 +28,7 @@ func test_starts_disconnected() -> void:
 	var main := _disconnected_main()
 	assert_true(main.ship == null, "no ship is connected")
 	assert_true(main.dashboard == null, "no dashboard is built")
-	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+	assert_true(main.ship_table.visible, "the ship table shows")
 	var text := main.console.scrollback.get_parsed_text()
 	assert_true(text.contains(Main.GREETING), "the console says how to connect, got '%s'" % text)
 
@@ -37,7 +37,7 @@ func test_connect_shows_that_ships_dashboard() -> void:
 	var main := _disconnected_main()
 	main.console.line_submitted.emit("ships connect wren")
 	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
-	assert_true(not main.no_ship_label.visible, "the placeholder hides")
+	assert_true(not main.ship_table.visible, "the ship table hides")
 	assert_true(main.dashboard != null and main.dashboard.ship_view.room_box("treehouse") != null, "the dashboard shows wren's rooms")
 	assert_true(main.console.scrollback.get_parsed_text().contains("connected to wren"), "the response prints")
 
@@ -47,7 +47,7 @@ func test_disconnect_takes_the_dashboard_away() -> void:
 	main.console.line_submitted.emit("disconnect")
 	assert_true(main.ship == null, "no ship is connected")
 	assert_true(main.dashboard == null, "the dashboard is gone")
-	assert_true(main.no_ship_label.visible, "NO SHIP CONNECTED shows")
+	assert_true(main.ship_table.visible, "the ship table shows")
 
 
 func test_disconnect_clears_the_reboot_overlay() -> void:
@@ -89,6 +89,50 @@ func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
 	assert_true(not is_instance_valid(old), "the old dashboard is freed")
 	await _click_room(main, "cargo")
 	assert_true(main.dashboard.room_heading.text == "CARGO", "got '%s'" % main.dashboard.room_heading.text)
+
+
+func test_ship_table_lists_each_ship_with_its_class() -> void:
+	var main := _disconnected_main()
+	var cells := main.ship_table.grid.get_children().map(
+			func(node: Node) -> String: return (node as Label).text if node is Label else "")
+	assert_true(cells.slice(4, 7) == ["kestrel", "ThreeRoom", "NOMINAL"], "kestrel's row, got %s" % [cells])
+	assert_true(cells.slice(8, 11) == ["wren", "FourRoom", "NOMINAL"], "wren's row, got %s" % [cells])
+
+
+func test_ship_table_status_turns_amber_then_red() -> void:
+	var main := _disconnected_main()
+	var kestrel: Ship = main.fleet.ships.kestrel
+	kestrel.power.trip(Ship.light_breaker_id("cockpit"))
+	main.refresh()
+	var label := main.ship_table.status_label("kestrel")
+	assert_true(label.get_theme_color("font_color") == DashboardView.AMBER, "a tripped breaker is amber")
+	_vent(kestrel.room("cargo"))
+	main.refresh()
+	assert_true(label.get_theme_color("font_color") == DashboardView.RED, "a vented room is red, text '%s'" % label.text)
+	assert_true(main.ship_table.status_label("wren").get_theme_color("font_color") == DashboardView.GREEN, "wren stays green")
+
+
+func test_connect_button_connects_to_that_ship() -> void:
+	var main := _disconnected_main()
+	main.ship_table.connect_button("wren").pressed.emit()
+	assert_true(main.ship == main.fleet.ships.wren, "wren is connected")
+	assert_true(main.console.scrollback.get_parsed_text().contains("> ships connect wren"), "the command echoes")
+
+
+func test_disconnect_button_disconnects() -> void:
+	var main := _main()
+	main.dashboard.disconnect_button.pressed.emit()
+	assert_true(main.ship == null, "no ship is connected")
+	assert_true(main.ship_table.visible, "the ship table is back")
+	assert_true(main.console.scrollback.get_parsed_text().contains("> disconnect"), "the command echoes")
+
+
+func test_disconnect_button_waits_on_a_command_in_flight() -> void:
+	var main := _main()
+	main.ship.transmission_s = 10.0
+	main.console.line_submitted.emit("door open hatch")
+	main.dashboard.disconnect_button.pressed.emit()
+	assert_true(main.ship != null, "still connected while the reply is out")
 
 
 func test_every_ship_runs_while_disconnected() -> void:
@@ -524,10 +568,12 @@ func test_the_view_keeps_half_the_dashboard_on_the_wheel() -> void:
 	own(dashboard)
 	dashboard.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	dashboard.size = Vector2(900, 900)
+	dashboard.show_clock(SimClock.new())
 	dashboard.show_ship(WheelShip.new())
 	await tree.process_frame
 	await tree.process_frame
-	assert_true(dashboard.ship_view.size.y >= 0.45 * dashboard.size.y, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, dashboard.size.y])
+	var below_clock_bar := dashboard.size.y - dashboard.clock_bar.size.y
+	assert_true(dashboard.ship_view.size.y >= 0.45 * below_clock_bar, "the view is %.0f of %.0f" % [dashboard.ship_view.size.y, below_clock_bar])
 
 
 func _listed_breakers(dashboard: DashboardView) -> Array[String]:

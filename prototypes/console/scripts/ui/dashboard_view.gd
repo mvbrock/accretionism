@@ -8,6 +8,7 @@ signal pause_pressed
 signal speed_pressed
 signal room_clicked(room_id: String)
 signal room_selected
+signal disconnect_pressed
 
 const GREEN := Color("5fd068")
 const AMBER := Color("f0b030")
@@ -23,6 +24,7 @@ const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passe
 var clock_bar: HBoxContainer
 var pause_button: Button
 var speed_button: Button
+var disconnect_button: Button
 var ship_view: ShipView3D
 var panels: Control
 ## The id of the room the ROOM panel shows; "" until a ship is shown.
@@ -113,7 +115,9 @@ func _build_clock_bar() -> HBoxContainer:
 	_alarm_label = Label.new()
 	_alarm_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_alarm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	for node in [pause_button, speed_button, _clock_label, _alarm_label]:
+	disconnect_button = _clock_button(disconnect_pressed)
+	disconnect_button.text = "Disconnect"
+	for node in [pause_button, speed_button, _clock_label, _alarm_label, disconnect_button]:
 		bar.add_child(node)
 	return bar
 

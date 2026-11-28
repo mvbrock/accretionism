@@ -122,3 +122,24 @@ func test_gas_names_use_subscripts() -> void:
 	assert_true(DashboardModel.gas_name("O2") == "O₂", "O2")
 	assert_true(DashboardModel.gas_name("N2") == "N₂", "N2")
 	assert_true(DashboardModel.gas_name("CO2") == "CO₂", "CO2")
+
+func test_ship_class_is_the_class_name_without_ship() -> void:
+	assert_true(DashboardModel.ship_class(SkiffShip.new()) == "Skiff", "got '%s'" % DashboardModel.ship_class(SkiffShip.new()))
+	assert_true(DashboardModel.ship_class(TugShip.new()) == "Tug", "a DeckShip subclass names itself")
+
+func test_ship_status_is_nominal_on_a_healthy_ship() -> void:
+	var status := DashboardModel.ship_status(ShipFixture.make())
+	assert_true(status.text == "NOMINAL" and status.level == Status.Level.NOMINAL, "got %s" % status)
+
+func test_ship_status_is_amber_when_a_breaker_trips() -> void:
+	var ship := ShipFixture.make()
+	ship.power.trip(Ship.light_breaker_id("cockpit"))
+	var status := DashboardModel.ship_status(ship)
+	assert_true(status.level == Status.Level.WARNING, "got %s" % status)
+
+func test_ship_status_is_red_when_a_room_vents() -> void:
+	var ship := ShipFixture.make()
+	ship.power.trip(Ship.light_breaker_id("cockpit"))
+	_vent_cargo(ship)
+	var status := DashboardModel.ship_status(ship)
+	assert_true(status.level == Status.Level.DANGER, "red beats amber, got %s" % status)

@@ -18,6 +18,11 @@ Pause/Play and Speed (real time, 1 min/s, 1 hour/s) buttons. Up and down recall 
 | Left-drag in the 3D view | Orbit the camera round the ship |
 | Mouse wheel in the 3D view | Zoom |
 | Click a room, or its name | Select it: its readings show in the ROOM panel and its breakers in the BREAKERS panel |
+| Connect, in the ship table | Same as `ships connect <ship name>` |
+| Disconnect, top right | Same as `disconnect` |
+
+Disconnected, the dashboard's place shows a table of the ships: name, class, status and a Connect button. The
+status is the ship's most serious current alarm, amber or red, or a green NOMINAL.
 
 ## Ships
 

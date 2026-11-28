@@ -235,7 +235,7 @@ The console starts disconnected. Disconnected, only these work; any other comman
 | Command | Effect |
 |---|---|
 | `ships list` | List the ships |
-| `ships connect <ship name>` | Connect to that ship. Its dashboard replaces "NO SHIP CONNECTED" |
+| `ships connect <ship name>` | Connect to that ship. Its dashboard replaces the ship table |
 | `help` | List these two |
 
 Connected, every command below except `help` goes to that ship, `help` is answered by the console and also lists `disconnect`, and `ships` commands say to disconnect first. `disconnect` drops the connection and the dashboard. It works even while the ship's computer reboots or is in FAULT, since the link is the console's, not the ship's, and the computer's refusals say so.
@@ -312,9 +312,9 @@ unknown command 'door shut'. Type 'help' for commands
 
 The sketch isn't to scale: the console takes the left 40% of the window, on a darker panel, and the dashboard the right 60%.
 
-- **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED", and the console says how to connect. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
+- **Disconnected:** the dashboard's place shows "NO SHIP CONNECTED" over the ship table, and the console says how to connect. The table has one row per ship: its name, its class (`Ring`, `Skiff`, `Tug`, `Freighter`, `Wheel`), its status and a Connect button. The status is the ship's most serious current alarm, as the clock bar would show it: amber if anything on the ship (a room reading, a tank, a system, a breaker) is amber and nothing is red, red if anything is red, and a green NOMINAL otherwise. It is live, like the dashboard. Connect does what typing `ships connect <ship name>` does, and the line echoes in the console. The clock bar is part of the dashboard, so it is gone too; Space still pauses and resumes every ship.
 - **Connecting:** the new dashboard draws the ship at once. If its computer is down, that first drawing stays under the overlay or STALE until the computer runs again.
-- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, and the most serious current alarm. Space toggles pause unless the command line has focus.
+- **Clock bar:** pause/play, speed (real time, 1 min/s, 1 hour/s), elapsed sim time, the most serious current alarm, and a Disconnect button in the top-right corner that does what typing `disconnect` does. Space toggles pause unless the command line has focus.
 - **3D view:** the connected ship, orthographic, under the clock bar and filling about half the dashboard's height. Each room is a see-through box tinted by its status, and the selected room's box is brighter. Each door and hatch is a panel on its wall, coloured by its state: closed, open, moving or without power. Each room's name is flat text at the room's centre that moves with the room and always faces the screen. A name that overlaps a higher-priority name is hidden until the view or the selection changes.
 - **View controls:** left-drag orbits the camera round the ship, the wheel zooms, and a click (press and release without dragging) selects the room under the cursor, or the room whose name is under it. Where rooms stand in front of one another, the nearest wins, and a room that holds the camera is not picked. While the computer reboots or is in FAULT the dashboard is frozen and clicks do nothing.
 - **Selection:** the first room of the ship is selected at start.
