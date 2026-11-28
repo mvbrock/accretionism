@@ -95,20 +95,22 @@ func test_ship_table_lists_each_ship_with_its_class() -> void:
 	var main := _disconnected_main()
 	var cells := main.ship_table.grid.get_children().map(
 			func(node: Node) -> String: return (node as Label).text if node is Label else "")
-	assert_true(cells.slice(4, 7) == ["kestrel", "ThreeRoom", "NOMINAL"], "kestrel's row, got %s" % [cells])
-	assert_true(cells.slice(8, 11) == ["wren", "FourRoom", "NOMINAL"], "wren's row, got %s" % [cells])
+	assert_true(cells.slice(4, 7) == ["kestrel", "ThreeRoom", "NORMAL"], "kestrel's row, got %s" % [cells])
+	assert_true(cells.slice(8, 11) == ["wren", "FourRoom", "NORMAL"], "wren's row, got %s" % [cells])
 
 
-func test_ship_table_status_turns_amber_then_red() -> void:
+func test_ship_table_status_turns_yellow_then_red() -> void:
 	var main := _disconnected_main()
 	var kestrel: Ship = main.fleet.ships.kestrel
 	kestrel.power.trip(Ship.light_breaker_id("cockpit"))
 	main.refresh()
 	var label := main.ship_table.status_label("kestrel")
-	assert_true(label.get_theme_color("font_color") == DashboardView.AMBER, "a tripped breaker is amber")
+	assert_true(label.get_theme_color("font_color") == DashboardView.YELLOW, "a tripped breaker is yellow")
+	assert_true(label.text == "WARNING", "got '%s'" % label.text)
 	_vent(kestrel.room("cargo"))
 	main.refresh()
-	assert_true(label.get_theme_color("font_color") == DashboardView.RED, "a vented room is red, text '%s'" % label.text)
+	assert_true(label.get_theme_color("font_color") == DashboardView.RED, "a vented room is red")
+	assert_true(label.text == "CRITICAL", "got '%s'" % label.text)
 	assert_true(main.ship_table.status_label("wren").get_theme_color("font_color") == DashboardView.GREEN, "wren stays green")
 
 
@@ -127,12 +129,13 @@ func test_disconnect_button_disconnects() -> void:
 	assert_true(main.console.scrollback.get_parsed_text().contains("> disconnect"), "the command echoes")
 
 
-func test_disconnect_button_waits_on_a_command_in_flight() -> void:
+func test_disconnect_button_works_with_a_command_in_flight() -> void:
 	var main := _main()
 	main.ship.transmission_s = 10.0
 	main.console.line_submitted.emit("door open hatch")
 	main.dashboard.disconnect_button.pressed.emit()
-	assert_true(main.ship != null, "still connected while the reply is out")
+	assert_true(main.ship == null, "disconnected at once")
+	assert_true(main.ship_table.visible, "the ship table is back")
 
 
 func test_every_ship_runs_while_disconnected() -> void:
@@ -584,7 +587,7 @@ func _listed_breakers(dashboard: DashboardView) -> Array[String]:
 	return listed
 
 
-func test_the_breakers_panel_lists_the_selected_rooms_breakers_then_the_systems() -> void:
+func test_the_breakers_panel_lists_only_the_selected_rooms_breakers() -> void:
 	var dashboard := DashboardView.new()
 	own(dashboard)
 	var wheel := WheelShip.new()
@@ -594,22 +597,32 @@ func test_the_breakers_panel_lists_the_selected_rooms_breakers_then_the_systems(
 	var want: Array[String] = ["light-a0"]
 	for door in wheel.doors_of("a0"):
 		want.append(door.id)
-	want.append_array(Ship.SYSTEM_BREAKER_IDS)
 	assert_true(_listed_breakers(dashboard) == want, "got %s, want %s" % [_listed_breakers(dashboard), want])
 	assert_true(DashboardModel.total_draw_text(wheel) == dashboard._total_label.text, "the total stays the whole ship's")
 
 
-func test_the_breakers_panel_lists_a_breaker_tripped_in_another_room() -> void:
+func test_the_breakers_panel_leaves_out_a_breaker_tripped_elsewhere() -> void:
 	var dashboard := DashboardView.new()
 	own(dashboard)
 	var wheel := WheelShip.new()
 	dashboard.show_ship(wheel)
 	dashboard.select_room("a0")
 	wheel.breaker_trip("light-c5")
+	wheel.breaker_trip("hvac")
 	dashboard.show_ship(wheel)
 	var listed := _listed_breakers(dashboard)
-	assert_true(listed.has("light-c5") and listed.back() == "light-c5", "the tripped breaker is listed last, got %s" % [listed])
-	assert_true(not listed.has("light-c6"), "a closed breaker elsewhere is not listed")
+	assert_true(not listed.has("light-c5") and not listed.has("hvac"), "got %s" % [listed])
+
+
+func test_breakers_sit_beside_the_room_in_one_border_then_systems_then_tanks() -> void:
+	var dashboard := DashboardView.new()
+	own(dashboard)
+	var top := dashboard.panels.get_children()
+	assert_true(top[0] is PanelContainer, "the bordered box comes first")
+	var boxed := top[0].get_child(0).get_children().map(func(column: Node) -> String: return (column.get_child(0) as Label).text)
+	var rest := top.slice(1).map(func(column: Node) -> String: return (column.get_child(0) as Label).text)
+	assert_true(boxed == ["ROOM", "BREAKERS"], "got %s" % [boxed])
+	assert_true(rest == ["SYSTEMS", "TANKS"], "got %s" % [rest])
 
 
 func test_selecting_another_room_changes_the_breakers_listed() -> void:

@@ -29,8 +29,12 @@ static func room_tile(ship: Ship, room_id: String) -> Dictionary:
 	}
 
 
+## The worst of the room's readings and its breakers: a tripped light or door breaker makes it a WARNING.
 static func room_level(ship: Ship, room_id: String) -> Status.Level:
-	return Status.worst(_readings(ship, ship.room(room_id)).map(func(reading: Dictionary) -> int: return reading.level))
+	var levels := _readings(ship, ship.room(room_id)).map(func(reading: Dictionary) -> int: return reading.level)
+	for id in listed_breakers(ship, room_id):
+		levels.append(breaker_level(ship, id))
+	return Status.worst(levels)
 
 
 static func system_text(ship: Ship, id: String) -> String:
@@ -45,16 +49,11 @@ static func system_text(ship: Ship, id: String) -> String:
 	return "RUN"
 
 
-## The breakers the BREAKERS panel lists: the room's light and its doors and hatches, then the
-## system breakers, then every other tripped breaker on the ship.
+## The room's breakers, which the BREAKERS panel lists: its light, then its doors and hatches.
 static func listed_breakers(ship: Ship, room_id: String) -> Array[String]:
 	var ids: Array[String] = [Ship.light_breaker_id(room_id)]
 	for opening_ in ship.doors_of(room_id):
 		ids.append(opening_.id)
-	ids.append_array(Ship.SYSTEM_BREAKER_IDS)
-	for id in ship.power.breaker_ids:
-		if ship.power.tripped[id] and not ids.has(id):
-			ids.append(id)
 	return ids
 
 
@@ -76,11 +75,11 @@ static func system_level(ship: Ship, id: String) -> Status.Level:
 	match ship.systems[id].state:
 		SystemUnit.State.FAULT, SystemUnit.State.NO_POWER:
 			return Status.Level.WARNING
-	return Status.Level.NOMINAL
+	return Status.Level.NORMAL
 
 
 static func breaker_level(ship: Ship, id: String) -> Status.Level:
-	return Status.Level.NOMINAL if ship.power.is_powered(id) else Status.Level.WARNING
+	return Status.Level.NORMAL if ship.power.is_powered(id) else Status.Level.WARNING
 
 
 static func clock_text(time_s: float) -> String:
@@ -97,28 +96,24 @@ static func ship_class(ship: Ship) -> String:
 	return (ship.get_script() as Script).get_global_name().trim_suffix("Ship")
 
 
-## The ship table's status: the top alarm, or NOMINAL when there is none. Its level is the worst
-## of every room, tank, system and breaker on the ship.
-static func ship_status(ship: Ship) -> Dictionary:
-	var alarm := top_alarm(ship)
-	if alarm.level == Status.Level.NOMINAL:
-		return {"text": "NOMINAL", "level": Status.Level.NOMINAL}
-	return alarm
+## The ship table's status: the worst level of every room, tank, system and breaker on the ship.
+static func ship_level(ship: Ship) -> Status.Level:
+	return top_alarm(ship).level
 
 
 static func top_alarm(ship: Ship) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	for room in ship.rooms:
 		if ship.exposed[room.id]:
-			candidates.append({"text": "%s EXPOSED" % room.id.to_upper(), "level": Status.Level.DANGER})
+			candidates.append({"text": "%s EXPOSED" % room.id.to_upper(), "level": Status.Level.CRITICAL})
 	for room in ship.rooms:
 		for reading in _readings(ship, room):
-			if reading.level != Status.Level.NOMINAL:
+			if reading.level != Status.Level.NORMAL:
 				candidates.append({"text": "%s %s %s" % [room.id.to_upper(), reading.name, reading.direction],
 						"level": reading.level})
 	for gas in Units.TANK_GASES:
 		var level := tank_level(ship, gas)
-		if level != Status.Level.NOMINAL:
+		if level != Status.Level.NORMAL:
 			candidates.append({"text": "%s TANK LOW" % gas_name(gas), "level": level})
 	for id in Ship.SYSTEM_IDS:
 		var state: SystemUnit.State = ship.systems[id].state
@@ -128,7 +123,7 @@ static func top_alarm(ship: Ship) -> Dictionary:
 	for id in ship.power.breaker_ids:
 		if not ship.power.is_powered(id):
 			candidates.append({"text": "BREAKER %s TRIPPED" % id, "level": Status.Level.WARNING})
-	var top := {"text": "", "level": Status.Level.NOMINAL}
+	var top := {"text": "", "level": Status.Level.NORMAL}
 	for candidate in candidates:
 		if candidate.level > top.level:
 			top = candidate
@@ -148,6 +143,6 @@ static func _readings(ship: Ship, room: Room) -> Array[Dictionary]:
 		readings.append({
 			"name": entry[0],
 			"level": Status.classify(entry[1], entry[2]),
-			"direction": "LOW" if entry[1] < float(entry[2].nominal[0]) else "HIGH",
+			"direction": "LOW" if entry[1] < float(entry[2].normal[0]) else "HIGH",
 		})
 	return readings

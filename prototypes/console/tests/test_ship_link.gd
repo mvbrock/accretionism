@@ -182,14 +182,38 @@ func test_a_second_command_is_refused_while_one_is_in_flight() -> void:
 	assert_true(link.run("light off cargo") == "waiting on 'door open hatch'; one command at a time", "busy during the downlink too")
 
 
-func test_disconnect_is_refused_in_flight() -> void:
+func test_disconnect_during_the_uplink_is_immediate_and_the_command_still_lands() -> void:
 	var link := _connected(10.0)
+	var kestrel := link.ship()
 	link.run("door open hatch")
 	var response := link.run("disconnect")
-	assert_true(response == "waiting on 'door open hatch'; disconnect when the reply is in", "got '%s'" % response)
-	assert_true(link.ship_name == "kestrel", "still connected")
-	link.advance(20.0, 0.1)
-	assert_true(link.run("disconnect") == "disconnected from kestrel", "free once the reply is in")
+	assert_true(response == "disconnected from kestrel; 'door open hatch' still lands, but its reply is lost", "got '%s'" % response)
+	assert_true(link.ship() == null and not link.in_flight(), "disconnected and idle at once")
+	assert_true(link.advance(9.0, 0.1).is_empty(), "nothing yet")
+	assert_true(kestrel.opening("hatch").state == Opening.State.CLOSED, "not landed yet")
+	assert_true(link.advance(11.0, 0.1).is_empty(), "the reply is dropped")
+	assert_true(kestrel.opening("hatch").state != Opening.State.CLOSED, "the command ran when it landed")
+
+
+func test_disconnect_during_the_downlink_drops_the_reply() -> void:
+	var link := _connected(10.0)
+	link.run("door open hatch")
+	link.advance(10.0, 0.1)
+	assert_true(link.run("disconnect") == "disconnected from kestrel; the reply to 'door open hatch' is lost", "says what is lost")
+	assert_true(link.advance(20.0, 0.1).is_empty(), "no reply prints")
+
+
+func test_a_new_ship_can_be_commanded_while_an_old_command_travels() -> void:
+	var link := _connected(10.0)
+	var kestrel := link.ship()
+	link.run("door open hatch")
+	link.run("disconnect")
+	link.run("ships connect wren")
+	link.ship().transmission_s = 10.0
+	assert_true(link.run("light off treehouse").begins_with("sent to wren"), "the link is free")
+	var replies := link.advance(20.0, 0.1)
+	assert_true(replies.size() == 1 and replies[0].begins_with("reply to 'light off treehouse'"), "only wren's reply prints, got %s" % [replies])
+	assert_true(kestrel.opening("hatch").state != Opening.State.CLOSED, "kestrel's command still ran")
 
 
 func test_console_commands_stay_instant_in_flight() -> void:

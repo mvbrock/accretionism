@@ -147,7 +147,7 @@ func _build_ui() -> void:
 	overlay.add_theme_stylebox_override("normal", _scrim())
 	stage.add_child(overlay)
 	stale_label = _make_banner(STALE_TEXT, Control.PRESET_CENTER_TOP, 19)
-	stale_label.add_theme_color_override("font_color", DashboardView.AMBER)
+	stale_label.add_theme_color_override("font_color", DashboardView.YELLOW)
 	stage.add_child(stale_label)
 
 

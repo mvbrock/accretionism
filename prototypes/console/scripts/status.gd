@@ -1,26 +1,33 @@
 class_name Status
 extends RefCounted
-## How worrying a reading is, judged against a band from the data file.
+## How worrying something is. NORMAL: everything works. WARNING: equipment is down, such as a
+## tripped breaker or a faulted system. DANGER: a change that could cause harm, such as a reading
+## outside its normal band. CRITICAL: death is imminent, such as a room open to vacuum.
 
-enum Level { NOMINAL, WARNING, DANGER }
+enum Level { NORMAL, WARNING, DANGER, CRITICAL }
 
 
-## `band` has `nominal` [low, high] (both inclusive) and `danger_below` /
-## `danger_above`, either of which may be null.
+## `band` has `normal` [low, high] (both inclusive) and `critical_below` / `critical_above`, either of
+## which may be null. Inside `normal` is NORMAL, past a critical limit CRITICAL, and between them DANGER.
 static func classify(value: float, band: Dictionary) -> Level:
-	var danger_below: Variant = band.get("danger_below")
-	var danger_above: Variant = band.get("danger_above")
-	if danger_below != null and value < float(danger_below):
-		return Level.DANGER
-	if danger_above != null and value > float(danger_above):
-		return Level.DANGER
-	if value >= float(band.nominal[0]) and value <= float(band.nominal[1]):
-		return Level.NOMINAL
-	return Level.WARNING
+	var critical_below: Variant = band.get("critical_below")
+	var critical_above: Variant = band.get("critical_above")
+	if critical_below != null and value < float(critical_below):
+		return Level.CRITICAL
+	if critical_above != null and value > float(critical_above):
+		return Level.CRITICAL
+	if value >= float(band.normal[0]) and value <= float(band.normal[1]):
+		return Level.NORMAL
+	return Level.DANGER
 
 
 static func worst(levels: Array) -> Level:
-	var result := Level.NOMINAL
+	var result := Level.NORMAL
 	for level in levels:
 		result = maxi(result, level) as Level
 	return result
+
+
+## The level's name as the ship table shows it, such as `WARNING`.
+static func level_name(level: Level) -> String:
+	return Level.keys()[level]

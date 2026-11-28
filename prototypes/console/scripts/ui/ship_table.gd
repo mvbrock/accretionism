@@ -1,8 +1,8 @@
 class_name ShipTable
 extends VBoxContainer
 ## What the dashboard side shows while the console is disconnected: one row per ship with its
-## name, class, status and a Connect button. The status is the ship's worst reading, amber or red,
-## and show_fleet() refreshes it.
+## name, class, status and a Connect button. The status is the worst level anywhere on the ship,
+## NORMAL, WARNING, DANGER or CRITICAL, and show_fleet() refreshes it.
 
 signal connect_pressed(ship_name: String)
 
@@ -47,10 +47,10 @@ func _init(fleet: Fleet) -> void:
 
 func show_fleet(fleet: Fleet) -> void:
 	for ship_name in _status_labels:
-		var status := DashboardModel.ship_status(fleet.ships[ship_name])
+		var level := DashboardModel.ship_level(fleet.ships[ship_name])
 		var label: Label = _status_labels[ship_name]
-		label.text = status.text
-		label.add_theme_color_override("font_color", DashboardView.status_color(status.level))
+		label.text = Status.level_name(level)
+		label.add_theme_color_override("font_color", DashboardView.status_color(level))
 
 
 func status_label(ship_name: String) -> Label:

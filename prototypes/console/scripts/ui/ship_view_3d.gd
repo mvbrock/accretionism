@@ -10,7 +10,8 @@ signal room_clicked(room_id: String)
 
 const DOOR_CLOSED := Color("c8ccd2")
 const DOOR_OPEN := Color("4fa3ff")
-const DOOR_MOVING := DashboardView.AMBER
+## Cyan, so a moving door is never read as a status colour.
+const DOOR_MOVING := Color("7fe0e0")
 const DOOR_UNPOWERED := Color("5a5d63")
 const FILL_ALPHA := 0.1
 const SELECTED_FILL_ALPHA := 0.3

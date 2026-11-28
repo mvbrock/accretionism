@@ -292,11 +292,11 @@ static func default_params() -> Dictionary:
 					"air_recycler_scrubbing": 800.0, "air_recycler_idle": 50.0, "computer": 150.0},
 		},
 		"status": {
-			"pressure_kpa": {"nominal": [95.0, 105.0], "danger_below": 70.0, "danger_above": null},
-			"o2_kpa": {"nominal": [19.0, 23.5], "danger_below": 16.0, "danger_above": 30.0},
-			"co2_kpa": {"nominal": [0.0, 0.5], "danger_below": null, "danger_above": 1.0},
-			"temperature_c": {"nominal": [18.0, 26.0], "danger_below": 10.0, "danger_above": 32.0},
-			"tank_percent": {"nominal": [25.0, 100.0], "danger_below": 5.0, "danger_above": null},
+			"pressure_kpa": {"normal": [95.0, 105.0], "critical_below": 70.0, "critical_above": null},
+			"o2_kpa": {"normal": [19.0, 23.5], "critical_below": 16.0, "critical_above": 30.0},
+			"co2_kpa": {"normal": [0.0, 0.5], "critical_below": null, "critical_above": 1.0},
+			"temperature_c": {"normal": [18.0, 26.0], "critical_below": 10.0, "critical_above": 32.0},
+			"tank_percent": {"normal": [25.0, 100.0], "critical_below": 5.0, "critical_above": null},
 		},
 	}
 
@@ -359,7 +359,7 @@ func set_opening(id: String, want_open: bool) -> Dictionary:
 			_close_doors_for_hatch(auto_closed, left_open)
 		elif hatch_passing:
 			onto_open_hatch = true
-			events.add(time_s, "%s: opened onto an open hatch" % id, EventLog.Level.WARNING)
+			events.add(time_s, "%s: opened onto an open hatch" % id, EventLog.Level.DANGER)
 	return {"result": result, "auto_closed": auto_closed, "left_open": left_open,
 			"onto_open_hatch": onto_open_hatch}
 
@@ -371,7 +371,7 @@ func _close_doors_for_hatch(auto_closed: Array[String], left_open: Array[String]
 		match door.command(false, power.is_powered(door.id)):
 			Opening.CommandResult.NO_POWER:
 				left_open.append(door.id)
-				events.add(time_s, "%s: no power, left open with hatch opening" % door.id, EventLog.Level.WARNING)
+				events.add(time_s, "%s: no power, left open with hatch opening" % door.id, EventLog.Level.DANGER)
 			Opening.CommandResult.STARTED:
 				auto_closed.append(door.id)
 				events.add(time_s, "%s: closing (hatch opening)" % door.id)
@@ -526,7 +526,7 @@ func _update_exposure() -> void:
 		if now[r.id] == exposed[r.id]:
 			continue
 		if now[r.id]:
-			events.add(time_s, "%s: exposed to vacuum" % r.id, EventLog.Level.DANGER)
+			events.add(time_s, "%s: exposed to vacuum" % r.id, EventLog.Level.CRITICAL)
 			if systems["pressure-control"].is_running():
 				events.add(time_s, "pressure-control: not feeding %s (exposed)" % r.id)
 		else:
@@ -565,7 +565,7 @@ func _log_empty_tanks() -> void:
 	for gas in tanks:
 		var is_empty: bool = tanks[gas].mol <= 0.0
 		if is_empty and not _tank_was_empty[gas]:
-			events.add(time_s, "%s tank empty" % gas, EventLog.Level.DANGER)
+			events.add(time_s, "%s tank empty" % gas, EventLog.Level.CRITICAL)
 		_tank_was_empty[gas] = is_empty
 
 
