@@ -1,6 +1,6 @@
 class_name DashboardView
 extends VBoxContainer
-## The ship at a glance: clock bar, room tiles, the selected room's readings,
+## The ship at a glance: clock bar, the ship in 3D, the selected room's readings,
 ## systems, breakers, tanks and the log. Built in code; show_ship() redraws it
 ## from a Ship.
 
@@ -13,24 +13,24 @@ const GREEN := Color("5fd068")
 const AMBER := Color("f0b030")
 const RED := Color("ee5050")
 const BAR_CELLS := 8
-const TILE_BORDER_PX := 2
-const SELECTED_TILE_BORDER_PX := 4
+## The height left after the clock bar is split in these shares between the 3D view, the panels
+## (which scroll when long) and the log, so the view keeps about half however long the panels are.
+const SHIP_VIEW_SHARE := 1.2
+const PANELS_SHARE := 0.8
+const LOG_SHARE := 0.5
 const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]
 
 var clock_bar: HBoxContainer
 var pause_button: Button
 var speed_button: Button
-var schematic: Control
+var ship_view: ShipView3D
 var panels: Control
 ## The id of the room the ROOM panel shows; "" until a ship is shown.
 var selected_room := ""
 var room_heading: Label
 var _clock_label: Label
 var _alarm_label: Label
-## room id -> {panel: PanelContainer, style: StyleBoxFlat}
-var _tiles := {}
 var _room_labels := {}
-var _opening_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
 var _tank_labels := {}
@@ -45,11 +45,19 @@ func _init() -> void:
 	clock_bar = _build_clock_bar()
 	add_child(clock_bar)
 	panels = _build_panels()
-	add_child(panels)
+	var panels_scroll := ScrollContainer.new()
+	panels_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panels_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	panels_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panels_scroll.size_flags_stretch_ratio = PANELS_SHARE
+	panels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panels_scroll.add_child(panels)
+	add_child(panels_scroll)
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
 	_log.scroll_following = true
 	_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_log.size_flags_stretch_ratio = LOG_SHARE
 	add_child(_log)
 
 
@@ -59,27 +67,24 @@ func show_clock(clock: SimClock) -> void:
 
 
 func show_ship(ship: Ship) -> void:
-	if _tiles.is_empty():
-		schematic = _build_schematic(ship)
-		add_child(schematic)
-		move_child(schematic, 1)
+	if ship_view == null:
+		ship_view = ShipView3D.new(ship)
+		ship_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		ship_view.size_flags_stretch_ratio = SHIP_VIEW_SHARE
+		ship_view.room_clicked.connect(func(room_id: String) -> void: room_clicked.emit(room_id))
+		add_child(ship_view)
+		move_child(ship_view, 1)
 		_build_breaker_labels(ship)
 		selected_room = ship.rooms[0].id
 	_clock_label.text = DashboardModel.clock_text(ship.time_s)
 	var alarm := DashboardModel.top_alarm(ship)
 	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
-	_alarm_label.add_theme_color_override("font_color", _color(alarm.level))
-	for room in ship.rooms:
-		_show_tile(room.id, DashboardModel.room_tile(ship, room.id))
+	_alarm_label.add_theme_color_override("font_color", status_color(alarm.level))
+	ship_view.show_ship(ship, selected_room)
 	_show_room_panel(DashboardModel.room_tile(ship, selected_room))
-	for id in _opening_labels:
-		_opening_labels[id].text = "%s\n%s" % [id, DashboardModel.opening_text(ship, id)]
 	for id in _system_labels:
 		_show_status(_system_labels[id], "%s  %s" % [id, DashboardModel.system_text(ship, id)], DashboardModel.system_level(ship, id))
-	for id in _breaker_labels:
-		var text := DashboardModel.breaker_text(ship, id)
-		_show_status(_breaker_labels[id], "%s  %s" % [id, text],
-				DashboardModel.breaker_level(ship, id))
+	_show_breakers(ship)
 	for gas in Units.TANK_GASES:
 		var percent := DashboardModel.tank_percent(ship, gas)
 		var filled := clampi(percent * BAR_CELLS / 100, 0, BAR_CELLS)
@@ -87,11 +92,6 @@ func show_ship(ship: Ship) -> void:
 				"░".repeat(BAR_CELLS - filled), percent], DashboardModel.tank_level(ship, gas))
 	_total_label.text = DashboardModel.total_draw_text(ship)
 	_show_log(ship)
-
-
-## The clickable tile of a room.
-func tile(room_id: String) -> PanelContainer:
-	return _tiles[room_id].panel
 
 
 ## One reading of the ROOM panel; `key` is pressure, temperature, o2, n2, co2, passengers or light.
@@ -126,61 +126,12 @@ func _clock_button(pressed_signal: Signal) -> Button:
 	return button
 
 
-## Each opening follows whichever of its rooms comes first in the room order.
-func _build_schematic(ship: Ship) -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	for room in ship.rooms:
-		row.add_child(_build_tile(room.id))
-		for opening in ship.openings:
-			if _first_room_id(ship, opening) == room.id:
-				row.add_child(_build_opening(opening.id))
-	return row
-
-
-## Whichever of the opening's rooms comes first in the ship's room order; the hatch's is its room.
-func _first_room_id(ship: Ship, opening: Opening) -> String:
-	var index_a := ship.rooms.find(ship.room(opening.room_a))
-	var index_b := ship.rooms.find(ship.room(opening.room_b))
-	if index_b == -1 or (index_a != -1 and index_a < index_b):
-		return opening.room_a
-	return opening.room_b
-
-
-func _build_tile(room_id: String) -> Control:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var label := Label.new()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	panel.add_child(label)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.25)
-	style.set_border_width_all(TILE_BORDER_PX)
-	style.set_content_margin_all(8)
-	panel.add_theme_stylebox_override("panel", style)
-	panel.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			room_clicked.emit(room_id))
-	_tiles[room_id] = {"panel": panel, "label": label, "style": style}
-	return panel
-
-
-## The ship's own breakers; the panel is empty until a ship is shown.
+## One label per breaker of the ship; _show_breakers lists some of them.
 func _build_breaker_labels(ship: Ship) -> void:
 	for id in ship.power.breaker_ids:
 		var label := Label.new()
 		_breaker_grid.add_child(label)
 		_breaker_labels[id] = label
-
-
-func _build_opening(id: String) -> Control:
-	var label := Label.new()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(90, 0)
-	_opening_labels[id] = label
-	return label
 
 
 func _build_panels() -> Control:
@@ -217,17 +168,20 @@ func _column(title: String, ids: Array[String], labels: Dictionary) -> VBoxConta
 	return column
 
 
-func _show_tile(room_id: String, tile: Dictionary) -> void:
-	var entry: Dictionary = _tiles[room_id]
-	entry.label.text = tile.title
-	entry.label.add_theme_color_override("font_color", _color(tile.level))
-	entry.style.border_color = _color(tile.level)
-	entry.style.set_border_width_all(SELECTED_TILE_BORDER_PX if room_id == selected_room else TILE_BORDER_PX)
+func _show_breakers(ship: Ship) -> void:
+	var listed := DashboardModel.listed_breakers(ship, selected_room)
+	for id in _breaker_labels:
+		_breaker_labels[id].visible = listed.has(id)
+	for i in listed.size():
+		var label: Label = _breaker_labels[listed[i]]
+		_breaker_grid.move_child(label, i)
+		_show_status(label, "%s  %s" % [listed[i], DashboardModel.breaker_text(ship, listed[i])],
+				DashboardModel.breaker_level(ship, listed[i]))
 
 
 func _show_room_panel(tile: Dictionary) -> void:
 	room_heading.text = tile.title
-	room_heading.add_theme_color_override("font_color", _color(tile.level))
+	room_heading.add_theme_color_override("font_color", status_color(tile.level))
 	_room_labels.pressure.text = tile.pressure
 	_room_labels.temperature.text = tile.temperature
 	_room_labels.o2.text = DashboardModel.gas_name("O2") + " " + tile.o2
@@ -239,7 +193,7 @@ func _show_room_panel(tile: Dictionary) -> void:
 
 func _show_status(label: Label, text: String, level: Status.Level) -> void:
 	label.text = text
-	label.add_theme_color_override("font_color", _color(level))
+	label.add_theme_color_override("font_color", status_color(level))
 
 
 func _show_log(ship: Ship) -> void:
@@ -263,7 +217,7 @@ func _log_color(level: EventLog.Level) -> Color:
 	return Color.WHITE
 
 
-func _color(level: Status.Level) -> Color:
+static func status_color(level: Status.Level) -> Color:
 	match level:
 		Status.Level.WARNING:
 			return AMBER

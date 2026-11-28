@@ -2,7 +2,7 @@ extends TestCase
 
 
 func _link() -> ShipLink:
-	return ShipLink.new(Fleet.load_dir(Main.SHIPS_DIR))
+	return ShipLink.new(ShipFixture.make_fleet())
 
 
 func _connected(transmission_s := 10.0) -> ShipLink:
@@ -22,6 +22,11 @@ func _round_trip(link: ShipLink, line: String) -> String:
 func test_ships_list() -> void:
 	var response := _link().run("ships list")
 	assert_true(response == "kestrel\nwren", "got '%s'" % response)
+
+
+func test_ships_list_of_the_standard_fleet_has_one_ship_per_line() -> void:
+	var response := ShipLink.new(Fleet.standard()).run("ships list")
+	assert_true(response == "ring\nskiff\ntug\nfreighter\nwheel", "got '%s'" % response)
 
 
 func test_connect_is_case_insensitive() -> void:

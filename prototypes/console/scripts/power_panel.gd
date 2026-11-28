@@ -51,7 +51,7 @@ func roll_random_trips(dt: float) -> Array[String]:
 	var chance := dt / _mean_time_between_trips_s
 	for id in breaker_ids:
 		var draw := _rng.randf()
-		if not tripped[id] and draw < chance:
+		if draw < chance and not tripped[id]:
 			tripped[id] = true
 			result.append(id)
 	return result

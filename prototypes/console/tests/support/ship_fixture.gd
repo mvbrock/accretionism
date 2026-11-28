@@ -1,34 +1,18 @@
 class_name ShipFixture
 extends RefCounted
-## Builds a Ship from the shipped `kestrel` data file for tests.
-
-const KESTREL_PATH := "res://data/ships/kestrel.json"
 
 
-## Loads kestrel with random trips off, deep-merges `overrides`
-## (Dictionaries merge, everything else replaces) and builds the ship.
+## A ThreeRoomShip with random trips off and `overrides` deep-merged into its params
+## (Dictionaries merge, everything else replaces).
 static func make(overrides := {}) -> Ship:
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(KESTREL_PATH))
-	data.breakers.mean_time_between_trips_h = 0
-	_merge(data, overrides)
-	return ShipLoader.from_dict(data)
+	return ThreeRoomShip.new(overrides)
 
 
-## The shipped data plus a 12 m3 `treehouse` with one passenger, joined to the cockpit by `d0`.
-## The treehouse is the first room and `d0` the first opening, so the rooms connect in order.
-## Random trips are off unless `mean_time_between_trips_h` is changed.
-static func four_room_data() -> Dictionary:
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(KESTREL_PATH))
-	data.breakers.mean_time_between_trips_h = 0
-	data.rooms.push_front({"id": "treehouse", "volume_m3": 12, "passengers": 1, "start": data.rooms[0].start.duplicate()})
-	data.openings.push_front({"id": "d0", "between": ["treehouse", "cockpit"], "travel_s": 2,
-			"conductance_m3s": 10})
-	return data
+static func make_four_room(overrides := {}) -> Ship:
+	return FourRoomShip.new(overrides)
 
 
-static func _merge(into: Dictionary, overrides: Dictionary) -> void:
-	for key in overrides:
-		if into.get(key) is Dictionary and overrides[key] is Dictionary:
-			_merge(into[key], overrides[key])
-		else:
-			into[key] = overrides[key]
+## A Fleet of two test ships for the tests of the link and the console, which need ships to
+## connect to but not any ship's shape: `kestrel` is a ThreeRoomShip and `wren` a FourRoomShip.
+static func make_fleet() -> Fleet:
+	return Fleet.new({"kestrel": make(), "wren": make_four_room()})

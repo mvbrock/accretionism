@@ -1,9 +1,7 @@
 extends TestCase
 
 func _ship(mean_trip_h := 0.0) -> Ship:
-	var data := ShipFixture.four_room_data()
-	data.breakers.mean_time_between_trips_h = mean_trip_h
-	return ShipLoader.from_dict(data)
+	return ShipFixture.make_four_room({"breakers": {"mean_time_between_trips_h": mean_trip_h}})
 
 func test_loads_with_a_breaker_per_room_light_and_opening() -> void:
 	var ship := _ship()
@@ -40,31 +38,3 @@ func _trips(ship: Ship) -> Array:
 		if entry.text.ends_with("breaker tripped"):
 			trips.append([entry.text, entry.time_s])
 	return trips
-
-func test_schematic_draws_rooms_and_doors_in_data_order() -> void:
-	var view := DashboardView.new()
-	own(view)
-	view.show_ship(_ship())
-	var order := _schematic_order(view)
-	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))
-
-func _schematic_order(view: DashboardView) -> Array[String]:
-	var order: Array[String] = []
-	for node in view.get_child(1).get_children():
-		order.append(node.text.split("\n")[0] if node is Label else _tile_title(view, node))
-	return order
-
-func _tile_title(view: DashboardView, tile: Node) -> String:
-	for room_id in ["treehouse", "cockpit", "main", "cargo"]:
-		if view.tile(room_id) == tile:
-			return room_id.to_upper()
-	return "?"
-
-func test_schematic_places_a_door_after_the_earlier_of_its_rooms() -> void:
-	var data := ShipFixture.four_room_data()
-	data.openings[0].between = ["cockpit", "treehouse"]
-	var view := DashboardView.new()
-	own(view)
-	view.show_ship(ShipLoader.from_dict(data))
-	var order := _schematic_order(view)
-	assert_true(order == ["TREEHOUSE", "d0", "COCKPIT", "d1", "MAIN", "d2", "CARGO", "hatch"], str(order))

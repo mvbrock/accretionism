@@ -10,7 +10,7 @@ func _check(ship: Ship, line: String, expected: String) -> void:
 	assert_true(actual == expected, "'%s' gave '%s', expected '%s'" % [line, actual, expected])
 
 func _four_room_ship() -> Ship:
-	return ShipLoader.from_dict(ShipFixture.four_room_data())
+	return ShipFixture.make_four_room()
 
 func test_four_room_ship_commands_work() -> void:
 	var ship := _four_room_ship()
