@@ -10,7 +10,10 @@ var depart_day: float
 var arrive_day: float
 var seats: int
 var booked := 0
+## Closed to planning.
 var blocked := false
+## The ship whose docking failure stops anyone getting off at this trip's arrival, or null.
+var docking_failure_on: Variant = null
 ## "service", "rescue" or "return".
 var kind: String
 

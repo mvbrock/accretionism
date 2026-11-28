@@ -17,8 +17,15 @@ func _is_on_cycler(party: Party) -> bool:
 	return party.aboard == null and party.place is Cycler
 
 
+## A sim warmed up with no incidents. With them, a docking failure can close every
+## flyby that would put parties on a cycler by day 0, so the tests that need someone
+## on a cycler then use this one.
+func _quiet_sim() -> Sim:
+	return Sim.new(true, false)
+
+
 func test_warmup_spreads_parties() -> void:
-	var sim := Sim.new()
+	var sim := _quiet_sim()
 	assert_near(sim.day, 0.0, 1e-9, "the warm-up ends at day 0")
 	var aboard_transport := sim.parties.filter(func(party: Party) -> bool: return party.aboard != null)
 	var on_cycler := sim.parties.filter(_is_on_cycler)
@@ -162,7 +169,7 @@ func test_arrival_then_new_journey() -> void:
 
 
 func test_held_on_cycler_retries() -> void:
-	var sim := Sim.new()
+	var sim := _quiet_sim()
 	var on_cycler := _party_where(sim, _is_on_cycler)
 	assert_true(on_cycler != null, "someone is on a cycler at day 0")
 	if on_cycler == null:
@@ -206,7 +213,7 @@ func test_progress_formula_and_held_dash() -> void:
 
 
 func test_location_name() -> void:
-	var sim := Sim.new()
+	var sim := _quiet_sim()
 	var aboard := _party_where(sim, func(party: Party) -> bool: return party.aboard != null)
 	assert_true(sim.location_name(aboard.members[0]) == aboard.aboard.ship.name, "aboard shows the ship")
 	var on_cycler := _party_where(sim, _is_on_cycler)

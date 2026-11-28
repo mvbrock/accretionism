@@ -79,6 +79,9 @@ const AGE_RISK_PER_YEAR := 0.02
 ## The chance an emergency is CRITICAL: the base, plus this for each year of age past the start year.
 const CRITICAL_BASE := 0.2
 const CRITICAL_PER_YEAR := 0.005
+## Daily chance, per ship, of each kind of malfunction.
+const DOCKING_FAILURE_CHANCE := 0.003
+const LIFE_SUPPORT_CHANCE := 0.002
 ## The range, in whole days, of a CRITICAL patient's stable period and of a hospital stay.
 const STABLE_DAYS := [5, 20]
 const HOSPITAL_STAY_DAYS := [7, 21]

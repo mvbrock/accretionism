@@ -25,6 +25,8 @@ var patient_condition := ""
 var stable_until := -INF
 var hospital_until := -INF
 var arrived_until := -INF
+## When a party kept aboard a cycler for lack of tender seats tries to leave again.
+var exit_retry_at := -INF
 
 
 func size() -> int:

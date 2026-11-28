@@ -9,7 +9,10 @@ enum Order { ARRIVAL, DEPARTURE, TIMER, DAILY }
 
 ## The parties' own timers, each a field of Party holding the day it fires.
 ## A fired timer is reset to -INF, so a timer still set is a hold on its party.
-const _PARTY_TIMERS: Array[String] = ["arrived_until", "stable_until", "hospital_until"]
+const _PARTY_TIMERS: Array[String] = ["arrived_until", "stable_until", "hospital_until", "exit_retry_at"]
+const _SHIP_TIMER := "docking_failure_until"
+## Ship timers sort after every party timer at the same instant.
+const _SHIP_TIMER_SEQ := 100000
 const _JOURNEY_START := "journey_start"
 
 var day := Config.WARMUP_START
@@ -21,6 +24,9 @@ var rng := RandomNumberGenerator.new()
 ## Called with `(sim, int_day)` once for each whole day crossed, after held
 ## parties retry their routes.
 var on_daily: Array[Callable] = []
+## Each ship under a docking failure, and the day the failure ends. A ship in it is
+## under a malfunction.
+var docking_failure_until := {}
 
 var _dispatcher: Dispatcher
 ## Schedule trips before this index have already departed.
@@ -48,6 +54,7 @@ func _init(warmup := true, incidents := true) -> void:
 			passengers_by_id[member.id] = member
 	if incidents:
 		Incidents.install(self)
+		Malfunctions.install(self)
 	if warmup:
 		advance_to(0.0)
 
@@ -65,10 +72,11 @@ func advance_to(new_day: float) -> void:
 
 
 ## Plans the party's route from where it is to `to`, ready to leave on `ready_day`,
-## and books it. With no route the party is HELD at its place.
-func replan(party: Party, to: Variant, ready_day: float, cause: String) -> void:
+## and books it, stopping at `via` on the way when it is given. With no route the
+## party is HELD at its place.
+func replan(party: Party, to: Variant, ready_day: float, cause: String, via: Variant = null) -> void:
 	party.destination = to
-	if _book_route(party, ready_day):
+	if _book_route(party, ready_day, via):
 		party.state = Party.State.TRAVELLING
 	else:
 		party.state = Party.State.HELD
@@ -95,10 +103,23 @@ func location_name(passenger: Passenger) -> String:
 	return Fleet.target_name(party.place)
 
 
-func _book_route(party: Party, ready_day: float) -> bool:
+## The trip `ship` is flying now, or null.
+func trip_in_flight(ship: Transport) -> Trip:
+	for trip in _in_flight:
+		if trip.ship == ship:
+			return trip
+	return null
+
+
+func _book_route(party: Party, ready_day: float, via: Variant = null) -> bool:
 	var current := party.aboard
 	Planner.cancel(party)
-	var trips := Planner.plan(schedule, party.place, ready_day, party.destination, party.size(), current)
+	party.exit_retry_at = -INF
+	var trips: Array[Trip]
+	if via == null:
+		trips = Planner.plan(schedule, party.place, ready_day, party.destination, party.size(), current)
+	else:
+		trips = Planner.plan_via(schedule, party.place, ready_day, via, party.destination, party.size(), current)
 	if trips.is_empty():
 		return false
 	if current != null:
@@ -139,17 +160,21 @@ func _timer_points(limit: float) -> Array[Dictionary]:
 	var points: Array[Dictionary] = []
 	for party in _not_started:
 		if party.journey_start <= limit:
-			points.append(_timer_point(party, _JOURNEY_START, party.journey_start, 0))
+			points.append(_timer_point(party, _JOURNEY_START, party.journey_start, party.id * 10))
 	for party in parties:
 		for i in _PARTY_TIMERS.size():
 			var fires_on: float = party.get(_PARTY_TIMERS[i])
 			if fires_on <= limit and fires_on > -INF:
-				points.append(_timer_point(party, _PARTY_TIMERS[i], fires_on, i + 1))
+				points.append(_timer_point(party, _PARTY_TIMERS[i], fires_on, party.id * 10 + i + 1))
+	for ship in docking_failure_until:
+		if docking_failure_until[ship] <= limit:
+			points.append(_timer_point(ship, _SHIP_TIMER, docking_failure_until[ship], _SHIP_TIMER_SEQ + fleet.ships().find(ship)))
 	return points
 
 
-func _timer_point(party: Party, kind: String, fires_on: float, kind_index: int) -> Dictionary:
-	return {t = maxf(fires_on, day), order = Order.TIMER, seq = party.id * 10 + kind_index, kind = kind, party = party}
+## A timer of `subject`, a party or a ship.
+func _timer_point(subject: Variant, kind: String, fires_on: float, seq: int) -> Dictionary:
+	return {t = maxf(fires_on, day), order = Order.TIMER, seq = seq, kind = kind, subject = subject}
 
 
 func _is_earlier(a: Dictionary, b: Dictionary) -> bool:
@@ -167,7 +192,7 @@ func _process(point: Dictionary) -> void:
 		Order.DEPARTURE:
 			_depart(point.trip, point.t)
 		Order.TIMER:
-			_fire_timer(point.party, point.kind, point.t)
+			_fire_timer(point.subject, point.kind, point.t)
 		Order.DAILY:
 			_new_day(point.t)
 
@@ -194,27 +219,32 @@ func _board(party: Party, trip: Trip, t: float) -> void:
 
 func _arrive(trip: Trip, t: float) -> void:
 	_in_flight.erase(trip)
+	var next := schedule.next_trip_of(trip.ship, t)
 	for party in parties:
 		if party.aboard != trip:
 			continue
 		# A tie counts as still stable: the stable_until timer fires right after and the party steps off.
-		if party.stable_until >= t and schedule.next_trip_of(trip.ship, t) != null:
-			_ride_on(party, trip, t)
+		if next != null and party.stable_until >= t:
+			_ride_on(party, trip, next, t, "Staying aboard %s past %s: %s's %s emergency" % [
+				trip.ship.name, Fleet.target_name(trip.to), party.patient.full_name, Incidents.in_sentence(party.patient_condition)],
+				"medical emergency")
+		elif next != null and trip.docking_failure_on != null:
+			Planner.cancel(party)
+			_ride_on(party, trip, next, t, Malfunctions.ride_on_text(trip), Malfunctions.CAUSE)
+			party.route = [next] as Array[Trip]
+			party.state = Party.State.TRAVELLING
 		else:
 			_disembark(party, trip, t)
 
 
-## A CRITICAL patient's party stays aboard and takes the ship's next trip, which
-## it books even when the trip has no seats left.
-func _ride_on(party: Party, trip: Trip, t: float) -> void:
-	var next := schedule.next_trip_of(trip.ship, t)
+## The party stays aboard and takes the ship's `next` trip, which it books even
+## when the trip has no seats left.
+func _ride_on(party: Party, trip: Trip, next: Trip, t: float, text: String, cause: String) -> void:
 	party.done_trips.append(trip)
 	party.place = trip.to
 	party.aboard = next
 	next.booked += party.size()
-	party.write(t, "Staying aboard %s past %s: %s's %s emergency" % [
-		trip.ship.name, Fleet.target_name(trip.to), party.patient.full_name, Incidents.in_sentence(party.patient_condition)],
-		"medical emergency")
+	party.write(t, text, cause)
 
 
 func _disembark(party: Party, trip: Trip, t: float) -> void:
@@ -224,11 +254,17 @@ func _disembark(party: Party, trip: Trip, t: float) -> void:
 	party.place = trip.to
 	if trip.to is Cycler:
 		party.write(t, "Boarded %s" % trip.to.name, "booked trip")
-	elif party.route.is_empty() and party.place == party.destination:
+	if not party.route.is_empty():
+		return
+	if is_same(party.place, party.destination):
 		if party.medical_return != null:
 			begin_hospital_stay(party)
 		else:
 			_mark_arrived(party, t)
+	elif party.state == Party.State.TRAVELLING:
+		# A forced exit ended the route short of the destination. A HELD party retries each day instead.
+		party.write(t, "Re-planned from %s to %s" % [Fleet.target_name(party.place), Fleet.target_name(party.destination)], "forced exit")
+		replan(party, party.destination, t, "forced exit")
 
 
 func _mark_arrived(party: Party, t: float) -> void:
@@ -267,13 +303,19 @@ func _discharge(party: Party, t: float) -> void:
 	party.patient_condition = ""
 
 
-func _fire_timer(party: Party, kind: String, t: float) -> void:
+func _fire_timer(subject: Variant, kind: String, t: float) -> void:
+	if kind == _SHIP_TIMER:
+		docking_failure_until.erase(subject)
+		return
+	var party: Party = subject
 	if kind == _JOURNEY_START:
 		_not_started.erase(party)
 		_set_off(party, party.destination, t, "first journey")
 		return
 	party.set(kind, -INF)
 	match kind:
+		"exit_retry_at":
+			Malfunctions.resume_exit(self, party)
 		"arrived_until":
 			_set_off(party, _other_body(party.place), t, "new journey")
 		"stable_until":
@@ -312,7 +354,7 @@ func _new_day(t: float) -> void:
 
 ## Whether the party is waiting on a timer that must run out before it retries a route.
 func _is_on_hold(party: Party, t: float) -> bool:
-	return party.stable_until > t or party.hospital_until > t
+	return party.stable_until > t or party.hospital_until > t or party.exit_retry_at > t
 
 
 func _retry_route(party: Party, t: float) -> void:

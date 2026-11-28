@@ -121,14 +121,8 @@ static func _stabilize(sim: Sim, party: Party) -> void:
 ## The body of Earth, the Moon and Mars the party reaches soonest. With no route
 ## to any of them it picks the first, so the party waits for a route to open.
 static func _nearest_hospital(sim: Sim, party: Party) -> Orbits.Body:
-	var nearest := _HOSPITAL_BODIES[0]
-	var earliest := INF
-	for body in _HOSPITAL_BODIES:
-		var trips := Planner.plan(sim.schedule, party.place, sim.day, body, party.size(), party.aboard)
-		if not trips.is_empty() and trips.back().arrive_day < earliest:
-			nearest = body
-			earliest = trips.back().arrive_day
-	return nearest
+	var nearest: Variant = Planner.soonest_body(sim.schedule, party.place, sim.day, party.size(), party.aboard, _HOSPITAL_BODIES)
+	return _HOSPITAL_BODIES[0] if nearest == null else nearest
 
 
 static func _is_at_body(party: Party) -> bool:
