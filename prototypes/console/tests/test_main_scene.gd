@@ -77,7 +77,7 @@ func test_connecting_to_a_faulted_ship_shows_its_last_readings() -> void:
 	assert_true(main.stale_label.visible, "STALE shows")
 	assert_true(main.dashboard.ship_view.room_box("cargo") != null, "the rooms are drawn")
 	assert_true(main.dashboard.room_heading.text == "COCKPIT", "the ROOM panel has a room, got '%s'" % main.dashboard.room_heading.text)
-	assert_true(main.dashboard._clock_label.text != "", "the clock shows")
+	assert_true(main.dashboard.clock_bar.clock_label.text != "", "the clock shows")
 
 
 func test_clicks_reach_the_new_dashboard_after_a_reconnect() -> void:
@@ -123,7 +123,7 @@ func test_connect_button_connects_to_that_ship() -> void:
 
 func test_disconnect_button_disconnects() -> void:
 	var main := _main()
-	main.dashboard.disconnect_button.pressed.emit()
+	main.dashboard.clock_bar.disconnect_button.pressed.emit()
 	assert_true(main.ship == null, "no ship is connected")
 	assert_true(main.ship_table.visible, "the ship table is back")
 	assert_true(main.console.scrollback.get_parsed_text().contains("> disconnect"), "the command echoes")
@@ -133,7 +133,7 @@ func test_disconnect_button_works_with_a_command_in_flight() -> void:
 	var main := _main()
 	main.ship.transmission_s = 10.0
 	main.console.line_submitted.emit("door open hatch")
-	main.dashboard.disconnect_button.pressed.emit()
+	main.dashboard.clock_bar.disconnect_button.pressed.emit()
 	assert_true(main.ship == null, "disconnected at once")
 	assert_true(main.ship_table.visible, "the ship table is back")
 
@@ -450,11 +450,27 @@ func test_space_pauses_only_without_console_focus() -> void:
 	assert_true(main.clock.paused, "Space without focus pauses")
 
 
+func test_clock_bar_shows_and_works_while_disconnected() -> void:
+	var main := _disconnected_main()
+	var bar := main.ship_table.clock_bar
+	assert_true(bar.is_visible_in_tree(), "the clock bar shows")
+	assert_true(not bar.disconnect_button.visible, "there is nothing to disconnect from")
+	var was_paused := main.clock.paused
+	bar.pause_pressed.emit()
+	assert_true(main.clock.paused != was_paused, "Pause/Play toggles the clock")
+	assert_true(bar.pause_button.text == ("Play" if main.clock.paused else "Pause"), "got '%s'" % bar.pause_button.text)
+	bar.speed_pressed.emit()
+	assert_true(main.clock.speed_index == 1 and bar.speed_button.text == "Speed: 1 min/s", "got '%s'" % bar.speed_button.text)
+	main.clock.paused = false
+	main._process(1.0)
+	assert_true(bar.clock_label.text == "T+00:01:00", "the sim time runs, got '%s'" % bar.clock_label.text)
+
+
 func test_clock_bar_buttons() -> void:
 	var main := _main()
-	main.dashboard.pause_pressed.emit()
+	main.dashboard.clock_bar.pause_pressed.emit()
 	assert_true(main.clock.paused, "Pause pauses")
-	main.dashboard.speed_pressed.emit()
+	main.dashboard.clock_bar.speed_pressed.emit()
 	assert_true(main.clock.speed_index == 1, "Speed steps to 1 min/s")
 	main.set_process(true)
 	main.clock.paused = false
@@ -511,11 +527,11 @@ func test_clock_bar_button_text() -> void:
 	main.clock.speed_index = 2
 	main.clock.paused = false
 	main.refresh()
-	assert_true(main.dashboard.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.pause_button.text)
-	assert_true(main.dashboard.speed_button.text == "Speed: 1 hour/s", "speed shows 1 hour/s, got '%s'" % main.dashboard.speed_button.text)
+	assert_true(main.dashboard.clock_bar.pause_button.text == "Pause", "playing offers Pause, got '%s'" % main.dashboard.clock_bar.pause_button.text)
+	assert_true(main.dashboard.clock_bar.speed_button.text == "Speed: 1 hour/s", "speed shows 1 hour/s, got '%s'" % main.dashboard.clock_bar.speed_button.text)
 	main.clock.paused = true
 	main.refresh()
-	assert_true(main.dashboard.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.pause_button.text)
+	assert_true(main.dashboard.clock_bar.pause_button.text == "Play", "paused offers Play, got '%s'" % main.dashboard.clock_bar.pause_button.text)
 
 
 func _status(main: Main) -> LinkStatus:
@@ -571,7 +587,7 @@ func test_the_view_keeps_half_the_dashboard_on_the_wheel() -> void:
 	own(dashboard)
 	dashboard.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	dashboard.size = Vector2(900, 900)
-	dashboard.show_clock(SimClock.new())
+	dashboard.clock_bar.show_clock(SimClock.new())
 	dashboard.show_ship(WheelShip.new())
 	await tree.process_frame
 	await tree.process_frame

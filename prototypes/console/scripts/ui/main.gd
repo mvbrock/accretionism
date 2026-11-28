@@ -79,11 +79,12 @@ func refresh() -> void:
 	console.link_status.show_link(link)
 	ship_table.visible = ship == null
 	if ship == null:
+		ship_table.clock_bar.show_clock(clock)
 		ship_table.show_fleet(fleet)
 		overlay.visible = false
 		stale_label.visible = false
 		return
-	dashboard.show_clock(clock)
+	dashboard.clock_bar.show_clock(clock)
 	match (ship.systems[Ship.COMPUTER_ID] as SystemUnit).state:
 		SystemUnit.State.BOOTING:
 			overlay.visible = true
@@ -142,6 +143,8 @@ func _build_ui() -> void:
 	ship_table = ShipTable.new(fleet)
 	ship_table.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	ship_table.connect_pressed.connect(func(ship_name: String) -> void: run_line("ships connect " + ship_name))
+	ship_table.clock_bar.pause_pressed.connect(_toggle_pause)
+	ship_table.clock_bar.speed_pressed.connect(_next_speed)
 	stage.add_child(ship_table)
 	overlay = _make_banner(OVERLAY_TEXT, Control.PRESET_FULL_RECT, 48)
 	overlay.add_theme_stylebox_override("normal", _scrim())
@@ -165,13 +168,13 @@ func _show_dashboard() -> void:
 	dashboard.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(dashboard)
 	stage.move_child(dashboard, 0)
-	dashboard.pause_pressed.connect(_toggle_pause)
-	dashboard.speed_pressed.connect(_next_speed)
-	dashboard.disconnect_pressed.connect(run_line.bind("disconnect"))
+	dashboard.clock_bar.pause_pressed.connect(_toggle_pause)
+	dashboard.clock_bar.speed_pressed.connect(_next_speed)
+	dashboard.clock_bar.disconnect_pressed.connect(run_line.bind("disconnect"))
 	dashboard.room_clicked.connect(_on_room_clicked)
 	dashboard.room_selected.connect(refresh)
 	dashboard.clock_bar.resized.connect(_leave_clock_bar_uncovered)
-	dashboard.show_clock(clock)
+	dashboard.clock_bar.show_clock(clock)
 	dashboard.show_ship(ship)
 
 

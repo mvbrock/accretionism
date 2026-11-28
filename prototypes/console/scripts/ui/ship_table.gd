@@ -1,6 +1,6 @@
 class_name ShipTable
 extends VBoxContainer
-## What the dashboard side shows while the console is disconnected: one row per ship with its
+## What the dashboard side shows while the console is disconnected: the clock bar, then one row per ship with its
 ## name, class, status and a Connect button. The status is the worst level anywhere on the ship,
 ## NORMAL, WARNING, DANGER or CRITICAL, and show_fleet() refreshes it.
 
@@ -10,6 +10,7 @@ const TITLE := "NO SHIP CONNECTED"
 const HEADINGS := ["SHIP", "CLASS", "STATUS", ""]
 const HEADING_COLOR := Color(1, 1, 1, 0.5)
 
+var clock_bar: ClockBar
 var grid: GridContainer
 var _status_labels := {}
 var _connect_buttons := {}
@@ -17,6 +18,8 @@ var _connect_buttons := {}
 
 func _init(fleet: Fleet) -> void:
 	add_theme_constant_override("separation", 16)
+	clock_bar = ClockBar.new(false)
+	add_child(clock_bar)
 	var title := Label.new()
 	title.text = TITLE
 	title.add_theme_font_size_override("font_size", 24)
@@ -46,6 +49,7 @@ func _init(fleet: Fleet) -> void:
 
 
 func show_fleet(fleet: Fleet) -> void:
+	clock_bar.show_time(fleet.time_s())
 	for ship_name in _status_labels:
 		var level := DashboardModel.ship_level(fleet.ships[ship_name])
 		var label: Label = _status_labels[ship_name]

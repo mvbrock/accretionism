@@ -4,11 +4,8 @@ extends VBoxContainer
 ## systems, breakers, tanks and the log. Built in code; show_ship() redraws it
 ## from a Ship.
 
-signal pause_pressed
-signal speed_pressed
 signal room_clicked(room_id: String)
 signal room_selected
-signal disconnect_pressed
 
 const GREEN := Color("5fd068")
 const YELLOW := Color("e8d84a")
@@ -23,17 +20,12 @@ const PANELS_SHARE := 0.8
 const LOG_SHARE := 0.5
 const ROOM_READING_KEYS := ["pressure", "temperature", "o2", "n2", "co2", "passengers", "light"]
 
-var clock_bar: HBoxContainer
-var pause_button: Button
-var speed_button: Button
-var disconnect_button: Button
+var clock_bar: ClockBar
 var ship_view: ShipView3D
 var panels: Control
 ## The id of the room the ROOM panel shows; "" until a ship is shown.
 var selected_room := ""
 var room_heading: Label
-var _clock_label: Label
-var _alarm_label: Label
 var _room_labels := {}
 var _system_labels := {}
 var _breaker_labels := {}
@@ -46,7 +38,7 @@ var _log_text := ""
 
 func _init() -> void:
 	add_theme_constant_override("separation", 10)
-	clock_bar = _build_clock_bar()
+	clock_bar = ClockBar.new(true)
 	add_child(clock_bar)
 	panels = _build_panels()
 	var panels_scroll := ScrollContainer.new()
@@ -65,11 +57,6 @@ func _init() -> void:
 	add_child(_log)
 
 
-func show_clock(clock: SimClock) -> void:
-	pause_button.text = "Play" if clock.paused else "Pause"
-	speed_button.text = "Speed: %s" % clock.speed_label()
-
-
 func show_ship(ship: Ship) -> void:
 	if ship_view == null:
 		ship_view = ShipView3D.new(ship)
@@ -80,10 +67,8 @@ func show_ship(ship: Ship) -> void:
 		move_child(ship_view, 1)
 		_build_breaker_labels(ship)
 		selected_room = ship.rooms[0].id
-	_clock_label.text = DashboardModel.clock_text(ship.time_s)
-	var alarm := DashboardModel.top_alarm(ship)
-	_alarm_label.text = "⚠ " + alarm.text if alarm.text != "" else ""
-	_alarm_label.add_theme_color_override("font_color", status_color(alarm.level))
+	clock_bar.show_time(ship.time_s)
+	clock_bar.show_alarm(DashboardModel.top_alarm(ship))
 	ship_view.show_ship(ship, selected_room)
 	_show_room_panel(DashboardModel.room_tile(ship, selected_room))
 	for id in _system_labels:
@@ -106,30 +91,6 @@ func room_label(key: String) -> Label:
 func select_room(room_id: String) -> void:
 	selected_room = room_id
 	room_selected.emit()
-
-
-func _build_clock_bar() -> HBoxContainer:
-	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 14)
-	pause_button = _clock_button(pause_pressed)
-	speed_button = _clock_button(speed_pressed)
-	_clock_label = Label.new()
-	_alarm_label = Label.new()
-	_alarm_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_alarm_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	disconnect_button = _clock_button(disconnect_pressed)
-	disconnect_button.text = "Disconnect"
-	for node in [pause_button, speed_button, _clock_label, _alarm_label, disconnect_button]:
-		bar.add_child(node)
-	return bar
-
-
-## No focus, so clicking it never takes the command line's focus away.
-func _clock_button(pressed_signal: Signal) -> Button:
-	var button := Button.new()
-	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(func() -> void: pressed_signal.emit())
-	return button
 
 
 ## One label per breaker of the ship; _show_breakers lists some of them.
