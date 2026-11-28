@@ -8,6 +8,7 @@ extends RefCounted
 
 const MEDICAL := "medical"
 const LIFE_SUPPORT := "life_support"
+const RESCUE_CAUSE := "rescue"
 
 ## The kinds of transport that wait docked to a cycler for a rescue.
 const _STANDING_SERVICES := ["standby", "spare"]
@@ -112,7 +113,8 @@ static func _serve(sim: Sim, cycler: Cycler) -> void:
 	var queue := _queue(sim, cycler)
 	var ship := _free_ship_at(sim, cycler)
 	while not queue.is_empty() and ship != null:
-		_fly_queue(sim, cycler, ship, queue)
+		if not _fly_queue(sim, cycler, ship, queue):
+			break
 		ship = _free_ship_at(sim, cycler)
 	_send_loans_home(sim, cycler)
 	if ship == null and not _cover_on_its_way_to(sim, cycler):
@@ -120,8 +122,9 @@ static func _serve(sim: Sim, cycler: Cycler) -> void:
 
 
 ## The ship departs now with the first party and as many after it as fit, for the
-## first party's target. It flies back after the turnaround.
-static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) -> void:
+## first party's target. It flies back after the turnaround. Returns false, leaving
+## the queue as it was, when no queued party fits the ship's seats.
+static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) -> bool:
 	var target: Orbits.Body = queue[0].target
 	var seats: int = Config.SEATS[sim.fleet.service_of[ship]]
 	var boarding: Array[Dictionary] = []
@@ -132,7 +135,7 @@ static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) 
 			seats_taken += entry.party.size()
 	if boarding.is_empty():
 		push_error("%s has too few seats for the party first in the %s queue" % [ship.name, cycler.name])
-		return
+		return false
 	var trip := sim.dispatcher.add_rescue(ship, cycler, target, sim.day)
 	sim.dispatcher.add_return(ship, cycler, trip.arrive_day + Config.RESCUE_TURNAROUND_DAYS)
 	for entry in boarding:
@@ -140,9 +143,12 @@ static func _fly_queue(sim: Sim, cycler: Cycler, ship: Transport, queue: Array) 
 		var party: Party = entry.party
 		party.awaiting_rescue = false
 		if entry.reason == MEDICAL:
+			if not is_same(party.destination, target):
+				party.write(sim.day, "Rescue heading to %s; re-routed there" % Fleet.target_name(target), RESCUE_CAUSE)
 			party.destination = target
 		party.state = Party.State.TRAVELLING
 		Planner.book(party, [trip] as Array[Trip])
+	return true
 
 
 ## Flies a transport to the cycler with no passengers, to stand by there.

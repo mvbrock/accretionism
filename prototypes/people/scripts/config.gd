@@ -84,8 +84,8 @@ const CRITICAL_PER_YEAR := 0.005
 ## Daily chance, per ship, of each kind of malfunction.
 const DOCKING_FAILURE_CHANCE := 0.003
 const LIFE_SUPPORT_CHANCE := 0.002
-## A cycler rolls docking failure only this many days before a flyby, so about
-## one flyby in ten is blocked.
+## A cycler rolls docking failure only this many days before a flyby, so
+## roughly one flyby in ten is blocked.
 const CYCLER_DOCKING_WINDOW_DAYS := 25.0
 ## The range, in whole days, of a CRITICAL patient's stable period and of a hospital stay.
 const STABLE_DAYS := [5, 20]

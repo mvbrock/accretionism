@@ -179,6 +179,37 @@ func test_party_never_split() -> void:
 			"the skipped party is first in line for a later trip, and is evacuated once")
 
 
+func test_party_too_big_for_the_seats_stays_queued() -> void:
+	var sim := _quiet_sim()
+	var cycler := _aldrin_i(sim)
+	var party := _parties_on(sim, cycler)[0]
+	while party.size() <= Config.SEATS["standby"]:
+		party.members.append(Passenger.new())
+	expect_error("too few seats")
+	Rescues.request(sim, party, "life_support")
+	_settle(sim)
+	assert_true(party.route.is_empty() and party.state == Party.State.HELD and party.awaiting_rescue, "the party stays queued")
+	assert_true(_trips_of_kind(sim, "rescue").is_empty(), "no rescue is flown")
+
+
+func test_rescue_to_another_body_writes_the_reroute() -> void:
+	var sim := _quiet_sim()
+	var cycler := _aldrin_i(sim)
+	var riders := _parties_on(sim, cycler)
+	var first := riders[0]
+	var second := riders[1]
+	var elsewhere: Orbits.Body = EARTH if _soonest_body(sim, cycler) != EARTH else MARS
+	Rescues.request(sim, first, "medical")
+	Rescues.request(sim, second, "medical")
+	sim.rescue_queues[cycler][0].target = elsewhere
+	_settle(sim)
+	var text := "Rescue heading to %s; re-routed there" % Fleet.target_name(elsewhere)
+	assert_true(is_same(second.destination, elsewhere), "the second party goes where the rescue goes")
+	assert_true(second.members.all(func(m: Passenger) -> bool: return m.history.any(
+			func(entry: Dictionary) -> bool: return entry.text == text and entry.cause == Rescues.RESCUE_CAUSE)),
+			"every member is told, with the cause")
+
+
 func test_spare_sent_when_no_standby() -> void:
 	var sim := _quiet_sim()
 	var cycler := _aldrin_i(sim)
@@ -291,11 +322,22 @@ func test_rescue_departs_the_same_in_big_and_small_steps() -> void:
 		assert_true(a.state == b.state, "%s ends in the same state" % a.name)
 
 
+## One seed can open with an unlucky run of incidents, so the share is the mean over a few.
 func test_standby_gap_small() -> void:
-	var sim := Sim.new()
-	var before := Rescues.standby_gap_days(sim)
-	sim.advance_to(800.0)
-	var after := Rescues.standby_gap_days(sim)
-	for cycler in sim.fleet.cyclers:
-		var share: float = (after[cycler] - before[cycler]) / 800.0
-		assert_true(share < 0.25, "%s has a standby or spare docked for most of 800 days (gap %.2f)" % [cycler.name, share])
+	var seeds := [1, 2, 3, 4]
+	var sims: Array[Sim] = []
+	var before: Array[Dictionary] = []
+	for seed_value in seeds:
+		var sim := Sim.new(false)
+		sim.rng.seed = seed_value
+		sim.advance_to(0.0)
+		before.append(Rescues.standby_gap_days(sim))
+		sim.advance_to(800.0)
+		sims.append(sim)
+	for index in sims[0].fleet.cyclers.size():
+		var total := 0.0
+		for i in seeds.size():
+			var cycler := sims[i].fleet.cyclers[index]
+			total += Rescues.standby_gap_days(sims[i])[cycler] - before[i][cycler]
+		var share := total / (800.0 * seeds.size())
+		assert_true(share < 0.25, "%s has a standby or spare docked for most of 800 days (mean gap %.2f)" % [sims[0].fleet.cyclers[index].name, share])

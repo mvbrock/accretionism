@@ -105,8 +105,12 @@ func test_book_then_cancel_restores_seats() -> void:
 		Planner.cancel(party)
 		assert_true(first.booked == 0 and second.booked == 0, "cancel frees them")
 		assert_true(party.route.is_empty(), "cancel clears the route")
+	Planner.book(party, [first, second])
 	Planner.cancel(party)
-	assert_true(first.booked == 0, "booked never goes negative")
+	var booked_after_first_cancel := [first.booked, second.booked]
+	Planner.cancel(party)
+	assert_true([first.booked, second.booked] == booked_after_first_cancel, "a second cancel changes nothing")
+	assert_true(first.booked >= 0 and second.booked >= 0, "booked never goes negative")
 
 
 func test_cancel_keeps_the_trip_the_party_is_aboard() -> void:
