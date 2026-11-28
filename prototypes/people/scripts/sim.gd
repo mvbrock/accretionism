@@ -113,7 +113,7 @@ func _book_route(party: Party, ready_day: float, via: Variant = null) -> bool:
 	Planner.cancel(party)
 	party.exit_retry_at = -INF
 	if via == null and _is_ordered_off(party):
-		via =Planner.soonest_body(schedule, party.place, ready_day, party.size(), null, Orbits.Body.values())
+		via = Planner.soonest_body(schedule, party.place, ready_day, party.size(), null, Orbits.Body.values())
 	var trips: Array[Trip]
 	if via == null:
 		trips = Planner.plan(schedule, party.place, ready_day, party.destination, party.size(), current)

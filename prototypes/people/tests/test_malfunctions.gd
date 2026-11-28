@@ -202,7 +202,7 @@ func test_life_support_cycler_plans_trip_off() -> void:
 	var other := _party_where(sim, func(p: Party) -> bool: return _is_on_cycler(p) and p.place != cycler and not p.route.is_empty())
 	var other_route := other.route.duplicate()
 	Malfunctions.strike(sim, cycler, Malfunctions.LIFE_SUPPORT_FAULT)
-	var group := Malfunctions.next_exit_group(sim, cycler)
+	var group := _next_exit_group(sim, cycler)
 	assert_true(not party.route.is_empty() and group.has(party.route[0]), "the party plans the next trip off the cycler")
 	assert_true(party.state == Party.State.TRAVELLING and party.route[0].from == cycler, "and is travelling")
 	assert_true(_count_entries_starting(party, "Life-support fault on %s; leaving via " % cycler.name) == 1, "the entry names the cycler and the body")
@@ -217,17 +217,22 @@ func _occupied_cyclers(sim: Sim) -> Array[Cycler]:
 	return cyclers
 
 
+func _next_exit_group(sim: Sim, cycler: Cycler) -> Array:
+	var groups := Malfunctions.exit_groups(sim, cycler)
+	return [] if groups.is_empty() else groups[0]
+
+
 func _would_ride_past(sim: Sim, riders: Array) -> Array:
 	return riders.filter(func(p: Party) -> bool:
 		var plain := Planner.plan(sim.schedule, p.place, sim.day, p.destination, p.size())
-		return plain.is_empty() or not Malfunctions.next_exit_group(sim, p.place).has(plain[0]))
+		return plain.is_empty() or not _next_exit_group(sim, p.place).has(plain[0]))
 
 
 func _assert_leaving_at_next_open_flyby(sim: Sim, riders: Array) -> void:
 	for party in riders:
 		var cycler: Cycler = party.place
 		assert_true(party.must_leave == cycler, "party %d is still ordered off %s" % [party.id, cycler.name])
-		assert_true(not party.route.is_empty() and Malfunctions.next_exit_group(sim, cycler).has(party.route[0]),
+		assert_true(not party.route.is_empty() and _next_exit_group(sim, cycler).has(party.route[0]),
 				"party %d leaves at the next open flyby" % party.id)
 
 
@@ -274,7 +279,7 @@ func test_tenders_full_stays_aboard() -> void:
 	var cycler: Cycler = party.place
 	var groups := Malfunctions.exit_groups(sim, cycler)
 	assert_true(groups.size() >= 3, "the schedule has three flybys of the cycler to test with")
-	_fill(Malfunctions.next_exit_group(sim, cycler))
+	_fill(_next_exit_group(sim, cycler))
 	var first_flyby := _flyby_of(cycler, groups[0][0])
 	var second_flyby := _flyby_of(cycler, groups[1][0])
 	var third_flyby := _flyby_of(cycler, groups[2][0])
@@ -286,7 +291,7 @@ func test_tenders_full_stays_aboard() -> void:
 	sim.advance_to(second_flyby - 0.01)
 	assert_true(_count_entries_starting(party, "Tenders full") == 1, "the entry is written once while waiting for the flyby")
 	assert_true(party.state == Party.State.HELD and party.route.is_empty(), "and it stays aboard")
-	_fill(Malfunctions.next_exit_group(sim, cycler))
+	_fill(_next_exit_group(sim, cycler))
 	sim.advance_to(second_flyby + 0.01)
 	assert_true(_count_entries_starting(party, "Tenders full") == 2, "the next flyby has no room either, and says so")
 	assert_near(party.exit_retry_at, third_flyby, 1e-6, "it tries again at the flyby after")

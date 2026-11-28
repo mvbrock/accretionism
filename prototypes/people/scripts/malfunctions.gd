@@ -50,11 +50,6 @@ static func exit_groups(sim: Sim, cycler: Cycler) -> Array[Array]:
 	return groups
 
 
-static func next_exit_group(sim: Sim, cycler: Cycler) -> Array:
-	var groups := exit_groups(sim, cycler)
-	return [] if groups.is_empty() else groups[0]
-
-
 static func resume_exit(sim: Sim, party: Party) -> void:
 	var is_waiting := party.state == Party.State.HELD and party.route.is_empty() and party.aboard == null \
 			and party.place is Cycler and not party.is_on_medical_route(sim.day) and not party.awaiting_rescue

@@ -11,6 +11,10 @@ func _planned() -> Dictionary:
 	return {fleet = fleet, schedule = schedule, dispatcher = dispatcher}
 
 
+func _trips_of(schedule: Schedule, ship: Transport) -> Array[Trip]:
+	return schedule.trips.filter(func(trip: Trip) -> bool: return trip.ship == ship)
+
+
 func _ships_of(fleet: Fleet, service: String) -> Array[Transport]:
 	var ships: Array[Transport] = []
 	for ship in fleet.transports:
@@ -26,19 +30,19 @@ func test_schedule_sorted_and_covers_window() -> void:
 		assert_true(trips[i - 1].depart_day <= trips[i].depart_day, "trip %d is out of order" % i)
 	for service in ["shuttle", "express", "tender"]:
 		for ship in _ships_of(planned.fleet, service):
-			var ship_trips: Array[Trip] = planned.schedule.trips_of(ship)
+			var ship_trips: Array[Trip] = _trips_of(planned.schedule, ship)
 			assert_true(not ship_trips.is_empty(), "%s has trips" % ship.name)
 			assert_true(ship_trips.back().depart_day <= WINDOW_END, "%s plans nothing past the window" % ship.name)
 			assert_true(ship_trips.back().arrive_day > WINDOW_END - 800.0 / 2.0, "%s is planned to the window's end" % ship.name)
 	for ship in planned.fleet.transports:
 		if planned.fleet.service_of[ship] in ["standby", "spare"]:
-			assert_true(planned.schedule.trips_of(ship).is_empty(), "%s has no service trips" % ship.name)
+			assert_true(_trips_of(planned.schedule, ship).is_empty(), "%s has no service trips" % ship.name)
 
 
 func test_shuttle_alternates_with_turnaround() -> void:
 	var planned := _planned()
 	var ship: Transport = planned.fleet.transports[0]
-	var ship_trips: Array[Trip] = planned.schedule.trips_of(ship)
+	var ship_trips: Array[Trip] = _trips_of(planned.schedule, ship)
 	assert_true(ship_trips[0].from == Orbits.Body.EARTH and ship_trips[0].to == Orbits.Body.MOON, "Earth ship goes to the Moon first")
 	assert_near(ship_trips[0].depart_day, Config.WARMUP_START, 1e-9, "first departure at the start")
 	for i in range(1, ship_trips.size()):
@@ -52,19 +56,19 @@ func test_shuttles_at_one_body_never_share_a_departure_time() -> void:
 	var planned := _planned()
 	var seen := {}
 	for ship in _ships_of(planned.fleet, "shuttle"):
-		for trip: Trip in planned.schedule.trips_of(ship):
+		for trip: Trip in _trips_of(planned.schedule, ship):
 			var key := "%s %s" % [Fleet.target_name(trip.from), snappedf(trip.depart_day, 1e-6)]
 			assert_true(not seen.has(key), "%s shares a departure from %s" % [ship.name, key])
 			seen[key] = true
 	var second_express: Transport = _ships_of(planned.fleet, "express")[1]
-	var first_days: float = planned.schedule.trips_of(second_express)[0].depart_day
+	var first_days: float = _trips_of(planned.schedule, second_express)[0].depart_day
 	assert_near(first_days, Config.WARMUP_START + Config.EXPRESS_STAGGER_DAYS, 1e-9, "second express is staggered")
 
 
 func test_express_alternates_earth_mars() -> void:
 	var planned := _planned()
 	for ship in _ships_of(planned.fleet, "express"):
-		var ship_trips: Array[Trip] = planned.schedule.trips_of(ship)
+		var ship_trips: Array[Trip] = _trips_of(planned.schedule, ship)
 		for i in ship_trips.size():
 			var trip := ship_trips[i]
 			assert_true(trip.seats == 8, "express seats")
@@ -106,7 +110,7 @@ func _some_tender_meets(planned: Dictionary, cycler: Cycler, planet: Orbits.Body
 func test_trips_chain() -> void:
 	var planned := _planned()
 	for ship in planned.fleet.transports:
-		var ship_trips: Array[Trip] = planned.schedule.trips_of(ship)
+		var ship_trips: Array[Trip] = _trips_of(planned.schedule, ship)
 		for i in range(1, ship_trips.size()):
 			assert_true(is_same(ship_trips[i].from, ship_trips[i - 1].to), "%s trip %d starts where the last ended" % [ship.name, i])
 			assert_true(ship_trips[i].depart_day >= ship_trips[i - 1].arrive_day, "%s trip %d waits for arrival" % [ship.name, i])
@@ -127,11 +131,3 @@ func test_extending_in_steps_matches_one_step() -> void:
 	for day in [-200.0, 0.0, 123.0, WINDOW_END]:
 		dispatcher.extend_to(day)
 	assert_true(schedule.trips.size() == planned.schedule.trips.size(), "same trip count")
-
-
-func test_trips_due_are_those_departing_in_the_range() -> void:
-	var planned := _planned()
-	var due: Array[Trip] = planned.dispatcher.transport_trips_due(0.0, 10.0)
-	assert_true(not due.is_empty(), "some trips depart in the first ten days")
-	for trip in due:
-		assert_true(trip.depart_day >= 0.0 and trip.depart_day < 10.0, "in range")

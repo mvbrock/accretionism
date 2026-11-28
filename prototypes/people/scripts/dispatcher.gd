@@ -65,11 +65,6 @@ func add_return(ship: Transport, home: Variant, t0: float) -> Trip:
 	return _plan_trip(ship, home, t0, "return")
 
 
-func transport_trips_due(day_from: float, day_to: float) -> Array[Trip]:
-	return _schedule.trips.filter(
-		func(trip: Trip) -> bool: return trip.depart_day >= day_from and trip.depart_day < day_to)
-
-
 func _plan_round_trips(ship: Transport, day: float, bodies: Array, turnaround: float) -> void:
 	var plan := _plans[ship]
 	while plan.free_day <= day:

@@ -321,9 +321,9 @@ func test_rescue_departs_the_same_in_big_and_small_steps() -> void:
 
 
 func _assert_standby_gap_small(sim: Sim, label: String) -> void:
-	var before := Rescues.standby_gap_days(sim)
+	var before := sim.standby_gap.duplicate()
 	sim.advance_to(800.0)
-	var after := Rescues.standby_gap_days(sim)
+	var after := sim.standby_gap
 	for cycler in sim.fleet.cyclers:
 		var share: float = (after[cycler] - before[cycler]) / 800.0
 		assert_true(share < 0.25, "%s: %s has a standby or spare docked for most of 800 days (gap %.2f)" % [label, cycler.name, share])

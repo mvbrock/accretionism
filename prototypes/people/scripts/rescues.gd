@@ -22,7 +22,7 @@ static func install(sim: Sim) -> void:
 static func request(sim: Sim, party: Party, reason: String) -> void:
 	assert(party.aboard == null and party.place is Cycler, "only a party on a cycler is rescued")
 	var cycler: Cycler = party.place
-	var target := nearest_body(sim, cycler, _bodies_for(reason))
+	var target := nearest_body(sim, cycler, Orbits.Body.values())
 	Planner.cancel(party)
 	party.exit_retry_at = -INF
 	party.state = Party.State.HELD
@@ -54,13 +54,6 @@ static func can_serve(sim: Sim, cycler: Cycler) -> bool:
 	return _free_ship_at(sim, cycler) != null or _cover_on_its_way_to(sim, cycler) or _cover_ship_for(sim, cycler) != null
 
 
-static func standby_gap_days(sim: Sim) -> Dictionary[Cycler, float]:
-	var gaps: Dictionary[Cycler, float] = {}
-	for cycler in sim.fleet.cyclers:
-		gaps[cycler] = sim.standby_gap.get(cycler, 0.0)
-	return gaps
-
-
 static func serve_due(sim: Sim) -> void:
 	var due := sim.rescues_due.duplicate()
 	sim.rescues_due.clear()
@@ -80,10 +73,6 @@ static func _count_gaps(sim: Sim, _day: int) -> void:
 		if not _is_standing_by_at(sim, cycler):
 			sim.standby_gap[cycler] += 1.0
 		_mark_due(sim, cycler)
-
-
-static func _bodies_for(reason: String) -> Array:
-	return Incidents.HOSPITAL_BODIES if reason == MEDICAL else Orbits.Body.values()
 
 
 static func _queue(sim: Sim, cycler: Cycler) -> Array:

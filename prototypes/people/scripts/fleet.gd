@@ -14,8 +14,7 @@ var service_of: Dictionary[Transport, String] = {}
 var home_of: Dictionary[Transport, Variant] = {}
 
 
-## Cyclers then transports, each in fleet order: the order of the table's rows
-## and of the ships' icon colors.
+## Cyclers then transports, in fleet order.
 func ships() -> Array:
 	return cyclers + transports
 
