@@ -1,0 +1,44 @@
+class_name Transport
+extends RefCounted
+## A dispatchable ship. Its location is one of three states; the leg fields
+## are meaningful only while IN_TRANSIT.
+
+enum State { AT_BODY, DOCKED, IN_TRANSIT }
+
+var name: String
+var state: State
+
+## Where it is parked (AT_BODY).
+var body: Orbits.Body
+## The cycler it is docked to (DOCKED).
+var host: Cycler
+
+## Name of the place the trip started from.
+var origin_name: String
+## Where it is headed: an Orbits.Body or a Cycler.
+var target: Variant
+## A local leg is flown in Earth's frame, so its two points are offsets from
+## Earth. Any other leg is flown in the Sun's frame and its points are absolute.
+var is_local_leg: bool
+var depart_point: Vector2
+var t0: float
+var t_arrive: float
+var intercept_point: Vector2
+## Length of the trip, a straight line.
+var leg_km: float
+
+
+static func parked_at(transport_name: String, parked_body: Orbits.Body) -> Transport:
+	var transport := Transport.new()
+	transport.name = transport_name
+	transport.state = State.AT_BODY
+	transport.body = parked_body
+	return transport
+
+
+static func docked_to(transport_name: String, docked_host: Cycler) -> Transport:
+	var transport := Transport.new()
+	transport.name = transport_name
+	transport.state = State.DOCKED
+	transport.host = docked_host
+	return transport

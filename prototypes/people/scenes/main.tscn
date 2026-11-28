@@ -1,0 +1,86 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/ui/passenger_table.gd" id="2_table"]
+[ext_resource type="Script" path="res://scripts/ui/detail_panel.gd" id="3_detail"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.06, 0.08, 1)
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 12.0
+offset_right = -12.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="ClockBar" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlayPause" type="Button" parent="Layout/ClockBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+focus_mode = 0
+text = "Pause"
+
+[node name="Speed" type="Button" parent="Layout/ClockBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+focus_mode = 0
+text = "Speed: 1 d/s"
+
+[node name="ClockLabel" type="Label" parent="Layout/ClockBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Day 0.0"
+
+[node name="Filter" type="LineEdit" parent="Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Filter"
+clear_button_enabled = true
+
+[node name="Body" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Table" type="Tree" parent="Layout/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 6
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+script = ExtResource("2_table")
+
+[node name="DetailPanel" type="VBoxContainer" parent="Layout/Body"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+script = ExtResource("3_detail")
